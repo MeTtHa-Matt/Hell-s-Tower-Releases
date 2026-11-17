@@ -31,6 +31,12 @@ static char monsterPath[512];
 static int trainingGame, trainingDifficulty = 8;
 
 static const char *trainingNames[] = {"BULLET HELL", "RINGS", "MIRROR", "SEALS"};
+static const ButtonSoundId trainingSounds[] = {
+    BUTTON_SOUND_TRAINING_BULLET_HELL,
+    BUTTON_SOUND_TRAINING_RINGS,
+    BUTTON_SOUND_TRAINING_MIRROR,
+    BUTTON_SOUND_TRAINING_SEALS,
+};
 
 typedef struct {
   const char *label;
@@ -162,9 +168,11 @@ static void StartSelectedTraining(void) {
   LoadingScreenStart(StartTraining);
 }
 
-static bool DrawTrainingOption(Rectangle box, const char *label, bool selected) {
+static bool DrawTrainingOption(Rectangle box, const char *label, bool selected,
+                               ButtonSoundId soundId) {
   bool hover = CheckCollisionPointRec(GetMousePosition(), box);
   float scale = GameUiScale();
+  UpdateButtonHoverSound(soundId, hover);
 
   Color fill = selected ? (Color){75, 58, 28, 255}
                         : hover ? (Color){42, 42, 50, 255}
@@ -173,21 +181,26 @@ static bool DrawTrainingOption(Rectangle box, const char *label, bool selected) 
   DrawRectangleRec(box, fill);
   DrawRectangleLinesEx(box, (selected ? 3 : 1) * scale, edge);
   int size = (int)(box.height * 0.48f);
+  while (size > 1 && MeasureText(label, size) > box.width - 12 * scale)
+    size--;
   DrawText(label, (int)(box.x + (box.width - MeasureText(label, size)) / 2),
            (int)(box.y + (box.height - size) / 2), size, RAYWHITE);
 
-  return hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+  bool clicked = hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+  if (clicked)
+    PlayButtonClickSound();
+  return clicked;
 }
 
 static void DrawTrainingSelection(void) {
   int sw = GetScreenWidth(), sh = GetScreenHeight();
   float scale = GameUiScale();
   float maxScale = scale > 1 ? scale : 1;
-  float panelW = sw * 0.9f, panelH = sh * 0.92f;
-  if (panelW > 640 * maxScale)
-    panelW = 640 * maxScale;
-  if (panelH > 620 * maxScale)
-    panelH = 620 * maxScale;
+  float panelW = sw * 0.9f, panelH = sh * 0.94f;
+  if (panelW > 760 * maxScale)
+    panelW = 760 * maxScale;
+  if (panelH > 820 * maxScale)
+    panelH = 820 * maxScale;
   Rectangle panel = {(sw - panelW) / 2, (sh - panelH) / 2, panelW, panelH};
   float rowX = panel.x + panelW * 0.12f;
   float rowW = panelW * 0.76f;
@@ -225,7 +238,8 @@ static void DrawTrainingSelection(void) {
 
   for (int i = 0; i < 4; i++) {
     Rectangle row = {rowX, rowY + i * (rowHeight + rowGap), rowW, rowHeight};
-    if (DrawTrainingOption(row, trainingNames[i], trainingGame == i))
+    if (DrawTrainingOption(row, trainingNames[i], trainingGame == i,
+                           trainingSounds[i]))
       trainingGame = i;
   }
 
@@ -234,9 +248,11 @@ static void DrawTrainingSelection(void) {
                       difficultyH};
   Rectangle harder = {panel.x + panelW * 0.70f, difficultyY, difficultyW,
                       difficultyH};
-  if (DrawTrainingOption(easier, "-", false) && trainingDifficulty > 1)
+  if (DrawTrainingOption(easier, "-", false, BUTTON_SOUND_TRAINING_EASIER) &&
+      trainingDifficulty > 1)
     trainingDifficulty--;
-  if (DrawTrainingOption(harder, "+", false) && trainingDifficulty < 10)
+  if (DrawTrainingOption(harder, "+", false, BUTTON_SOUND_TRAINING_HARDER) &&
+      trainingDifficulty < 10)
     trainingDifficulty++;
   char difficultyLabel[32];
   snprintf(difficultyLabel, sizeof(difficultyLabel), "DIFFICULTE : %d / 10",
@@ -250,13 +266,15 @@ static void DrawTrainingSelection(void) {
 
   Rectangle back = {rowX, buttonY, rowW * 0.44f, buttonH};
   Rectangle start = {rowX + rowW * 0.56f, buttonY, rowW * 0.44f, buttonH};
-  bool backClicked = DrawTrainingOption(back, "RETOUR", false);
-  bool startClicked = DrawTrainingOption(start, "LANCER", false);
+  bool backClicked =
+      DrawTrainingOption(back, "ANNULER", false, BUTTON_SOUND_TRAINING_CANCEL);
+  bool startClicked =
+      DrawTrainingOption(start, "JOUER", false, BUTTON_SOUND_TRAINING_START);
   if (backClicked) {
     trainingSelectionActive = false;
-    PlayButtonClickSound();
   } else if (startClicked || IsKeyPressed(KEY_ENTER)) {
-    PlayButtonClickSound();
+    if (!startClicked)
+      PlayButtonClickSound();
     StartSelectedTraining();
   }
 }
