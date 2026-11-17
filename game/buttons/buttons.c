@@ -1,5 +1,8 @@
 #include "buttons.h"
 #include "../game_zone/bullet hell/bullethell.h"
+#include "../game_zone/mirror/mirror.h"
+#include "../game_zone/rings/rings.h"
+#include "../game_zone/seals/seals.h"
 #include "../game_zone/zone.h"
 #include "../inventory/inventory.h"
 #include "../items/items.h"
@@ -14,7 +17,8 @@
 
 extern bool game_running;
 
-static bool menuRequested, subscreenActive, trainingActive, inventoryActive;
+static bool menuRequested, subscreenActive, trainingActive, trainingSelectionActive;
+static bool inventoryActive;
 static bool quitConfirmation, returnConfirmation, saveOk;
 static bool musicPausedForLoading;
 static float saveTime;
@@ -22,6 +26,9 @@ static Font font;
 static Texture2D bandTex;
 static Music music;
 static char monsterPath[512];
+static int trainingGame;
+
+static const char *trainingNames[] = {"BULLET HELL", "RINGS", "MIRROR", "SEALS"};
 
 typedef struct {
   const char *label;
@@ -100,16 +107,12 @@ static void StartTraining(void) {
   char song[512] = "";
   monsterPath[0] = '\0';
 
-  bool found;
-  if (GetRandomValue(0, 3) == 0) {
-    found = PickFile("assets/easter_eggs", ".png", monsterPath);
-    if (!found)
-      found = PickFile("assets/monsters", ".png", monsterPath);
-  } else {
+  bool found = GetRandomValue(1, 100) == 1 &&
+               PickFile("assets/easter_eggs", ".png", monsterPath);
+  if (!found)
     found = PickFile("assets/monsters", ".png", monsterPath);
-    if (!found)
-      found = PickFile("assets/easter_eggs", ".png", monsterPath);
-  }
+  if (!found)
+    found = PickFile("assets/easter_eggs", ".png", monsterPath);
   if (!found)
     TraceLog(LOG_WARNING, "Aucun PNG de monstre trouve");
 
@@ -122,13 +125,153 @@ static void StartTraining(void) {
     TraceLog(LOG_WARNING, "Aucune musique MP3 trouvee");
   }
 
-  BulletHellStart(GetRandomValue(1, 10));
+  int difficulty = GetRandomValue(8, 10);
+  switch (trainingGame) {
+  case 0:
+    BulletHellStart(difficulty);
+    break;
+  case 1:
+    RingsStart(difficulty);
+    break;
+  case 2:
+    MirrorStart(difficulty);
+    break;
+  default:
+    SealsStart(difficulty);
+    break;
+  }
+  trainingSelectionActive = false;
   trainingActive = true;
   subscreenActive = false;
 }
 
 static void Training(void) {
+  trainingGame = 0;
+  trainingSelectionActive = true;
+}
+
+static void StartSelectedTraining(void) {
+  trainingSelectionActive = false;
   LoadingScreenStart(StartTraining);
+}
+
+static bool DrawTrainingOption(Rectangle box, const char *label, bool selected) {
+  bool hover = CheckCollisionPointRec(GetMousePosition(), box);
+  if (hover)
+    selected = true;
+
+  Color fill = selected ? (Color){75, 58, 28, 255} : (Color){25, 25, 30, 245};
+  Color edge = selected ? (Color){245, 205, 95, 255} : RAYWHITE;
+  DrawRectangleRec(box, fill);
+  DrawRectangleLinesEx(box, selected ? 3 : 1, edge);
+  int size = (int)(box.height * 0.48f);
+  DrawText(label, (int)(box.x + (box.width - MeasureText(label, size)) / 2),
+           (int)(box.y + (box.height - size) / 2), size, RAYWHITE);
+
+  return hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+}
+
+static void DrawTrainingSelection(void) {
+  int sw = GetScreenWidth(), sh = GetScreenHeight();
+  float panelW = sw * 0.88f, panelH = sh * 0.86f;
+  if (panelW > 640)
+    panelW = 640;
+  if (panelH > 540)
+    panelH = 540;
+  Rectangle panel = {(sw - panelW) / 2, (sh - panelH) / 2, panelW, panelH};
+  float rowHeight = panelH * 0.105f;
+  float rowGap = panelH * 0.025f;
+  float rowX = panel.x + panelW * 0.12f;
+  float rowW = panelW * 0.76f;
+  float rowY = panel.y + panelH * 0.19f;
+
+  if (IsKeyPressed(KEY_ESCAPE)) {
+    trainingSelectionActive = false;
+    return;
+  }
+  if (IsKeyPressed(KEY_DOWN))
+    trainingGame = (trainingGame + 1) % 4;
+  if (IsKeyPressed(KEY_UP))
+    trainingGame = (trainingGame + 3) % 4;
+
+  DrawRectangle(0, 0, sw, sh, (Color){0, 0, 0, 185});
+  DrawRectangleRec(panel, (Color){15, 15, 20, 250});
+  DrawRectangleLinesEx(panel, 3, (Color){225, 185, 40, 255});
+
+  int titleSize = (int)(panelH * 0.075f);
+  DrawText("COMBAT D'ENTRAINEMENT",
+           (int)(panel.x + (panelW - MeasureText("COMBAT D'ENTRAINEMENT",
+                                                  titleSize)) / 2),
+           (int)(panel.y + panelH * 0.06f), titleSize,
+           (Color){245, 220, 130, 255});
+
+  for (int i = 0; i < 4; i++) {
+    Rectangle row = {rowX, rowY + i * (rowHeight + rowGap), rowW, rowHeight};
+    if (DrawTrainingOption(row, trainingNames[i], trainingGame == i))
+      trainingGame = i;
+  }
+
+  DrawText("Difficulte aleatoire : 8 a 10",
+           (int)(panel.x + panelW * 0.12f),
+           (int)(panel.y + panelH * 0.70f), (int)(panelH * 0.04f),
+           (Color){190, 190, 200, 255});
+
+  float buttonY = panel.y + panelH * 0.76f;
+  float buttonH = panelH * 0.10f;
+  Rectangle back = {rowX, buttonY, rowW * 0.44f, buttonH};
+  Rectangle start = {rowX + rowW * 0.56f, buttonY, rowW * 0.44f, buttonH};
+  bool backClicked = DrawTrainingOption(back, "RETOUR", false);
+  bool startClicked = DrawTrainingOption(start, "LANCER", true);
+  if (backClicked) {
+    trainingSelectionActive = false;
+    PlayButtonClickSound();
+  } else if (startClicked || IsKeyPressed(KEY_ENTER)) {
+    PlayButtonClickSound();
+    StartSelectedTraining();
+  }
+}
+
+static void UpdateTrainingGame(Rectangle zone) {
+  switch (trainingGame) {
+  case 0:
+    BulletHellUpdate(zone);
+    break;
+  case 1:
+    RingsUpdate(zone);
+    break;
+  case 2:
+    MirrorUpdate(zone);
+    break;
+  default:
+    SealsUpdate(zone);
+    break;
+  }
+}
+
+static int TrainingDamageCount(void) {
+  switch (trainingGame) {
+  case 0:
+    return BulletHellDamageCount();
+  case 1:
+    return RingsDamageCount();
+  case 2:
+    return MirrorDamageCount();
+  default:
+    return SealsDamageCount();
+  }
+}
+
+static bool TrainingFinished(void) {
+  switch (trainingGame) {
+  case 0:
+    return BulletHellState() == HELL_OFF;
+  case 1:
+    return RingsState() == RINGS_OFF;
+  case 2:
+    return MirrorState() == MIRROR_OFF;
+  default:
+    return SealsState() == SEALS_OFF;
+  }
 }
 
 static Button buttons[6] = {
@@ -243,13 +386,15 @@ void DrawGameButtons(bool acceptInput) {
     SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
   }
 
-  if (trainingActive) {
+  if (trainingSelectionActive) {
+    DrawTrainingSelection();
+  } else if (trainingActive) {
     const char *monster = NULL;
     if (monsterPath[0])
       monster = monsterPath;
-    DrawGameZone(BulletHellUpdate, BulletHellDamageCount, monster);
+    DrawGameZone(UpdateTrainingGame, TrainingDamageCount, monster);
 
-    if (BulletHellState() == HELL_OFF && !LoadingScreenActive())
+    if (TrainingFinished() && !LoadingScreenActive())
       LoadingScreenStart(ResetGameButtons);
   } else if (subscreenActive) {
     Tower();
@@ -316,6 +461,7 @@ void ResetGameButtons(void) {
   menuRequested = false;
   subscreenActive = false;
   trainingActive = false;
+  trainingSelectionActive = false;
   inventoryActive = false;
   quitConfirmation = false;
   returnConfirmation = false;
