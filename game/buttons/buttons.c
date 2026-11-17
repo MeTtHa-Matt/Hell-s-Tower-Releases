@@ -9,6 +9,7 @@
 #include "../items/items.h"
 #include "../pause_menu/pause_menu.h"
 #include "../tower.h"
+#include "../ui_scale.h"
 #include "../../loading_screen/loading_screen.h"
 #include "button_sounds.h"
 #include "raylib.h"
@@ -163,13 +164,14 @@ static void StartSelectedTraining(void) {
 
 static bool DrawTrainingOption(Rectangle box, const char *label, bool selected) {
   bool hover = CheckCollisionPointRec(GetMousePosition(), box);
+  float scale = GameUiScale();
 
   Color fill = selected ? (Color){75, 58, 28, 255}
                         : hover ? (Color){42, 42, 50, 255}
                                 : (Color){25, 25, 30, 245};
   Color edge = selected ? (Color){245, 205, 95, 255} : RAYWHITE;
   DrawRectangleRec(box, fill);
-  DrawRectangleLinesEx(box, selected ? 3 : 1, edge);
+  DrawRectangleLinesEx(box, (selected ? 3 : 1) * scale, edge);
   int size = (int)(box.height * 0.48f);
   DrawText(label, (int)(box.x + (box.width - MeasureText(label, size)) / 2),
            (int)(box.y + (box.height - size) / 2), size, RAYWHITE);
@@ -179,11 +181,13 @@ static bool DrawTrainingOption(Rectangle box, const char *label, bool selected) 
 
 static void DrawTrainingSelection(void) {
   int sw = GetScreenWidth(), sh = GetScreenHeight();
+  float scale = GameUiScale();
+  float maxScale = scale > 1 ? scale : 1;
   float panelW = sw * 0.88f, panelH = sh * 0.86f;
-  if (panelW > 640)
-    panelW = 640;
-  if (panelH > 540)
-    panelH = 540;
+  if (panelW > 640 * maxScale)
+    panelW = 640 * maxScale;
+  if (panelH > 540 * maxScale)
+    panelH = 540 * maxScale;
   Rectangle panel = {(sw - panelW) / 2, (sh - panelH) / 2, panelW, panelH};
   float rowHeight = panelH * 0.105f;
   float rowGap = panelH * 0.025f;
@@ -206,7 +210,7 @@ static void DrawTrainingSelection(void) {
 
   DrawRectangle(0, 0, sw, sh, (Color){0, 0, 0, 185});
   DrawRectangleRec(panel, (Color){15, 15, 20, 250});
-  DrawRectangleLinesEx(panel, 3, (Color){225, 185, 40, 255});
+  DrawRectangleLinesEx(panel, 3 * scale, (Color){225, 185, 40, 255});
 
   int titleSize = (int)(panelH * 0.075f);
   DrawText("COMBAT D'ENTRAINEMENT",
@@ -390,9 +394,9 @@ void DrawGameSaveAlert(void) {
     accent = (Color){150, 220, 160, 255};
   }
 
-  int size = (int)(h * 0.27f);
+  int size = GameUiPixels(20);
   DrawRectangleRec(box, (Color){18, 18, 24, 235});
-  DrawRectangleLinesEx(box, 2, accent);
+  DrawRectangleLinesEx(box, 2 * GameUiScale(), accent);
 
   int textX = (int)(box.x + (box.width - MeasureText(message, size)) / 2);
   int textY = (int)(box.y + (h - size) / 2);

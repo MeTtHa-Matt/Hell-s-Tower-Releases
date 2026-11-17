@@ -6,6 +6,7 @@
 #include "../game/buttons/buttons.h"
 #include "../game/buttons/button_sounds.h"
 #include "../game/tower.h"
+#include "../game/ui_scale.h"
 #include "../loading_screen/loading_screen.h"
 #include "raylib.h"
 #include "title/title.h"
@@ -173,7 +174,8 @@ static void DrawCustomCursor(void) {
     return;
 
   Vector2 mouse = GetMousePosition();
-  float width = 84, height = width * cursorTexture.height / cursorTexture.width;
+  float width = 84 * GameUiScale();
+  float height = width * cursorTexture.height / cursorTexture.width;
 
   Rectangle source = {0, 0, (float)cursorTexture.width, (float)cursorTexture.height};
   Rectangle dest = {mouse.x - width * 420 / 1254, mouse.y - height * 270 / 1254,

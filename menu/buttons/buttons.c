@@ -1,4 +1,5 @@
 #include "buttons.h"
+#include "../../game/ui_scale.h"
 #include "../../game/buttons/button_sounds.h"
 #include "../../loading_screen/loading_screen.h"
 #include <raylib.h>
@@ -7,11 +8,12 @@
 static bool startPlayingRequested;
 
 static bool DrawHomeButton(const char *label, Rectangle r, ButtonSoundId soundId) {
+  float scale = GameUiScale();
   bool hover = CheckCollisionPointRec(GetMousePosition(), r);
   bool enabled = !LoadingScreenActive();
   UpdateButtonHoverSound(soundId, hover && enabled);
   if (hover)
-    r.x += 10;
+    r.x += 10 * scale;
 
   Color gold = {200, 170, 110, 255};
   Color bg = {15, 15, 18, 220};
@@ -23,9 +25,11 @@ static bool DrawHomeButton(const char *label, Rectangle r, ButtonSoundId soundId
   }
 
   DrawRectangleRec(r, bg);
-  DrawRectangleLinesEx(r, 1, gold);
+  DrawRectangleLinesEx(r, scale, gold);
   if (hover)
-    DrawRectangle((int)r.x + 12, (int)(r.y + r.height / 2 - 4), 8, 8, gold);
+    DrawRectangle((int)r.x + GameUiPixels(12),
+                   (int)(r.y + r.height / 2 - GameUiPixels(4)),
+                   GameUiPixels(8), GameUiPixels(8), gold);
 
   int size = (int)r.height * 2 / 3;
   int textX = (int)(r.x + (r.width - MeasureText(label, size)) / 2);

@@ -132,7 +132,16 @@ void UpdateAndDrawMenuBackground(void) {
 
   int sw = GetScreenWidth();
   int sh = GetScreenHeight();
+  float screenAspect = (float)sw / sh;
+  float textureAspect = (float)tex.width / tex.height;
   Rectangle source = {0, 0, (float)tex.width, (float)tex.height};
+  if (textureAspect > screenAspect) {
+    source.width = tex.height * screenAspect;
+    source.x = (tex.width - source.width) / 2;
+  } else {
+    source.height = tex.width / screenAspect;
+    source.y = (tex.height - source.height) / 2;
+  }
   Rectangle dest = {0, 0, (float)sw, (float)sh};
   DrawTexturePro(tex, source, dest, (Vector2){0, 0}, 0, WHITE);
   DrawRectangle(0, 0, sw, sh, (Color){0, 0, 0, 90});

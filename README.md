@@ -2,6 +2,8 @@
 
 Jeu en C avec [raylib](https://www.raylib.com/). Le joueur arrive dans une zone de paix, puis monte une tour étage par étage. Chaque étage est un mini-jeu à gagner, et tous les 10 étages il y a un boss.
 
+Les interfaces adaptent leur taille à la résolution de l'écran. Sigrid ne réagit au clic que sur les pixels visibles de son sprite.
+
 Ce README explique comment les fichiers s'organisent et comment utiliser les fonctions principales.
 
 ## Sommaire
@@ -264,7 +266,7 @@ if (IsChatboxFinished(dialogues[1])) {
 
 | Fonction | Rôle |
 |---|---|
-| `monster(image, "middle", hoverEnabled)` | Dessine le personnage animé; si `hoverEnabled` vaut `true`, son image change au survol et la fonction renvoie `true` au clic. |
+| `monster(image, "middle", hoverEnabled)` | Dessine le personnage animé; si `hoverEnabled` vaut `true`, son image change au survol des pixels visibles et la fonction renvoie `true` au clic. |
 | `UnloadMonster()` | Libère la texture. |
 
 ### Menu pause (`pause_menu.h`)

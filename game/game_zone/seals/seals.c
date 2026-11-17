@@ -1,5 +1,6 @@
 #include "seals.h"
 #include "../../items/functionnal/functionnal.h"
+#include "../../ui_scale.h"
 #include "raylib.h"
 #include <math.h>
 #include <string.h>
@@ -52,8 +53,9 @@ static Vector2 Center(Rectangle a) {
 }
 
 static void DrawCentered(Rectangle a, const char *text, int size, float y, Color color) {
-  int x = (int)(a.x + (a.width - MeasureText(text, size)) / 2);
-  DrawText(text, x, (int)y, size, color);
+  int fontSize = GameUiPixels(size);
+  int x = (int)(a.x + (a.width - MeasureText(text, fontSize)) / 2);
+  DrawText(text, x, (int)y, fontSize, color);
 }
 
 // Temps d'avertissement avant qu'un danger devienne actif.
@@ -329,6 +331,8 @@ static void DrawHeart(Vector2 c, float size) {
 }
 
 static void Draw(Rectangle a, float k) {
+  float ui = GameUiScale();
+  int hudSize = GameUiPixels(20);
   BeginScissorMode((int)a.x, (int)a.y, (int)a.width, (int)a.height);
 
   if (sealTex.id != 0) {
@@ -349,27 +353,34 @@ static void Draw(Rectangle a, float k) {
   EndScissorMode();
 
   for (int i = 0; i < lives; i++)
-    DrawHeart((Vector2){a.x + 16 + i * 28, a.y + 16}, 20);
+    DrawHeart((Vector2){a.x + (16 + i * 28) * ui, a.y + 16 * ui}, 20 * ui);
 
-  DrawCentered(a, TextFormat("SCEAUX %d/%d", sealed, GOAL), 20, a.y + 6, GOLD);
+  DrawCentered(a, TextFormat("SCEAUX %d/%d", sealed, GOAL), 20,
+               a.y + GameUiPixels(6), GOLD);
 
   float shownTime = timeLeft;
   if (shownTime < 0)
     shownTime = 0;
   const char *timer = TextFormat("%.0f", shownTime);
-  DrawText(timer, (int)(a.x + a.width) - MeasureText(timer, 20) - 10, (int)a.y + 6, 20, WHITE);
+  DrawText(timer, (int)(a.x + a.width) - MeasureText(timer, hudSize) -
+                      GameUiPixels(10),
+           (int)a.y + GameUiPixels(6), hudSize, WHITE);
 
   Color dashColor = RAYWHITE;
   if (dashCooldown > 0)
     dashColor = GRAY;
-  DrawText("ESPACE : ESQUIVE", (int)a.x + 10, (int)(a.y + a.height - 24), 16, dashColor);
+  DrawText("ESPACE : ESQUIVE", (int)a.x + GameUiPixels(10),
+           (int)(a.y + a.height - GameUiPixels(24)), GameUiPixels(16),
+           dashColor);
 
   if (state != SEALS_PLAYING) {
     const char *title = "GAME OVER";
     if (state == SEALS_WON)
       title = "VICTOIRE";
-    DrawCentered(a, title, 40, a.y + a.height / 2 - 20, WHITE);
-    DrawCentered(a, "ENTREE pour continuer", 20, a.y + a.height / 2 + 20, GRAY);
+    DrawCentered(a, title, 40,
+                 a.y + a.height / 2 - GameUiPixels(20), WHITE);
+    DrawCentered(a, "ENTREE pour continuer", 20,
+                 a.y + a.height / 2 + GameUiPixels(20), GRAY);
   }
 }
 

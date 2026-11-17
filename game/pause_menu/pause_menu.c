@@ -1,9 +1,11 @@
 #include "pause_menu.h"
 #include "../buttons/button_sounds.h"
+#include "../ui_scale.h"
 #include "raylib.h"
 
 static bool DrawPauseButton(const char *label, Rectangle r, float alpha,
                             bool enabled, ButtonSoundId soundId) {
+  float scale = GameUiScale();
   bool hover = CheckCollisionPointRec(GetMousePosition(), r);
   UpdateButtonHoverSound(soundId, hover && enabled);
   Color gold = {245, 220, 150, 255};
@@ -12,11 +14,12 @@ static bool DrawPauseButton(const char *label, Rectangle r, float alpha,
     bg = (Color){55, 45, 35, 245};
 
   DrawRectangleRec(r, Fade(bg, alpha));
-  DrawRectangleLinesEx(r, 2, Fade(gold, alpha));
+  DrawRectangleLinesEx(r, 2 * scale, Fade(gold, alpha));
 
-  int textX = (int)(r.x + (r.width - MeasureText(label, 28)) / 2);
-  int textY = (int)(r.y + (r.height - 28) / 2);
-  DrawText(label, textX, textY, 28, Fade(gold, alpha));
+  int size = GameUiPixels(28);
+  int textX = (int)(r.x + (r.width - MeasureText(label, size)) / 2);
+  int textY = (int)(r.y + (r.height - size) / 2);
+  DrawText(label, textX, textY, size, Fade(gold, alpha));
 
   bool clicked = enabled && hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
   if (clicked)
@@ -27,6 +30,7 @@ static bool DrawPauseButton(const char *label, Rectangle r, float alpha,
 HomePauseResult DrawBlackScreenPauseMenu(float *shadeAlpha) {
   int sw = GetScreenWidth();
   int sh = GetScreenHeight();
+  float scale = GameUiScale();
 
   *shadeAlpha += GetFrameTime() * 500;
   if (*shadeAlpha > 210)
@@ -40,20 +44,25 @@ HomePauseResult DrawBlackScreenPauseMenu(float *shadeAlpha) {
   if (menuAlpha > 1)
     menuAlpha = 1;
 
-  DrawText("PAUSE", (sw - MeasureText("PAUSE", 48)) / 2, sh / 2 - 150, 48,
+  int titleSize = GameUiPixels(48);
+  DrawText("PAUSE", (sw - MeasureText("PAUSE", titleSize)) / 2,
+           (int)(sh / 2 - 150 * scale), titleSize,
            Fade(RAYWHITE, menuAlpha));
 
-  float x = (sw - 340) / 2.0f;
-  float y = sh / 2.0f - 100;
+  float width = 340 * scale, height = 58 * scale;
+  float x = (sw - width) / 2.0f;
+  float y = sh / 2.0f - 100 * scale;
   bool enabled = *shadeAlpha >= 200;
 
-  if (DrawPauseButton("Reprendre", (Rectangle){x, y, 340, 58}, menuAlpha,
+  if (DrawPauseButton("Reprendre", (Rectangle){x, y, width, height}, menuAlpha,
                       enabled, BUTTON_SOUND_PAUSE_RESUME))
     return HOME_PAUSE_RESUME;
-  if (DrawPauseButton("Revenir au menu", (Rectangle){x, y + 74, 340, 58},
+  if (DrawPauseButton("Revenir au menu",
+                      (Rectangle){x, y + 74 * scale, width, height},
                       menuAlpha, enabled, BUTTON_SOUND_PAUSE_MENU))
     return HOME_PAUSE_RETURN_TO_MENU;
-  if (DrawPauseButton("Quitter le jeu", (Rectangle){x, y + 148, 340, 58},
+  if (DrawPauseButton("Quitter le jeu",
+                      (Rectangle){x, y + 148 * scale, width, height},
                       menuAlpha, enabled, BUTTON_SOUND_PAUSE_QUIT))
     return HOME_PAUSE_QUIT;
 
@@ -63,11 +72,14 @@ HomePauseResult DrawBlackScreenPauseMenu(float *shadeAlpha) {
 UnsavedDialogResult DrawUnsavedSessionDialog(void) {
   int sw = GetScreenWidth();
   int sh = GetScreenHeight();
+  float scale = GameUiScale();
 
   float w = sw * 0.72f;
-  if (w > 620)
-    w = 620;
-  float h = 220;
+  if (w > 620 * scale)
+    w = 620 * scale;
+  float h = 220 * scale;
+  if (h > sh * 0.86f)
+    h = sh * 0.86f;
   float x = (sw - w) / 2;
   float y = (sh - h) / 2;
 
@@ -75,19 +87,23 @@ UnsavedDialogResult DrawUnsavedSessionDialog(void) {
 
   Rectangle box = {x, y, w, h};
   DrawRectangleRec(box, (Color){18, 18, 24, 250});
-  DrawRectangleLinesEx(box, 2, (Color){245, 180, 90, 255});
+  DrawRectangleLinesEx(box, 2 * scale, (Color){245, 180, 90, 255});
 
   const char *title = "Session non sauvegardée";
-  DrawText(title, (sw - MeasureText(title, 32)) / 2, (int)y + 36, 32, RAYWHITE);
+  int titleSize = GameUiPixels(32);
+  DrawText(title, (sw - MeasureText(title, titleSize)) / 2,
+           (int)y + GameUiPixels(36), titleSize, RAYWHITE);
 
-  float bw = (w - 72) / 2;
-  float bh = 52;
-  float by = y + h - 78;
+  float inset = 24 * scale;
+  float bw = (w - 3 * inset) / 2;
+  float bh = 52 * scale;
+  float by = y + h - 78 * scale;
 
-  if (DrawPauseButton("Continuer", (Rectangle){x + 24, by, bw, bh}, 1, true,
+  if (DrawPauseButton("Continuer", (Rectangle){x + inset, by, bw, bh}, 1, true,
                       BUTTON_SOUND_CONFIRM_CONTINUE))
     return UNSAVED_DIALOG_CONTINUE;
-  if (DrawPauseButton("Annuler", (Rectangle){x + 48 + bw, by, bw, bh}, 1, true,
+  if (DrawPauseButton("Annuler",
+                      (Rectangle){x + 2 * inset + bw, by, bw, bh}, 1, true,
                       BUTTON_SOUND_CONFIRM_CANCEL))
     return UNSAVED_DIALOG_CANCEL;
 

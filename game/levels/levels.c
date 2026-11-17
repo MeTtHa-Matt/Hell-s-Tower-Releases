@@ -1,4 +1,5 @@
 #include "levels.h"
+#include "../ui_scale.h"
 #include "raylib.h"
 #include <limits.h>
 #include <math.h>
@@ -59,16 +60,23 @@ void LevelsDrawNotification(void) {
   if (notice < 0)
     notice = 0;
 
-  int width = 460, height = 150;
+  float scale = GameUiScale();
+  float maxScale = scale > 1 ? scale : 1;
+  int width = (int)(460 * maxScale), height = (int)(150 * maxScale);
+  if (width > GetScreenWidth() - 24)
+    width = GetScreenWidth() - 24;
+  if (height > GetScreenHeight() * 0.34f)
+    height = (int)(GetScreenHeight() * 0.34f);
   int x = (GetScreenWidth() - width) / 2;
-  int y = GetScreenHeight() - height - 24;
+  int y = GetScreenHeight() - height - GameUiPixels(24);
   DrawRectangle(x, y, width, height, (Color){18, 18, 24, 240});
-  DrawRectangleLinesEx((Rectangle){x, y, width, height}, 2,
+  DrawRectangleLinesEx((Rectangle){x, y, width, height}, 2 * scale,
                        (Color){225, 185, 40, 255});
   if (rewardLevelUp && elapsed < 2) {
     const char *title = "NIVEAU SUPERIEUR !";
-    DrawText(title, (GetScreenWidth() - MeasureText(title, 36)) / 2,
-             y + (height - 36) / 2, 36,
+    int titleSize = GameUiPixels(36);
+    DrawText(title, (GetScreenWidth() - MeasureText(title, titleSize)) / 2,
+             y + (height - titleSize) / 2, titleSize,
              (Color){245, 220, 130, 255});
     return;
   }
@@ -85,18 +93,25 @@ void LevelsDrawNotification(void) {
     shownLevel++;
   }
   int needed = XPNeeded(shownLevel);
-  Rectangle bar = {x + 38, y + 48, width - 76, 24};
+  int margin = GameUiPixels(38), barHeight = GameUiPixels(24);
+  Rectangle bar = {x + margin, y + GameUiPixels(48),
+                   width - margin * 2, barHeight};
+  int levelSize = GameUiPixels(22);
   DrawText(TextFormat("NIVEAU %d", shownLevel),
-           (GetScreenWidth() - MeasureText(TextFormat("NIVEAU %d", shownLevel), 22)) / 2,
-           y + 12, 22, (Color){245, 220, 130, 255});
+           (GetScreenWidth() - MeasureText(TextFormat("NIVEAU %d", shownLevel),
+                                            levelSize)) / 2,
+           y + GameUiPixels(12), levelSize, (Color){245, 220, 130, 255});
   DrawRectangleRec(bar, (Color){95, 105, 20, 255});
   DrawRectangleRec((Rectangle){bar.x, bar.y, bar.width * shownXP / needed, bar.height},
                    (Color){220, 190, 45, 255});
-  DrawRectangleLinesEx(bar, 2, (Color){225, 185, 40, 255});
+  DrawRectangleLinesEx(bar, 2 * scale, (Color){225, 185, 40, 255});
+  int xpSize = GameUiPixels(18), rewardSize = GameUiPixels(20);
   DrawText(TextFormat("EXP %d/%d", shownXP, needed),
-           (GetScreenWidth() - MeasureText(TextFormat("EXP %d/%d", shownXP, needed), 18)) / 2,
-           y + 78, 18, RAYWHITE);
+           (GetScreenWidth() -
+            MeasureText(TextFormat("EXP %d/%d", shownXP, needed), xpSize)) / 2,
+           y + GameUiPixels(78), xpSize, RAYWHITE);
   DrawText(TextFormat("+%d XP", rewardAmount),
-           (GetScreenWidth() - MeasureText(TextFormat("+%d XP", rewardAmount), 20)) / 2,
-           y + 108, 20, (Color){245, 220, 130, 255});
+           (GetScreenWidth() -
+            MeasureText(TextFormat("+%d XP", rewardAmount), rewardSize)) / 2,
+           y + GameUiPixels(108), rewardSize, (Color){245, 220, 130, 255});
 }

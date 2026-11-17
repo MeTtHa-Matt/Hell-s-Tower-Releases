@@ -1,4 +1,5 @@
 #include "chatbox.h"
+#include "../ui_scale.h"
 #include "raylib.h"
 #include <stdio.h>
 #include <string.h>
@@ -49,7 +50,8 @@ static bool Click(Rectangle bounds) {
 }
 
 static int DrawChatText(const char *text, int count, float x, float y,
-                        float maxWidth, int firstRow) {
+                        float maxWidth, int firstRow, int fontSize,
+                        int lineHeight) {
   char buffer[MAX_LEN];
   char line[MAX_LEN] = "";
   int row = 0;
@@ -67,7 +69,8 @@ static int DrawChatText(const char *text, int count, float x, float y,
     if (testLength >= sizeof(test)) {
       if (line[0]) {
         if (row >= firstRow)
-          DrawText(line, (int)x, (int)y + (row - firstRow) * 26, 20, RAYWHITE);
+          DrawText(line, (int)x, (int)y + (row - firstRow) * lineHeight,
+                   fontSize, RAYWHITE);
         row++;
       }
       memcpy(line, word, wordLength + 1);
@@ -77,9 +80,10 @@ static int DrawChatText(const char *text, int count, float x, float y,
         test[lineLength] = ' ';
       memcpy(test + lineLength + separatorLength, word, wordLength + 1);
 
-      if (line[0] && MeasureText(test, 20) > maxWidth) {
+      if (line[0] && MeasureText(test, fontSize) > maxWidth) {
         if (row >= firstRow)
-          DrawText(line, (int)x, (int)y + (row - firstRow) * 26, 20, RAYWHITE);
+          DrawText(line, (int)x, (int)y + (row - firstRow) * lineHeight,
+                   fontSize, RAYWHITE);
         row++;
         memcpy(line, word, wordLength + 1);
       } else {
@@ -91,7 +95,8 @@ static int DrawChatText(const char *text, int count, float x, float y,
 
   if (line[0]) {
     if (row >= firstRow)
-      DrawText(line, (int)x, (int)y + (row - firstRow) * 26, 20, RAYWHITE);
+      DrawText(line, (int)x, (int)y + (row - firstRow) * lineHeight,
+               fontSize, RAYWHITE);
     row++;
   }
   return row;
@@ -126,7 +131,10 @@ void chatbox(const char *text, const char *position) {
   float w = GetScreenWidth() * 0.425f;
   float h = w * tex.height / tex.width;
   float x = (GetScreenWidth() - w) / 2;
-  float y = high ? 20 : GetScreenHeight() - h - 20;
+  float margin = GameUiPixels(20);
+  float y = high ? margin : GetScreenHeight() - h - margin;
+  int fontSize = GameUiPixels(20);
+  int lineHeight = GameUiPixels(26);
   Rectangle source = {0, 0, (float)tex.width, (float)tex.height};
   Rectangle dest = {x, y, w, h};
 
@@ -150,10 +158,11 @@ void chatbox(const char *text, const char *position) {
 
   float textX = x + w * 0.06f, textY = y + h * 0.25f;
   float textWidth = w * 0.88f, textHeight = h * 0.57f;
-  int visibleRows = (int)(textHeight / 26);
+  int visibleRows = (int)(textHeight / lineHeight);
   if (visibleRows < 1)
     visibleRows = 1;
-  int rows = DrawChatText(current, (int)progress, textX, textY, textWidth, MAX_LEN);
+  int rows = DrawChatText(current, (int)progress, textX, textY, textWidth,
+                          MAX_LEN, fontSize, lineHeight);
   int maxScroll = rows > visibleRows ? rows - visibleRows : 0;
   if (CheckCollisionPointRec(GetMousePosition(), dest)) {
     float wheel = GetMouseWheelMove();
@@ -168,7 +177,8 @@ void chatbox(const char *text, const char *position) {
     scrollBack = maxScroll;
   int firstRow = maxScroll - scrollBack;
   BeginScissorMode((int)textX, (int)textY, (int)textWidth, (int)textHeight);
-  DrawChatText(current, (int)progress, textX, textY, textWidth, firstRow);
+  DrawChatText(current, (int)progress, textX, textY, textWidth, firstRow,
+               fontSize, lineHeight);
   EndScissorMode();
 }
 

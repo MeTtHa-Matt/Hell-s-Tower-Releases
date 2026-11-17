@@ -1,5 +1,6 @@
 #include "mirror.h"
 #include "../../items/functionnal/functionnal.h"
+#include "../../ui_scale.h"
 #include "raylib.h"
 #include <math.h>
 #include <string.h>
@@ -56,8 +57,9 @@ static void DrawSprite(Texture2D tex, Vector2 c, float size, float rotation) {
 }
 
 static void DrawCentered(Rectangle a, const char *text, int size, float y, Color color) {
-  int x = (int)(a.x + (a.width - MeasureText(text, size)) / 2);
-  DrawText(text, x, (int)y, size, color);
+  int fontSize = GameUiPixels(size);
+  int x = (int)(a.x + (a.width - MeasureText(text, fontSize)) / 2);
+  DrawText(text, x, (int)y, fontSize, color);
 }
 
 static bool NearSegment(Vector2 p, Vector2 start, Vector2 end, float radius) {
@@ -274,6 +276,8 @@ static void Update(Rectangle a, float k) {
 }
 
 static void Draw(Rectangle a, float k) {
+  float ui = GameUiScale();
+  int hudSize = GameUiPixels(20);
   for (int side = 0; side < 2; side++) {
     Rectangle h = Half(a, side);
     Vector2 heart = Heart(a, side);
@@ -297,20 +301,26 @@ static void Draw(Rectangle a, float k) {
   DrawLine(middle, (int)a.y, middle, (int)(a.y + a.height), WHITE);
 
   for (int i = 0; i < lives; i++)
-    DrawSprite(heartTex, (Vector2){a.x + 16 + i * 28, a.y + 16}, 20, 0);
+    DrawSprite(heartTex,
+               (Vector2){a.x + (16 + i * 28) * ui, a.y + 16 * ui},
+               20 * ui, 0);
 
   float shownTime = timeLeft;
   if (shownTime < 0)
     shownTime = 0;
   const char *timer = TextFormat("%.0f", shownTime);
-  DrawText(timer, (int)(a.x + a.width) - MeasureText(timer, 20) - 10, (int)a.y + 6, 20, WHITE);
+  DrawText(timer, (int)(a.x + a.width) - MeasureText(timer, hudSize) -
+                      GameUiPixels(10),
+           (int)a.y + GameUiPixels(6), hudSize, WHITE);
 
   if (state != MIRROR_PLAYING) {
     const char *title = "GAME OVER";
     if (state == MIRROR_WON)
       title = "VICTOIRE";
-    DrawCentered(a, title, 40, a.y + a.height / 2 - 20, WHITE);
-    DrawCentered(a, "ENTREE pour continuer", 20, a.y + a.height / 2 + 20, GRAY);
+    DrawCentered(a, title, 40,
+                 a.y + a.height / 2 - GameUiPixels(20), WHITE);
+    DrawCentered(a, "ENTREE pour continuer", 20,
+                 a.y + a.height / 2 + GameUiPixels(20), GRAY);
   }
 }
 

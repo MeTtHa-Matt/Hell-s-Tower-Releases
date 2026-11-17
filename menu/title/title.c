@@ -1,4 +1,5 @@
 #include "title.h"
+#include "../../game/ui_scale.h"
 #include <math.h>
 #include <raylib.h>
 
@@ -23,7 +24,7 @@ void DrawMenuTitle(const char *title) {
   Color gold = {235, 195, 105, 255};
 
   float centerX = sw / 2.0f;
-  float ornamentHalf = textSize.x / 2 + 60;
+  float ornamentHalf = textSize.x / 2 + 60 * GameUiScale();
   Ornament(centerX, pos.y - 15, ornamentHalf, gold);
   Ornament(centerX, pos.y + textSize.y + 15, ornamentHalf, gold);
 

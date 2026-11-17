@@ -1,4 +1,5 @@
 #include "loading_screen.h"
+#include "../game/ui_scale.h"
 #include "raylib.h"
 #include <stddef.h>
 
@@ -88,7 +89,16 @@ void LoadingScreenDraw(void) {
 
   Texture2D bg = customBg.id ? customBg : defaultBg;
   if (bg.id) {
+    float screenAspect = (float)sw / sh;
+    float textureAspect = (float)bg.width / bg.height;
     Rectangle source = {0, 0, (float)bg.width, (float)bg.height};
+    if (textureAspect > screenAspect) {
+      source.width = bg.height * screenAspect;
+      source.x = (bg.width - source.width) / 2;
+    } else {
+      source.height = bg.width / screenAspect;
+      source.y = (bg.height - source.height) / 2;
+    }
     Rectangle dest = {0, 0, (float)sw, (float)sh};
     DrawTexturePro(bg, source, dest, (Vector2){0, 0}, 0, (Color){255, 255, 255, a});
   } else {
@@ -97,18 +107,22 @@ void LoadingScreenDraw(void) {
 
   float w = sw * 0.42f;
   float h = sh * 0.025f;
+  float scale = GameUiScale();
   float x = (sw - w) / 2;
   float y = sh * 0.84f;
 
-  Rectangle frame = {x - 3, y - 3, w + 6, h + 6};
+  Rectangle frame = {x - 3 * scale, y - 3 * scale,
+                     w + 6 * scale, h + 6 * scale};
   Color gold = {235, 220, 190, a};
 
   DrawRectangleRec(frame, (Color){10, 10, 14, a});
-  DrawRectangleLinesEx(frame, 2, gold);
+  DrawRectangleLinesEx(frame, 2 * scale, gold);
   DrawRectangle((int)x, (int)y, (int)(w * GetProgress()), (int)h, (Color){200, 165, 100, a});
 
   const char *text = "CHARGEMENT";
-  DrawText(text, (sw - MeasureText(text, 20)) / 2, (int)(y - 32), 20, gold);
+  int size = GameUiPixels(20);
+  DrawText(text, (sw - MeasureText(text, size)) / 2,
+           (int)(y - 32 * scale), size, gold);
 }
 
 bool LoadingScreenActive(void) {

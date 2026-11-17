@@ -10,6 +10,7 @@
 #include "items/items.h"
 #include "levels/levels.h"
 #include "raylib.h"
+#include "ui_scale.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -463,6 +464,7 @@ static int FloorGameDamageCount(void) {
 }
 
 static int DrawResultButton(const char *label, Rectangle box, int index) {
+  float scale = GameUiScale();
   bool hover = CheckCollisionPointRec(GetMousePosition(), box);
   ButtonSoundId soundId =
       index == 0 ? BUTTON_SOUND_TOWER_RETRY : BUTTON_SOUND_TOWER_EXIT;
@@ -474,8 +476,8 @@ static int DrawResultButton(const char *label, Rectangle box, int index) {
   Color fill = selected ? (Color){75, 58, 28, 255} : (Color){25, 25, 30, 245};
   Color edge = selected ? (Color){245, 205, 95, 255} : RAYWHITE;
   DrawRectangleRec(box, fill);
-  DrawRectangleLinesEx(box, selected ? 3 : 1, edge);
-  int size = 24;
+  DrawRectangleLinesEx(box, (selected ? 3 : 1) * scale, edge);
+  int size = GameUiPixels(24);
   DrawText(label, (int)(box.x + (box.width - MeasureText(label, size)) / 2),
            (int)(box.y + (box.height - size) / 2), size, RAYWHITE);
   bool clicked = hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
@@ -487,12 +489,14 @@ static int DrawResultButton(const char *label, Rectangle box, int index) {
 static int DrawResultMenu(TowerGameState state) {
   bool won = state == GAME_WON;
   int sw = GetScreenWidth(), sh = GetScreenHeight();
+  float scale = GameUiScale();
+  float maxScale = scale > 1 ? scale : 1;
   float zoneW = sw * 0.58f, zoneH = sh * 0.56f;
   float w = zoneW * 0.9f, h = zoneH * 0.88f;
-  if (w > 460)
-    w = 460;
-  if (h > 250)
-    h = 250;
+  if (w > 460 * maxScale)
+    w = 460 * maxScale;
+  if (h > 250 * maxScale)
+    h = 250 * maxScale;
   float x = (sw - zoneW) / 2 + (zoneW - w) / 2;
   float y = sh * 0.94f - zoneH + (zoneH - h) / 2;
   Rectangle panel = {x, y, w, h};
@@ -500,7 +504,7 @@ static int DrawResultMenu(TowerGameState state) {
   Rectangle second = {x + w * 0.09f, y + h * 0.68f, w * 0.82f, h * 0.24f};
   const char *title = won ? "VICTOIRE" : "ÉCHEC";
   const char *firstLabel = won ? "Étage suivant" : "Recommencer";
-  int titleSize = 32, titleY = (int)(y + h * 0.09f);
+  int titleSize = GameUiPixels(32), titleY = (int)(y + h * 0.09f);
 
   if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_RIGHT))
     resultSelection = 1;
@@ -508,7 +512,7 @@ static int DrawResultMenu(TowerGameState state) {
     resultSelection = 0;
 
   DrawRectangleRec(panel, (Color){12, 12, 16, 245});
-  DrawRectangleLinesEx(panel, 3, (Color){225, 185, 40, 255});
+  DrawRectangleLinesEx(panel, 3 * scale, (Color){225, 185, 40, 255});
   DrawText(title, (int)(x + (w - MeasureText(title, titleSize)) / 2), titleY, titleSize,
            (Color){245, 220, 130, 255});
 
@@ -541,9 +545,10 @@ void Tower(void) {
   }
 
   const char *bossText = BossIndex(currentFloor) >= 0 ? "  |  BOSS" : "";
+  int hudSize = GameUiPixels(24);
   DrawText(TextFormat("ETAGE %d  |  DIFFICULTE %d%s", currentFloor,
                       currentDifficulty, bossText),
-           24, 24, 24, RAYWHITE);
+           GameUiPixels(24), GameUiPixels(24), hudSize, RAYWHITE);
 
   TowerGameState before = resultState != GAME_OFF ? resultState : FloorGameState();
   DrawGameZone(resultState == GAME_OFF ? UpdateFloorGame : NULL,

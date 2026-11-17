@@ -1,5 +1,6 @@
 #include "items.h"
 #include "functionnal/functionnal.h"
+#include "../ui_scale.h"
 #include "raylib.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -123,7 +124,7 @@ static void DrawEffectText(const char *text, int x, int *y, int width,
              line[0] ? " " : "", (int)wordLength, word);
     if (line[0] && MeasureText(TextFormat("%s%s", line, candidate), fontSize) > width) {
       DrawText(line, x, *y, fontSize, color);
-      *y += fontSize + 3;
+      *y += fontSize + GameUiPixels(3);
       line[0] = '\0';
     }
     strncat(line, candidate, sizeof(line) - strlen(line) - 1);
@@ -133,7 +134,7 @@ static void DrawEffectText(const char *text, int x, int *y, int width,
   }
   if (line[0]) {
     DrawText(line, x, *y, fontSize, color);
-    *y += fontSize + 3;
+    *y += fontSize + GameUiPixels(3);
   }
 }
 
@@ -160,32 +161,54 @@ static int EffectLineCount(const char *text, int width, int fontSize) {
 }
 
 static void DrawItemTooltip(Item *item, Vector2 position) {
-  const int width = 390, fontSize = 17;
-  int height = 34;
-  for (int i = 0; i < item->effectCount; i++)
-    height += EffectLineCount(effects[item->effects[i]].text, width - 20,
-                              fontSize) * (fontSize + 3);
-  height += 12;
+  float scale = GameUiScale();
+  int margin = GameUiPixels(6);
+  int padding = GameUiPixels(10);
+  int width = GameUiPixels(390);
+  if (width > GetScreenWidth() - margin * 2)
+    width = GetScreenWidth() - margin * 2;
+  int fontSize = GameUiPixels(17);
+  int height;
+  do {
+    height = GameUiPixels(46);
+    for (int i = 0; i < item->effectCount; i++)
+      height += EffectLineCount(effects[item->effects[i]].text,
+                                width - padding * 2, fontSize) *
+                (fontSize + GameUiPixels(3));
+    if (height <= GetScreenHeight() - margin * 2 ||
+        fontSize <= GameUiPixels(10))
+      break;
+    fontSize--;
+  } while (true);
+  if (height > GetScreenHeight() - margin * 2)
+    height = GetScreenHeight() - margin * 2;
 
-  Rectangle box = {position.x + 14, position.y + 14, width, height};
-  if (box.x + box.width > GetScreenWidth() - 6)
-    box.x = position.x - box.width - 14;
-  if (box.y + box.height > GetScreenHeight() - 6)
-    box.y = GetScreenHeight() - box.height - 6;
-  if (box.x < 6)
-    box.x = 6;
-  if (box.y < 6)
-    box.y = 6;
+  Rectangle box = {position.x + GameUiPixels(14),
+                   position.y + GameUiPixels(14), width, height};
+  if (box.x + box.width > GetScreenWidth() - margin)
+    box.x = position.x - box.width - GameUiPixels(14);
+  if (box.y + box.height > GetScreenHeight() - margin)
+    box.y = GetScreenHeight() - box.height - margin;
+  if (box.x < margin)
+    box.x = margin;
+  if (box.y < margin)
+    box.y = margin;
 
   DrawRectangleRec(box, (Color){15, 15, 20, 245});
-  DrawRectangleLinesEx(box, 2, (Color){225, 185, 40, 255});
-  DrawText(item->name, (int)box.x + 10, (int)box.y + 8, 19,
+  DrawRectangleLinesEx(box, 2 * scale, (Color){225, 185, 40, 255});
+  DrawText(item->name, (int)box.x + padding, (int)box.y + GameUiPixels(8),
+           GameUiPixels(19),
            (Color){245, 220, 130, 255});
-  int y = (int)box.y + 34;
+  int y = (int)box.y + GameUiPixels(34);
+  int contentHeight = (int)(box.y + box.height) - y - margin;
+  if (contentHeight < 0)
+    contentHeight = 0;
+  BeginScissorMode((int)box.x, y, width, contentHeight);
   for (int i = 0; i < item->effectCount; i++)
-    DrawEffectText(effects[item->effects[i]].text, (int)box.x + 10, &y,
-                   width - 20, fontSize,
+    DrawEffectText(effects[item->effects[i]].text, (int)box.x + padding, &y,
+                   width - padding * 2, fontSize,
                    RarityColor(effects[item->effects[i]].rarity));
+  EndScissorMode();
 }
 
 static void DrawItem(Item *item, Rectangle slot) {
@@ -364,47 +387,66 @@ void ItemsCloseContextMenu(void) {
 }
 
 static void DrawContextButton(Rectangle box, const char *label, Color fill) {
+  float scale = GameUiScale();
   bool hover = CheckCollisionPointRec(GetMousePosition(), box);
   if (hover)
     fill = Fade(fill, 0.82f);
   DrawRectangleRec(box, fill);
-  DrawRectangleLinesEx(box, 2, RAYWHITE);
-  int size = 14;
+  DrawRectangleLinesEx(box, 2 * scale, RAYWHITE);
+  int size = GameUiPixels(14);
   DrawText(label, (int)(box.x + (box.width - MeasureText(label, size)) / 2),
            (int)(box.y + (box.height - size) / 2), size, RAYWHITE);
 }
 
 static void DrawItemContextMenu(Item *item) {
-  int width = GetScreenWidth() - 24;
-  if (width > 410)
-    width = 410;
-  const int fontSize = 17;
-  int contentWidth = width - 24;
-  int lines = 0;
-  for (int i = 0; i < item->effectCount; i++)
-    lines += EffectLineCount(effects[item->effects[i]].text, contentWidth,
-                             fontSize);
-  int height = 50 + lines * (fontSize + 3) + 56;
-  if (height > GetScreenHeight() - 24)
-    height = GetScreenHeight() - 24;
+  float scale = GameUiScale();
+  int margin = GameUiPixels(12);
+  int width = GetScreenWidth() - margin * 2;
+  int maxWidth = GameUiPixels(410);
+  if (width > maxWidth)
+    width = maxWidth;
+  int fontSize = GameUiPixels(17);
+  int contentWidth = width - margin * 2;
+  int height, lines;
+  do {
+    lines = 0;
+    for (int i = 0; i < item->effectCount; i++)
+      lines += EffectLineCount(effects[item->effects[i]].text, contentWidth,
+                               fontSize);
+    height = GameUiPixels(106) + lines * (fontSize + GameUiPixels(3));
+    if (height <= GetScreenHeight() - margin * 2 ||
+        fontSize <= GameUiPixels(10))
+      break;
+    fontSize--;
+  } while (true);
+  if (height > GetScreenHeight() - margin * 2)
+    height = GetScreenHeight() - margin * 2;
   Rectangle box = {(GetScreenWidth() - width) / 2.0f,
                    (GetScreenHeight() - height) / 2.0f, width, height};
-  Rectangle destroy = {box.x + 12, box.y + box.height - 42,
-                       (box.width - 30) / 2, 30};
-  Rectangle close = {destroy.x + destroy.width + 6, destroy.y,
+  int buttonHeight = GameUiPixels(30);
+  int buttonGap = GameUiPixels(6);
+  Rectangle destroy = {box.x + margin, box.y + box.height - GameUiPixels(42),
+                       (box.width - 2 * margin - buttonGap) / 2, buttonHeight};
+  Rectangle close = {destroy.x + destroy.width + buttonGap, destroy.y,
                      destroy.width, destroy.height};
 
   DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
                 (Color){0, 0, 0, 150});
   DrawRectangleRec(box, (Color){15, 15, 20, 250});
-  DrawRectangleLinesEx(box, 2, (Color){225, 185, 40, 255});
-  DrawText(item->name, (int)box.x + 12, (int)box.y + 10, 20,
+  DrawRectangleLinesEx(box, 2 * scale, (Color){225, 185, 40, 255});
+  DrawText(item->name, (int)box.x + margin, (int)box.y + GameUiPixels(10),
+           GameUiPixels(20),
            (Color){245, 220, 130, 255});
-  int y = (int)box.y + 40;
+  int y = (int)box.y + GameUiPixels(40);
+  int contentHeight = (int)destroy.y - y - GameUiPixels(6);
+  if (contentHeight < 0)
+    contentHeight = 0;
+  BeginScissorMode((int)box.x + margin, y, contentWidth, contentHeight);
   for (int i = 0; i < item->effectCount; i++)
-    DrawEffectText(effects[item->effects[i]].text, (int)box.x + 12, &y,
+    DrawEffectText(effects[item->effects[i]].text, (int)box.x + margin, &y,
                    contentWidth, fontSize,
                    RarityColor(effects[item->effects[i]].rarity));
+  EndScissorMode();
 
   DrawContextButton(destroy, "JETER L'ARTEFACT", (Color){120, 35, 35, 255});
   DrawContextButton(close, "FERMER", (Color){45, 50, 58, 255});
@@ -470,16 +512,17 @@ void ItemsDrawReward(void) {
     return;
   rewardTimer -= GetFrameTime();
   float size = GetScreenHeight() * 0.09f;
-  if (size < 56)
-    size = 56;
-  if (size > 96)
-    size = 96;
+  float minSize = GameUiPixels(56), maxSize = GameUiPixels(96);
+  if (size < minSize)
+    size = minSize;
+  if (size > maxSize)
+    size = maxSize;
   Rectangle box = {GetScreenWidth() / 2.0f - size / 2,
                    GetScreenHeight() * 0.94f -
                        GetScreenHeight() * 0.56f / 2 - size / 2,
                    size, size};
   DrawRectangleRec(box, (Color){20, 20, 24, 235});
-  DrawRectangleLinesEx(box, 3, (Color){245, 205, 70, 255});
+  DrawRectangleLinesEx(box, 3 * GameUiScale(), (Color){245, 205, 70, 255});
   DrawItem(&items[rewardSlot], (Rectangle){box.x + 6, box.y + 6,
                                            box.width - 12, box.height - 12});
   if (CheckCollisionPointRec(GetMousePosition(), box))
