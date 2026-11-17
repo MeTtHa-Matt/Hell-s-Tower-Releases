@@ -1,0 +1,34 @@
+#ifndef BUTTON_SOUNDS_H
+#define BUTTON_SOUNDS_H
+
+#include <stdbool.h>
+
+typedef enum {
+  BUTTON_SOUND_MENU_PLAY,
+  BUTTON_SOUND_MENU_OPTIONS,
+  BUTTON_SOUND_MENU_QUIT,
+  BUTTON_SOUND_PEACE_SAVE,
+  BUTTON_SOUND_PEACE_MENU,
+  BUTTON_SOUND_PEACE_QUIT,
+  BUTTON_SOUND_PEACE_TRAINING,
+  BUTTON_SOUND_PEACE_TOWER,
+  BUTTON_SOUND_PEACE_INVENTORY,
+  BUTTON_SOUND_TOWER_RETRY,
+  BUTTON_SOUND_TOWER_EXIT,
+  BUTTON_SOUND_PAUSE_RESUME,
+  BUTTON_SOUND_PAUSE_MENU,
+  BUTTON_SOUND_PAUSE_QUIT,
+  BUTTON_SOUND_CONFIRM_CONTINUE,
+  BUTTON_SOUND_CONFIRM_CANCEL,
+  BUTTON_SOUND_SIGRID,
+  BUTTON_SOUND_COUNT
+} ButtonSoundId;
+
+void InitButtonSounds(void);
+void BeginButtonSoundFrame(void);
+void UpdateButtonHoverSound(ButtonSoundId id, bool hovered);
+void EndButtonSoundFrame(void);
+void PlayButtonClickSound(void);
+void UnloadButtonSounds(void);
+
+#endif

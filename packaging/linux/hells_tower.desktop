@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Hell's Tower
+Comment=Grimpez les etages de la tour
+Exec=hells_tower
+Icon=hells_tower
+Categories=Game;
+Terminal=false

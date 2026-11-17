@@ -1,0 +1,30 @@
++1 Vie max au debut du mini-jeu;RARE;ALL
+-3 secondes au chronometre (27s a tenir);RARE;ALL
+-5 secondes au chronometre (25s a tenir);EPIQUE;ALL
++15% de vitesse de deplacement;COMMUN;ALL
++30% de vitesse de deplacement;RARE;ALL
+Hitbox du joueur reduite de 20%;EPIQUE;ALL
+Bouclier : annule le premier degat subi;LEGENDAIRE;ALL
+Diminue la difficulte de 1 niveau;COMMUN;ALL
+Diminue la difficulte de 2 niveaux;EPIQUE;ALL
+Ralentit tous les projectiles de 15%;RARE;ALL
+Invulnerabilite apres un degat augmentee de 1 seconde;COMMUN;ALL
+Regenere 1 vie si aucune touche pendant 15 secondes;LEGENDAIRE;ALL
+Taille des projectiles reduite de 20%;RARE;BULLET_HELL
+20% de projectiles en moins a l'ecran;EPIQUE;BULLET_HELL
+Efface tous les projectiles a l'ecran a 15 secondes;LEGENDAIRE;BULLET_HELL
+Projectiles ralentis de 25% pres du joueur;RARE;BULLET_HELL
+Vitesse de retrecissement des cercles reduite de 15%;COMMUN;RING
+Vitesse de retrecissement des cercles reduite de 30%;EPIQUE;RING
+Ouverture de sortie des cercles 25% plus large;RARE;RING
+Un cercle sur quatre disparait automatiquement;LEGENDAIRE;RING
+Zone de dash/esquive rapide activee;EPIQUE;RING
+Hitbox des deux personnages reduite de 25%;RARE;MIRROR
+Un des deux personnages devient invulnerable pendant 5s au debut;EPIQUE;MIRROR
+Projectiles ralentis de 20% du cote droit uniquement;COMMUN;MIRROR
+Le personnage de gauche repousse les projectiles proches;LEGENDAIRE;MIRROR
+Vitesse de deplacement augmentee de 25% pour synchroniser les esquives;RARE;MIRROR
++3 secondes au chronometre (33s a tenir);MAUDIT;ALL
+Augmente la difficulte de 1 niveau;MAUDIT;ALL
+Hitbox du joueur augmentee de 15%;MAUDIT;ALL
+Commence le mini-jeu avec 2 vies au lieu de 3;MAUDIT;ALL
