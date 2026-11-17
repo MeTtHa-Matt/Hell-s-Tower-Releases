@@ -1,7 +1,0 @@
-THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
-
-This software incorporates components from the projects listed below.
-
-1. raylib (https://www.raylib.com/)
-   Copyright (c) 2013-2026 Ramon Santamaria (@raysan5)
-   Licensed under the zlib/libpng license.

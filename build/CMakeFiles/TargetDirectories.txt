@@ -1,3 +1,0 @@
-/home/Matthew/Documents/Hell-s-tower-Releases/build/CMakeFiles/hells_tower.dir
-/home/Matthew/Documents/Hell-s-tower-Releases/build/CMakeFiles/edit_cache.dir
-/home/Matthew/Documents/Hell-s-tower-Releases/build/CMakeFiles/rebuild_cache.dir
