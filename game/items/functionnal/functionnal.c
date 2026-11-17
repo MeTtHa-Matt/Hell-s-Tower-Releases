@@ -7,7 +7,8 @@ void FunctionalReset(void) {
   settings = (FunctionalSettings){
       .playerSpeed = 1, .hitbox = 1, .bulletSpeed = 1,
       .bulletSize = 1, .bulletSpawn = 1, .nearbyBulletSpeed = 1,
-      .ringSpeed = 1, .ringGap = 1, .mirrorRightSpeed = 1};
+      .ringSpeed = 1, .ringGap = 1, .mirrorRightSpeed = 1,
+      .sealCharge = 1, .sealSpawn = 1};
   shieldReady = false;
 }
 
@@ -43,6 +44,9 @@ void FunctionalAddEffect(int effect) {
   case 27: settings.difficulty++; break;
   case 28: settings.hitbox *= 1.15f; break;
   case 29: settings.extraLives--; break;
+  case 30: settings.sealWarning += 0.12f; break;
+  case 31: settings.sealCharge *= 1.15f; break;
+  case 32: settings.sealSpawn *= 1.15f; break;
   }
 }
 

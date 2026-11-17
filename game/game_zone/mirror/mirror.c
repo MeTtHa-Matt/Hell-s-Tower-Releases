@@ -109,7 +109,7 @@ static void SpawnOne(Rectangle a, float k, int side, float angle) {
 
     Vector2 pos = SpawnPosition(Half(a, side), angle, k);
     Vector2 heart = Heart(a, side);
-    float spread = 80 * k * (10 - difficulty) / 9;
+    float spread = (20 + 60 * (10 - difficulty) / 9.0f) * k;
 
     float dirX = heart.x + Jitter(spread) - pos.x;
     float dirY = heart.y + Jitter(spread) - pos.y;
@@ -260,7 +260,7 @@ static void Update(Rectangle a, float k) {
   }
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
-    spawnTimer = 0.75f - 0.05f * difficulty;
+    spawnTimer = 0.9f - 0.06f * difficulty;
     SpawnPair(a, k);
   }
 

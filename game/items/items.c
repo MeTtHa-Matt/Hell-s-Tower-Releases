@@ -9,6 +9,7 @@
 #define STORED_COUNT 25
 #define ITEM_COUNT (EQUIPPED_COUNT + STORED_COUNT)
 #define EFFECT_LIMIT 5
+#define NEW_ITEM_EFFECT_LIMIT 3
 #define ITEM_NAME_LENGTH 128
 #define EFFECT_LIMIT_COUNT 128
 
@@ -303,7 +304,7 @@ void ItemsGrantForLevelUp(void) {
   Item *item = &items[slot];
   snprintf(item->name, sizeof(item->name), "%s",
            itemNames[GetRandomValue(0, itemNameCount - 1)]);
-  item->effectCount = GetRandomValue(1, EFFECT_LIMIT);
+  item->effectCount = GetRandomValue(1, NEW_ITEM_EFFECT_LIMIT);
   if (item->effectCount > effectCount)
     item->effectCount = effectCount;
   for (int i = 0; i < item->effectCount; i++) {

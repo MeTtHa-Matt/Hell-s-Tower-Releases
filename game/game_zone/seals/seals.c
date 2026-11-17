@@ -58,7 +58,9 @@ static void DrawCentered(Rectangle a, const char *text, int size, float y, Color
 
 // Temps d'avertissement avant qu'un danger devienne actif.
 static float Warn(void) {
-  return 1.2f - 0.07f * difficulty;
+  return Limit(1.2f - 0.055f * difficulty +
+                   FunctionalGet()->sealWarning,
+               0.65f, 1.32f);
 }
 
 static void AddHazard(int kind, Vector2 pos, float size) {
@@ -216,8 +218,9 @@ static void UpdateHazard(Hazard *h, float k, float dt) {
 }
 
 static void UpdateRune(Rectangle a, float k, float dt) {
+  const FunctionalSettings *items = FunctionalGet();
   if (hypotf(player.x - rune.x, player.y - rune.y) < 45 * k)
-    charge += dt;
+    charge += dt * items->sealCharge;
   else
     charge -= dt * 1.5f;
   charge = Limit(charge, 0, SEAL_TIME);
@@ -249,8 +252,8 @@ static void Update(Rectangle a, float k) {
 
   spawnTimer -= dt;
   if (spawnTimer <= 0 && state == SEALS_PLAYING) {
-    float delay = 1.2f - 0.05f * difficulty - 0.1f * sealed;
-    spawnTimer = Limit(delay, 0.3f, 2) * items->bulletSpawn;
+    float delay = 1.35f - 0.055f * difficulty - 0.08f * sealed;
+    spawnTimer = Limit(delay, 0.5f, 1.3f) * items->sealSpawn;
     for (int i = 0; i <= sealed / 2; i++)
       SpawnHazards(k);
   }
