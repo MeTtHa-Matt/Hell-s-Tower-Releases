@@ -76,9 +76,6 @@ jobs:
             ${{ matrix.platform == 'macos' && format('-DCMAKE_OSX_ARCHITECTURES={0}', matrix.arch) || '' }}
           cmake --build build --parallel
 
-      - name: Clean CMake build directory
-        run: cmake -E remove_directory build
-
       - name: Package Windows installer
         if: matrix.platform == 'windows'
         shell: pwsh
