@@ -10,6 +10,7 @@ void UnloadGameButtons(void);
 bool GameReturnToMenuRequested(void);
 bool GameSubscreenActive(void);
 bool GameTrainingActive(void);
+bool GameTrainingSelectionActive(void);
 bool GameInventoryActive(void);
 bool GameResultActive(void);
 bool GameReturnConfirmationActive(void);

@@ -27,7 +27,7 @@ static Font font;
 static Texture2D bandTex;
 static Music music;
 static char monsterPath[512];
-static int trainingGame;
+static int trainingGame, trainingDifficulty = 8;
 
 static const char *trainingNames[] = {"BULLET HELL", "RINGS", "MIRROR", "SEALS"};
 
@@ -131,7 +131,7 @@ static void StartTraining(void) {
                          : trainingGame == 2 ? "MIRROR"
                                              : "SEALS";
   ItemsApplyForGame(gameName);
-  int difficulty = FunctionalDifficulty(GetRandomValue(8, 10));
+  int difficulty = FunctionalDifficulty(trainingDifficulty);
   switch (trainingGame) {
   case 0:
     BulletHellStart(difficulty);
@@ -199,6 +199,10 @@ static void DrawTrainingSelection(void) {
     trainingGame = (trainingGame + 1) % 4;
   if (IsKeyPressed(KEY_UP))
     trainingGame = (trainingGame + 3) % 4;
+  if (IsKeyPressed(KEY_LEFT) && trainingDifficulty > 1)
+    trainingDifficulty--;
+  if (IsKeyPressed(KEY_RIGHT) && trainingDifficulty < 10)
+    trainingDifficulty++;
 
   DrawRectangle(0, 0, sw, sh, (Color){0, 0, 0, 185});
   DrawRectangleRec(panel, (Color){15, 15, 20, 250});
@@ -217,12 +221,28 @@ static void DrawTrainingSelection(void) {
       trainingGame = i;
   }
 
-  DrawText("Difficulte aleatoire : 8 a 10",
-           (int)(panel.x + panelW * 0.12f),
-           (int)(panel.y + panelH * 0.70f), (int)(panelH * 0.04f),
-           (Color){190, 190, 200, 255});
+  float difficultyY = panel.y + panelH * 0.70f;
+  float difficultyH = panelH * 0.075f;
+  float difficultyW = panelW * 0.12f;
+  Rectangle easier = {panel.x + panelW * 0.18f, difficultyY, difficultyW,
+                      difficultyH};
+  Rectangle harder = {panel.x + panelW * 0.70f, difficultyY, difficultyW,
+                      difficultyH};
+  if (DrawTrainingOption(easier, "-", false) && trainingDifficulty > 1)
+    trainingDifficulty--;
+  if (DrawTrainingOption(harder, "+", false) && trainingDifficulty < 10)
+    trainingDifficulty++;
+  char difficultyLabel[32];
+  snprintf(difficultyLabel, sizeof(difficultyLabel), "DIFFICULTE : %d / 10",
+           trainingDifficulty);
+  int difficultySize = (int)(difficultyH * 0.45f);
+  DrawText(difficultyLabel,
+           (int)(panel.x +
+                 (panelW - MeasureText(difficultyLabel, difficultySize)) / 2),
+           (int)(difficultyY + (difficultyH - difficultySize) / 2),
+           difficultySize, (Color){245, 220, 130, 255});
 
-  float buttonY = panel.y + panelH * 0.76f;
+  float buttonY = panel.y + panelH * 0.81f;
   float buttonH = panelH * 0.10f;
   Rectangle back = {rowX, buttonY, rowW * 0.44f, buttonH};
   Rectangle start = {rowX + rowW * 0.56f, buttonY, rowW * 0.44f, buttonH};
@@ -458,6 +478,8 @@ bool GameSubscreenActive(void) {
 bool GameTrainingActive(void) {
   return trainingActive;
 }
+
+bool GameTrainingSelectionActive(void) { return trainingSelectionActive; }
 
 bool GameInventoryActive(void) { return inventoryActive; }
 bool GameResultActive(void) { return subscreenActive && TowerResultActive(); }

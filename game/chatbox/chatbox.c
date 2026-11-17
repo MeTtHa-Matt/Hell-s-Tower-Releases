@@ -34,11 +34,13 @@ bool IsChatboxInputConsumed(void) {
   return inputConsumed;
 }
 
-static bool Click(void) {
+static bool Click(Rectangle bounds) {
   if (IsChatboxInputConsumed())
     return false;
 
-  bool pressed = IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsKeyPressed(KEY_SPACE);
+  bool mousePressed = IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+                      CheckCollisionPointRec(GetMousePosition(), bounds);
+  bool pressed = mousePressed || IsKeyPressed(KEY_SPACE);
   if (!pressed)
     return false;
 
@@ -121,7 +123,14 @@ void chatbox(const char *text, const char *position) {
 
   float length = (float)strlen(current);
 
-  if (Click()) {
+  float w = GetScreenWidth() * 0.425f;
+  float h = w * tex.height / tex.width;
+  float x = (GetScreenWidth() - w) / 2;
+  float y = high ? 20 : GetScreenHeight() - h - 20;
+  Rectangle source = {0, 0, (float)tex.width, (float)tex.height};
+  Rectangle dest = {x, y, w, h};
+
+  if (Click(dest)) {
     if (progress < length) {
       progress = length;
     } else {
@@ -137,15 +146,6 @@ void chatbox(const char *text, const char *position) {
   if (progress > length)
     progress = length;
 
-  float w = GetScreenWidth() * 0.425f;
-  float h = w * tex.height / tex.width;
-  float x = (GetScreenWidth() - w) / 2;
-  float y = 20;
-  if (low)
-    y = GetScreenHeight() - h - 20;
-
-  Rectangle source = {0, 0, (float)tex.width, (float)tex.height};
-  Rectangle dest = {x, y, w, h};
   DrawTexturePro(tex, source, dest, (Vector2){0, 0}, 0, WHITE);
 
   float textX = x + w * 0.06f, textY = y + h * 0.25f;

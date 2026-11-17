@@ -402,14 +402,14 @@ void LoadBlackScreen(void) {
       const char *image = dead ? "assets/dead_sigrid.png" : "assets/monster1.png";
       bool clicked = monster(image, "middle", canTalk && !GameInventoryActive() &&
                                                  !GameSaveAlertActive() &&
-                                                 !GameReturnConfirmationActive());
+                                                 !GameReturnConfirmationActive() &&
+                                                 !GameTrainingSelectionActive());
       if (canTalk && !GameSaveAlertActive() &&
-          !GameReturnConfirmationActive())
+          !GameReturnConfirmationActive() && !GameTrainingSelectionActive())
         UpdateSigrid(clicked);
       if (tutorialSeen || lastDialogueDone) {
         MarkTowerTutorialSeen();
-        DrawGameButtons(!sigridActive && !GameSaveAlertActive() &&
-                        !GameReturnConfirmationActive());
+        DrawGameButtons(true);
       }
       DrawGameSaveAlert();
     }

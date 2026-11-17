@@ -243,7 +243,7 @@ Affiche un texte lettre par lettre. Un clic ou la touche **Espace** termine l'af
 |---|---|
 | `chatbox(texte, "high")` ou `chatbox(texte, "low")` | Affiche la boîte en haut (`"high"`) ou en bas (`"low"`). À appeler chaque image. |
 | `IsChatboxFinished(texte)` | `true` quand ce texte a été lu en entier et validé. |
-| `IsChatboxInputConsumed()` | `true` si le clic actuel a déjà servi pour le dialogue (évite qu'il active aussi un bouton). |
+| `IsChatboxInputConsumed()` | `true` si le clic dans la boîte ou la touche Espace a servi au dialogue. Un clic hors de la boîte reste disponible pour les boutons. |
 | `ResetChatbox()` | Remet tous les dialogues à zéro. |
 | `UnloadChatbox()` | Libère la texture. |
 
@@ -426,7 +426,7 @@ la progression à zéro et revient au menu principal.
 
 | Fonction | Rôle |
 |---|---|
-| `DrawGameButtons(acceptInput)` | Affiche les 6 boutons (Sauvegarder, Menu principal, Quitter, Combat d'entrainement, Monter la tour, Inventaire). `acceptInput` désactive leurs clics pendant un dialogue. Le combat d'entraînement propose un choix entre les quatre mini-jeux. |
+| `DrawGameButtons(acceptInput)` | Affiche les 6 boutons (Sauvegarder, Menu principal, Quitter, Combat d'entrainement, Monter la tour, Inventaire). Le combat d'entraînement propose les quatre mini-jeux et une difficulté réglable de 1 à 10. |
 | `UpdateGameButtonsMusic()` | Met à jour la musique en cours. |
 | `GameSubscreenActive()` | `true` si le joueur est dans la tour. |
 | `GameTrainingActive()` | `true` si le joueur est en combat d'entraînement. |
