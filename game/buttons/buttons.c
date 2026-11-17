@@ -505,7 +505,9 @@ bool GameTrainingSelectionActive(void) { return trainingSelectionActive; }
 
 bool GameInventoryActive(void) { return inventoryActive; }
 bool GameResultActive(void) { return subscreenActive && TowerResultActive(); }
-bool GameReturnConfirmationActive(void) { return returnConfirmation; }
+bool GameReturnConfirmationActive(void) {
+  return returnConfirmation || quitConfirmation;
+}
 
 void ResetGameButtons(void) {
   menuRequested = false;
