@@ -95,12 +95,25 @@ static void LoadSigridDialogues(int floor) {
 
   while (fgets(line, sizeof(line), file)) {
     char *first = strchr(line, ';');
-    char *second = first ? strchr(first + 1, ';') : NULL;
-    char *third = second ? strchr(second + 1, ';') : NULL;
-    if (!first || !second || !third || atoi(second + 1) != floor)
+    if (!first)
       continue;
 
-    *first = *second = *third = '\0';
+    char *floorSeparator = NULL;
+    char *floorEnd = NULL;
+    for (char *separator = strchr(first + 1, ';'); separator;
+         separator = strchr(separator + 1, ';')) {
+      char *end = NULL;
+      long entryFloor = strtol(separator + 1, &end, 10);
+      if (end == separator + 1 || *end != ';' || entryFloor != floor)
+        continue;
+      floorSeparator = separator;
+      floorEnd = end;
+      break;
+    }
+    if (!floorSeparator)
+      continue;
+
+    *first = *floorSeparator = *floorEnd = '\0';
     int total = atoi(line);
     if (total < 1 || total > MAX_SIGRID_DIALOGUES + 1)
       break;
@@ -118,7 +131,7 @@ static void LoadSigridDialogues(int floor) {
         break;
       part = next + 1;
     }
-    snprintf(sigridFinal, sizeof(sigridFinal), "%s", third + 1);
+    snprintf(sigridFinal, sizeof(sigridFinal), "%s", floorEnd + 1);
     sigridFinal[strcspn(sigridFinal, "\r\n")] = '\0';
     if (sigridCount != total - 1 || !sigridFinal[0]) {
       sigridCount = 0;
