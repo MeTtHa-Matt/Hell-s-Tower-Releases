@@ -374,7 +374,7 @@ static void StartFloor(void) {
                          : game == 2 ? "MIRROR"
                          : game == 3 ? "SEALS"
                                      : NULL;
-  ItemsConsumeForGame(itemGame);
+  ItemsApplyForGame(itemGame);
   StopMusic();
   StartMusic();
   StartGame();

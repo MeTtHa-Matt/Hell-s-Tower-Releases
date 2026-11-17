@@ -69,8 +69,10 @@ bool DrawInventory(bool allowClose) {
   Rectangle panel = Box(18, 42, 987, 733);
   if (allowClose && (IsKeyPressed(KEY_ESCAPE) ||
       (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
-       !CheckCollisionPointRec(GetMousePosition(), panel))))
+       !CheckCollisionPointRec(GetMousePosition(), panel)))) {
+    ItemsCloseContextMenu();
     return false;
+  }
 
   Color gold = {225, 185, 40, 255};
   Color darkGold = {170, 130, 20, 255};

@@ -5,6 +5,7 @@
 #include "../game_zone/seals/seals.h"
 #include "../game_zone/zone.h"
 #include "../inventory/inventory.h"
+#include "../items/functionnal/functionnal.h"
 #include "../items/items.h"
 #include "../pause_menu/pause_menu.h"
 #include "../tower.h"
@@ -125,7 +126,12 @@ static void StartTraining(void) {
     TraceLog(LOG_WARNING, "Aucune musique MP3 trouvee");
   }
 
-  int difficulty = GetRandomValue(8, 10);
+  const char *gameName = trainingGame == 0 ? "BULLET_HELL"
+                         : trainingGame == 1 ? "RING"
+                         : trainingGame == 2 ? "MIRROR"
+                                             : "SEALS";
+  ItemsApplyForGame(gameName);
+  int difficulty = FunctionalDifficulty(GetRandomValue(8, 10));
   switch (trainingGame) {
   case 0:
     BulletHellStart(difficulty);

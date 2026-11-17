@@ -33,6 +33,7 @@ static int effectCount, itemNameCount;
 static bool dataLoaded;
 static int rewardSlot = -1;
 static float rewardTimer;
+static int contextSlot = -1;
 
 static void LoadData(void) {
   if (dataLoaded)
@@ -210,6 +211,7 @@ void ItemsReset(void) {
     UnloadItem(&items[i]);
   rewardSlot = -1;
   rewardTimer = 0;
+  contextSlot = -1;
 }
 
 void ItemsUnload(void) {
@@ -323,30 +325,101 @@ void ItemsGrantForLevelUp(void) {
   rewardTimer = 7;
 }
 
-void ItemsConsumeForGame(const char *game) {
+void ItemsApplyForGame(const char *game) {
   if (!game)
     return;
   LoadData();
   FunctionalReset();
+  bool applied[EFFECT_LIMIT_COUNT] = {false};
   for (int i = 0; i < EQUIPPED_COUNT; i++) {
     if (!items[i].name[0])
       continue;
-    bool applies = false;
     for (int j = 0; j < items[i].effectCount; j++) {
-      ItemEffect *effect = &effects[items[i].effects[j]];
-      if (strcmp(effect->game, "ALL") == 0 ||
-          strcmp(effect->game, game) == 0) {
-        applies = true;
-        FunctionalAddEffect(items[i].effects[j]);
+      int effectIndex = items[i].effects[j];
+      ItemEffect *effect = &effects[effectIndex];
+      if (!applied[effectIndex] &&
+          (strcmp(effect->game, "ALL") == 0 ||
+           strcmp(effect->game, game) == 0)) {
+        FunctionalAddEffect(effectIndex);
+        applied[effectIndex] = true;
       }
     }
-    if (applies) {
-      if (rewardSlot == i) {
-        rewardSlot = -1;
-        rewardTimer = 0;
-      }
-      UnloadItem(&items[i]);
-    }
+  }
+}
+
+void ItemsDestroy(int slot) {
+  if (slot < 0 || slot >= ITEM_COUNT || !items[slot].name[0])
+    return;
+  UnloadItem(&items[slot]);
+  if (rewardSlot == slot) {
+    rewardSlot = -1;
+    rewardTimer = 0;
+  }
+  if (contextSlot == slot)
+    contextSlot = -1;
+}
+
+void ItemsCloseContextMenu(void) {
+  contextSlot = -1;
+}
+
+static void DrawContextButton(Rectangle box, const char *label, Color fill) {
+  bool hover = CheckCollisionPointRec(GetMousePosition(), box);
+  if (hover)
+    fill = Fade(fill, 0.82f);
+  DrawRectangleRec(box, fill);
+  DrawRectangleLinesEx(box, 2, RAYWHITE);
+  int size = 14;
+  DrawText(label, (int)(box.x + (box.width - MeasureText(label, size)) / 2),
+           (int)(box.y + (box.height - size) / 2), size, RAYWHITE);
+}
+
+static void DrawItemContextMenu(Item *item) {
+  int width = GetScreenWidth() - 24;
+  if (width > 410)
+    width = 410;
+  const int fontSize = 17;
+  int contentWidth = width - 24;
+  int lines = 0;
+  for (int i = 0; i < item->effectCount; i++)
+    lines += EffectLineCount(effects[item->effects[i]].text, contentWidth,
+                             fontSize);
+  int height = 50 + lines * (fontSize + 3) + 56;
+  if (height > GetScreenHeight() - 24)
+    height = GetScreenHeight() - 24;
+  Rectangle box = {(GetScreenWidth() - width) / 2.0f,
+                   (GetScreenHeight() - height) / 2.0f, width, height};
+  Rectangle destroy = {box.x + 12, box.y + box.height - 42,
+                       (box.width - 30) / 2, 30};
+  Rectangle close = {destroy.x + destroy.width + 6, destroy.y,
+                     destroy.width, destroy.height};
+
+  DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
+                (Color){0, 0, 0, 150});
+  DrawRectangleRec(box, (Color){15, 15, 20, 250});
+  DrawRectangleLinesEx(box, 2, (Color){225, 185, 40, 255});
+  DrawText(item->name, (int)box.x + 12, (int)box.y + 10, 20,
+           (Color){245, 220, 130, 255});
+  int y = (int)box.y + 40;
+  for (int i = 0; i < item->effectCount; i++)
+    DrawEffectText(effects[item->effects[i]].text, (int)box.x + 12, &y,
+                   contentWidth, fontSize,
+                   RarityColor(effects[item->effects[i]].rarity));
+
+  DrawContextButton(destroy, "JETER L'ARTEFACT", (Color){120, 35, 35, 255});
+  DrawContextButton(close, "FERMER", (Color){45, 50, 58, 255});
+
+  Vector2 mouse = GetMousePosition();
+  if (IsKeyPressed(KEY_ESCAPE) ||
+      (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) &&
+       !CheckCollisionPointRec(mouse, box))) {
+    contextSlot = -1;
+  } else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    if (CheckCollisionPointRec(mouse, destroy))
+      ItemsDestroy(contextSlot);
+    else if (CheckCollisionPointRec(mouse, close) ||
+             !CheckCollisionPointRec(mouse, box))
+      contextSlot = -1;
   }
 }
 
@@ -367,7 +440,17 @@ void ItemsDrawInventory(Rectangle equipped[EQUIPPED_COUNT],
       hovered = i;
   }
 
+  if (contextSlot >= 0) {
+    if (contextSlot < ITEM_COUNT && items[contextSlot].name[0])
+      DrawItemContextMenu(&items[contextSlot]);
+    else
+      contextSlot = -1;
+    return;
+  }
+
   if (hovered >= 0 && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+    contextSlot = hovered;
+  } else if (hovered >= 0 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
     int destination = hovered < EQUIPPED_COUNT
                           ? FindEmpty(EQUIPPED_COUNT, ITEM_COUNT)
                           : FindEmpty(0, EQUIPPED_COUNT);
@@ -376,12 +459,10 @@ void ItemsDrawInventory(Rectangle equipped[EQUIPPED_COUNT],
       items[hovered] = (Item){0};
       if (rewardSlot == hovered)
         rewardSlot = destination;
-      hovered = destination;
+    } else {
+      TraceLog(LOG_WARNING, "Aucun emplacement libre pour deplacer l'artefact");
     }
   }
-
-  if (hovered >= 0)
-    DrawItemTooltip(&items[hovered], mouse);
 }
 
 void ItemsDrawReward(void) {
