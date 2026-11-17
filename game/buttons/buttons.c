@@ -183,17 +183,21 @@ static void DrawTrainingSelection(void) {
   int sw = GetScreenWidth(), sh = GetScreenHeight();
   float scale = GameUiScale();
   float maxScale = scale > 1 ? scale : 1;
-  float panelW = sw * 0.88f, panelH = sh * 0.86f;
+  float panelW = sw * 0.9f, panelH = sh * 0.92f;
   if (panelW > 640 * maxScale)
     panelW = 640 * maxScale;
-  if (panelH > 540 * maxScale)
-    panelH = 540 * maxScale;
+  if (panelH > 620 * maxScale)
+    panelH = 620 * maxScale;
   Rectangle panel = {(sw - panelW) / 2, (sh - panelH) / 2, panelW, panelH};
-  float rowHeight = panelH * 0.105f;
-  float rowGap = panelH * 0.025f;
   float rowX = panel.x + panelW * 0.12f;
   float rowW = panelW * 0.76f;
-  float rowY = panel.y + panelH * 0.19f;
+  float rowGap = panelH * 0.02f;
+  float rowY = panel.y + panelH * 0.18f;
+  float buttonH = panelH * 0.10f;
+  float buttonY = panel.y + panelH * 0.83f;
+  float difficultyH = panelH * 0.075f;
+  float difficultyY = buttonY - panelH * 0.025f - difficultyH;
+  float rowHeight = (difficultyY - rowY - rowGap * 4) / 4;
 
   if (IsKeyPressed(KEY_ESCAPE)) {
     trainingSelectionActive = false;
@@ -225,8 +229,6 @@ static void DrawTrainingSelection(void) {
       trainingGame = i;
   }
 
-  float difficultyY = panel.y + panelH * 0.70f;
-  float difficultyH = panelH * 0.075f;
   float difficultyW = panelW * 0.12f;
   Rectangle easier = {panel.x + panelW * 0.18f, difficultyY, difficultyW,
                       difficultyH};
@@ -246,8 +248,6 @@ static void DrawTrainingSelection(void) {
            (int)(difficultyY + (difficultyH - difficultySize) / 2),
            difficultySize, (Color){245, 220, 130, 255});
 
-  float buttonY = panel.y + panelH * 0.81f;
-  float buttonH = panelH * 0.10f;
   Rectangle back = {rowX, buttonY, rowW * 0.44f, buttonH};
   Rectangle start = {rowX + rowW * 0.56f, buttonY, rowW * 0.44f, buttonH};
   bool backClicked = DrawTrainingOption(back, "RETOUR", false);

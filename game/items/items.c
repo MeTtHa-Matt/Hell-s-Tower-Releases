@@ -490,6 +490,9 @@ void ItemsDrawInventory(Rectangle equipped[EQUIPPED_COUNT],
     return;
   }
 
+  if (hovered >= 0)
+    DrawItemTooltip(&items[hovered], mouse);
+
   if (hovered >= 0 && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
     contextSlot = hovered;
   } else if (hovered >= 0 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
