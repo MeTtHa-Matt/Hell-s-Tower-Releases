@@ -163,10 +163,10 @@ static void StartSelectedTraining(void) {
 
 static bool DrawTrainingOption(Rectangle box, const char *label, bool selected) {
   bool hover = CheckCollisionPointRec(GetMousePosition(), box);
-  if (hover)
-    selected = true;
 
-  Color fill = selected ? (Color){75, 58, 28, 255} : (Color){25, 25, 30, 245};
+  Color fill = selected ? (Color){75, 58, 28, 255}
+                        : hover ? (Color){42, 42, 50, 255}
+                                : (Color){25, 25, 30, 245};
   Color edge = selected ? (Color){245, 205, 95, 255} : RAYWHITE;
   DrawRectangleRec(box, fill);
   DrawRectangleLinesEx(box, selected ? 3 : 1, edge);
@@ -227,7 +227,7 @@ static void DrawTrainingSelection(void) {
   Rectangle back = {rowX, buttonY, rowW * 0.44f, buttonH};
   Rectangle start = {rowX + rowW * 0.56f, buttonY, rowW * 0.44f, buttonH};
   bool backClicked = DrawTrainingOption(back, "RETOUR", false);
-  bool startClicked = DrawTrainingOption(start, "LANCER", true);
+  bool startClicked = DrawTrainingOption(start, "LANCER", false);
   if (backClicked) {
     trainingSelectionActive = false;
     PlayButtonClickSound();
