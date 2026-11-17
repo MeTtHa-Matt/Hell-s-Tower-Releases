@@ -27,6 +27,11 @@ typedef struct {
   Texture2D texture;
 } Item;
 
+typedef struct {
+  const char *name;
+  int chance;
+} RarityChance;
+
 static Item items[ITEM_COUNT];
 static ItemEffect effects[EFFECT_LIMIT_COUNT];
 static char itemNames[128][ITEM_NAME_LENGTH];
@@ -35,6 +40,10 @@ static bool dataLoaded;
 static int rewardSlot = -1;
 static float rewardTimer;
 static int contextSlot = -1;
+static const RarityChance rarityChances[] = {
+    {"COMMUN", 50}, {"RARE", 30}, {"EPIQUE", 15},
+    {"LEGENDAIRE", 4}, {"MAUDIT", 1},
+};
 
 static void LoadData(void) {
   if (dataLoaded)
@@ -87,6 +96,49 @@ static void UnloadItem(Item *item) {
   if (item->texture.id != 0)
     UnloadTexture(item->texture);
   *item = (Item){0};
+}
+
+static int PickEffectForItem(const Item *item, int selectedCount) {
+  int roll = GetRandomValue(1, 100);
+  const char *rarity = NULL;
+  for (int i = 0; i < (int)(sizeof(rarityChances) / sizeof(rarityChances[0]));
+       i++) {
+    if (roll <= rarityChances[i].chance) {
+      rarity = rarityChances[i].name;
+      break;
+    }
+    roll -= rarityChances[i].chance;
+  }
+
+  int candidates[EFFECT_LIMIT_COUNT];
+  int candidateCount = 0;
+  for (int i = 0; rarity && i < effectCount; i++) {
+    if (strcmp(effects[i].rarity, rarity) != 0)
+      continue;
+    bool alreadySelected = false;
+    for (int j = 0; j < selectedCount; j++)
+      if (item->effects[j] == i)
+        alreadySelected = true;
+    if (!alreadySelected)
+      candidates[candidateCount++] = i;
+  }
+
+  if (candidateCount == 0) {
+    TraceLog(LOG_WARNING, "Aucun effet disponible pour la rarete tiree");
+    for (int i = 0; i < effectCount; i++) {
+      bool alreadySelected = false;
+      for (int j = 0; j < selectedCount; j++)
+        if (item->effects[j] == i)
+          alreadySelected = true;
+      if (!alreadySelected)
+        candidates[candidateCount++] = i;
+    }
+  }
+  if (candidateCount == 0) {
+    TraceLog(LOG_ERROR, "Impossible de generer un effet d'item");
+    return -1;
+  }
+  return candidates[GetRandomValue(0, candidateCount - 1)];
 }
 
 static bool LoadItemTexture(Item *item) {
@@ -333,15 +385,13 @@ void ItemsGrantForLevelUp(void) {
   if (item->effectCount > effectCount)
     item->effectCount = effectCount;
   for (int i = 0; i < item->effectCount; i++) {
-    int effect;
-    bool duplicate;
-    do {
-      effect = GetRandomValue(0, effectCount - 1);
-      duplicate = false;
-      for (int j = 0; j < i; j++)
-        if (item->effects[j] == effect)
-          duplicate = true;
-    } while (duplicate && effectCount >= item->effectCount);
+    int effect = PickEffectForItem(item, i);
+    if (effect < 0) {
+      UnloadItem(item);
+      rewardSlot = -1;
+      rewardTimer = 0;
+      return;
+    }
     item->effects[i] = effect;
   }
   rewardSlot = slot;

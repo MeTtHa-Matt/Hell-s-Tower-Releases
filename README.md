@@ -317,6 +317,9 @@ ouvre ses effets et le bouton **Jeter l'artefact** le détruit. Les items équip
 ne sont plus consommés après une partie; leurs effets compatibles sont réappliqués
 au prochain lancement sans cumuler plusieurs fois le même effet. Les changements
 d'inventaire sont conservés dans la sauvegarde en cliquant sur **Sauvegarder**.
+Chaque effet généré tire sa rareté séparément : **Commun 50 %**, **Rare 30 %**,
+**Épique 15 %**, **Légendaire 4 %** et **Maudit 1 %**. Un effet déjà présent sur
+l'item ne peut pas être tiré une deuxième fois.
 Le portrait
 `assets/player.png` est affiché avec le nom « Melina ».
 
