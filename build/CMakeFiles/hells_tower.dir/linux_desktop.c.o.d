@@ -1,7 +1,7 @@
 CMakeFiles/hells_tower.dir/linux_desktop.c.o: \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/linux_desktop.c \
+ /home/Matthew/Documents/Hell-s-tower-Releases/linux_desktop.c \
  /usr/include/stdc-predef.h \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/linux_desktop.h \
+ /home/Matthew/Documents/Hell-s-tower-Releases/linux_desktop.h \
  /usr/include/errno.h /usr/include/features.h \
  /usr/include/features-time64.h /usr/include/bits/wordsize.h \
  /usr/include/bits/timesize.h /usr/include/sys/cdefs.h \

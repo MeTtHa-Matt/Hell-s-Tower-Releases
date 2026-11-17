@@ -1,9 +1,10 @@
 CMakeFiles/hells_tower.dir/game/monster/monster.c.o: \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/game/monster/monster.c \
+ /home/Matthew/Documents/Hell-s-tower-Releases/game/monster/monster.c \
  /usr/include/stdc-predef.h \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/game/monster/monster.h \
+ /home/Matthew/Documents/Hell-s-tower-Releases/game/monster/monster.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/16/include/stdbool.h \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/game/monster/../buttons/button_sounds.h \
+ /home/Matthew/Documents/Hell-s-tower-Releases/game/monster/../buttons/button_sounds.h \
+ /home/Matthew/Documents/Hell-s-tower-Releases/game/monster/../ui_scale.h \
  /usr/include/raylib.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/16/include/stdarg.h /usr/include/math.h \
  /usr/include/bits/libc-header-start.h /usr/include/features.h \

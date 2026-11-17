@@ -9,6 +9,7 @@ hells_tower: \
   CMakeFiles/hells_tower.dir/game/game_zone/bullet_hell/bullethell.c.o \
   CMakeFiles/hells_tower.dir/game/game_zone/mirror/mirror.c.o \
   CMakeFiles/hells_tower.dir/game/game_zone/rings/rings.c.o \
+  CMakeFiles/hells_tower.dir/game/game_zone/seals/seals.c.o \
   CMakeFiles/hells_tower.dir/game/game_zone/zone.c.o \
   CMakeFiles/hells_tower.dir/game/inventory/inventory.c.o \
   CMakeFiles/hells_tower.dir/game/items/functionnal/functionnal.c.o \
@@ -88,6 +89,8 @@ CMakeFiles/hells_tower.dir/game/game_zone/bullet_hell/bullethell.c.o:
 CMakeFiles/hells_tower.dir/game/game_zone/mirror/mirror.c.o:
 
 CMakeFiles/hells_tower.dir/game/game_zone/rings/rings.c.o:
+
+CMakeFiles/hells_tower.dir/game/game_zone/seals/seals.c.o:
 
 CMakeFiles/hells_tower.dir/game/game_zone/zone.c.o:
 

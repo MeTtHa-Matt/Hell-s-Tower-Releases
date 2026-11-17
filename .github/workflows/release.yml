@@ -1,0 +1,338 @@
+name: Build and package
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: linux
+            arch: x64
+            artifact: linux-x64
+          - os: windows-2022
+            platform: windows
+            arch: x64
+            artifact: windows-x64
+          - os: macos-15-intel
+            platform: macos
+            arch: x86_64
+            artifact: macos-intel
+          - os: macos-15
+            platform: macos
+            arch: arm64
+            artifact: macos-apple-silicon
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set package version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$VERSION" = "$GITHUB_REF_NAME" ]; then
+            VERSION="0.0.0-dev.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libasound2-dev libgl1-mesa-dev \
+            libx11-dev libxext-dev libxinerama-dev libxcursor-dev libxrandr-dev \
+            libxi-dev libxfixes-dev libxrender-dev libwayland-dev libxkbcommon-dev
+
+      - name: Install Windows build tools
+        if: matrix.platform == 'windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
+
+      - name: Configure and build (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel
+
+      - name: Configure and build (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            ${{ matrix.platform == 'macos' && format('-DCMAKE_OSX_ARCHITECTURES={0}', matrix.arch) || '' }}
+          cmake --build build --parallel
+
+      - name: Package Windows installer
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          choco install innosetup --no-progress -y
+          New-Item -ItemType Directory -Force dist | Out-Null
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            "/DAppVersion=$env:VERSION" `
+            "/DSourceDir=$((Resolve-Path build).Path)" `
+            "/DOutputDir=$((Resolve-Path dist).Path)" `
+            packaging/windows/hells_tower.iss
+
+      - name: Sign Windows installer (optional)
+        if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'windows'
+        shell: pwsh
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          if (-not $env:CERTIFICATE_BASE64 -or -not $env:CERTIFICATE_PASSWORD) {
+            Write-Host "No Windows signing secrets configured; skipping code signing."
+            exit 0
+          }
+          $certificatePath = Join-Path $env:RUNNER_TEMP "hells-tower-signing.pfx"
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
+          $signTool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
+            -Filter signtool.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signTool) { throw "Windows SDK signtool.exe was not found." }
+          & $signTool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
+            /f $certificatePath /p $env:CERTIFICATE_PASSWORD build/hells_tower.exe
+          if ($LASTEXITCODE -ne 0) { throw "Signing the game executable failed." }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            "/DAppVersion=$env:VERSION" `
+            "/DSourceDir=$((Resolve-Path build).Path)" `
+            "/DOutputDir=$((Resolve-Path dist).Path)" `
+            packaging/windows/hells_tower.iss
+          if ($LASTEXITCODE -ne 0) { throw "Rebuilding the installer with the signed executable failed." }
+          & $signTool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
+            /f $certificatePath /p $env:CERTIFICATE_PASSWORD dist/Hells-Tower-Setup-Windows-x64.exe
+          if ($LASTEXITCODE -ne 0) { throw "Signing the installer failed." }
+          Remove-Item $certificatePath
+
+      - name: Package macOS disk image
+        if: matrix.platform == 'macos'
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          ARCH: ${{ matrix.artifact }}
+        run: |
+          mkdir -p dist
+          APP="$RUNNER_TEMP/Hells Tower.app"
+          DMG_DIR="$RUNNER_TEMP/dmg"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$DMG_DIR"
+          cp build/hells_tower "$APP/Contents/MacOS/hells_tower"
+          cp -R assets "$APP/Contents/Resources/assets"
+          rm -f "$APP/Contents/Resources/assets/video.mp4"
+          cp packaging/macos/Info.plist "$APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" "$APP/Contents/Info.plist"
+          chmod +x "$APP/Contents/MacOS/hells_tower"
+          cp build/THIRD_PARTY_NOTICES.txt "$APP/Contents/Resources/THIRD_PARTY_NOTICES.txt"
+          ditto "$APP" "$DMG_DIR/Hells Tower.app"
+          ln -s /Applications "$DMG_DIR/Applications"
+          hdiutil create -volname "Hell's Tower" -srcfolder "$DMG_DIR" -ov -format UDZO \
+            "dist/Hells-Tower-${ARCH}.dmg"
+
+      - name: Sign and notarize macOS disk image (optional)
+        if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'macos'
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ARCH: ${{ matrix.artifact }}
+        run: |
+          if [ -z "$CERTIFICATE_BASE64" ] || [ -z "$CERTIFICATE_PASSWORD" ] || \
+             [ -z "$SIGNING_IDENTITY" ] || [ -z "$APPLE_ID" ] || \
+             [ -z "$APPLE_APP_PASSWORD" ] || [ -z "$TEAM_ID" ]; then
+            echo "No Apple Developer secrets configured; skipping signing and notarization."
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/hells-tower.keychain-db"
+          CERTIFICATE="$RUNNER_TEMP/apple-certificate.p12"
+          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE"
+          security create-keychain -p "$CERTIFICATE_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$CERTIFICATE_PASSWORD" "$KEYCHAIN"
+          security import "$CERTIFICATE" -k "$KEYCHAIN" -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$CERTIFICATE_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+          APP="$RUNNER_TEMP/Hells Tower.app"
+          DMG_DIR="$RUNNER_TEMP/dmg"
+          codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" \
+            "$APP/Contents/MacOS/hells_tower"
+          codesign --force --deep --options runtime --timestamp --sign "$SIGNING_IDENTITY" "$APP"
+          codesign --verify --deep --strict "$APP"
+          rm -rf "$DMG_DIR/Hells Tower.app"
+          ditto "$APP" "$DMG_DIR/Hells Tower.app"
+          hdiutil create -volname "Hell's Tower" -srcfolder "$DMG_DIR" -ov -format UDZO \
+            "dist/Hells-Tower-${ARCH}.dmg"
+          xcrun notarytool submit "dist/Hells-Tower-${ARCH}.dmg" \
+            --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$TEAM_ID" --wait
+          xcrun stapler staple "dist/Hells-Tower-${ARCH}.dmg"
+          rm -f "$CERTIFICATE"
+          security delete-keychain "$KEYCHAIN"
+
+      - name: Package macOS installer (.pkg)
+        if: matrix.platform == 'macos'
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          ARCH: ${{ matrix.artifact }}
+        run: |
+          APP="$RUNNER_TEMP/Hells Tower.app"
+          PKG_ROOT="$RUNNER_TEMP/pkg-root"
+          PKG_RESOURCES="$RUNNER_TEMP/pkg-resources"
+          mkdir -p "$PKG_ROOT/Applications" "$PKG_RESOURCES"
+          ditto "$APP" "$PKG_ROOT/Applications/Hells Tower.app"
+          printf 'Installe Hell'\''s Tower dans le dossier Applications de ce Mac.\n' \
+            > "$RUNNER_TEMP/Welcome.txt"
+          textutil -convert rtf -output "$PKG_RESOURCES/Welcome.rtf" "$RUNNER_TEMP/Welcome.txt"
+          textutil -convert rtf -output "$PKG_RESOURCES/License.rtf" \
+            build/THIRD_PARTY_NOTICES.txt
+          pkgbuild --root "$PKG_ROOT" \
+            --identifier "com.hellstower.game" \
+            --version "$VERSION" \
+            --install-location "/" \
+            "$RUNNER_TEMP/hells-tower-component.pkg"
+          productbuild --package "$RUNNER_TEMP/hells-tower-component.pkg" \
+            --resources "$PKG_RESOURCES" \
+            "dist/Hells-Tower-${ARCH}.pkg"
+
+      - name: Package Linux AppImage
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p AppDir/usr/bin/assets AppDir/usr/share/icons/hicolor/16x16/apps dist
+          cp -R assets/. AppDir/usr/bin/assets/
+          rm -f AppDir/usr/bin/assets/video.mp4
+          cp assets/heart.png AppDir/usr/share/icons/hicolor/16x16/apps/hells_tower.png
+          cp packaging/linux/hells_tower.desktop AppDir/hells_tower.desktop
+          install -Dm644 build/THIRD_PARTY_NOTICES.txt \
+            AppDir/usr/share/doc/hells-tower/THIRD_PARTY_NOTICES.txt
+          install -Dm755 build/hells_tower AppDir/usr/bin/hells_tower
+          LINUXDEPLOY="$RUNNER_TEMP/linuxdeploy-x86_64.AppImage"
+          APPIMAGE_PLUGIN="$RUNNER_TEMP/linuxdeploy-plugin-appimage-x86_64.AppImage"
+          curl -fL https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage -o "$LINUXDEPLOY"
+          curl -fL https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage -o "$APPIMAGE_PLUGIN"
+          chmod +x "$LINUXDEPLOY" "$APPIMAGE_PLUGIN"
+          mkdir -p "$RUNNER_TEMP/appimage-bin"
+          ln -sf "$APPIMAGE_PLUGIN" "$RUNNER_TEMP/appimage-bin/linuxdeploy-plugin-appimage-x86_64.AppImage"
+          export PATH="$RUNNER_TEMP/appimage-bin:$PATH"
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          "$LINUXDEPLOY" --appdir AppDir --executable AppDir/usr/bin/hells_tower \
+            --desktop-file AppDir/hells_tower.desktop \
+            --icon-file AppDir/usr/share/icons/hicolor/16x16/apps/hells_tower.png \
+            --output appimage
+          mv ./*.AppImage "dist/Hells-Tower-Linux-x64.AppImage"
+
+      - name: Verify packaged contents
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ARTIFACT: ${{ matrix.artifact }}
+        run: |
+          test -d build/assets
+          test -f build/assets/menu_background.htv
+          test -f build/THIRD_PARTY_NOTICES.txt
+          case "$PLATFORM" in
+            windows)
+              package="dist/Hells-Tower-Setup-Windows-x64.exe"
+              ;;
+            macos)
+              package="dist/Hells-Tower-${ARTIFACT}.dmg"
+              installer="dist/Hells-Tower-${ARTIFACT}.pkg"
+              ;;
+            linux)
+              package="dist/Hells-Tower-Linux-x64.AppImage"
+              ;;
+            *)
+              echo "Unknown package platform: $PLATFORM" >&2
+              exit 1
+              ;;
+          esac
+          test -f "$package"
+          if [ "$PLATFORM" = "macos" ]; then
+            test -f "$installer"
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        with:
+          name: hells-tower-${{ matrix.artifact }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.pkg
+            dist/*.AppImage
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: hells-tower-*
+          merge-multiple: true
+      - name: Publish or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTES_FILE="$RUNNER_TEMP/hells-tower-release-notes.md"
+          cat > "$NOTES_FILE" <<'EOF'
+          ## Installation
+
+          - **macOS** : ouvrez le `.pkg` pour installer automatiquement le jeu dans `Applications`, ou glissez `Hells Tower.app` depuis le `.dmg`. Le paquet `.pkg` n'est pas signé ; si macOS en bloque l'ouverture, faites un clic droit puis **Ouvrir**. Pour autoriser le lancement non signé de l'application, ouvrez **Réglages Système > Confidentialité et sécurité > Ouvrir quand même**, ou exécutez `xattr -cr "/Applications/Hells Tower.app"` dans le Terminal.
+          - **Linux** : rendez `Hells-Tower-Linux-x64.AppImage` exécutable avec `chmod +x Hells-Tower-Linux-x64.AppImage`, puis lancez-le une fois pour qu'il s'ajoute automatiquement au menu des applications.
+          - **Windows** : sur l'alerte SmartScreen, cliquez sur **Informations complémentaires > Exécuter quand même**.
+          EOF
+          mapfile -t FILES < <(find release-assets -type f)
+          printf 'Fichiers trouvés (%d) :\n' "${#FILES[@]}"
+          printf ' - %s\n' "${FILES[@]}"
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "ERREUR: Aucun fichier trouvé dans release-assets" >&2
+            exit 1
+          fi
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${FILES[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --json body --jq '.body // ""' > "$RUNNER_TEMP/existing-release-notes.md"
+            if ! grep -Fxq '## Installation' "$RUNNER_TEMP/existing-release-notes.md"; then
+              printf '\n\n' >> "$RUNNER_TEMP/existing-release-notes.md"
+              cat "$NOTES_FILE" >> "$RUNNER_TEMP/existing-release-notes.md"
+              gh release edit "$GITHUB_REF_NAME" \
+                --repo "$GITHUB_REPOSITORY" \
+                --notes-file "$RUNNER_TEMP/existing-release-notes.md"
+            fi
+          else
+            gh release create "$GITHUB_REF_NAME" "${FILES[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file "$NOTES_FILE" \
+              --generate-notes
+          fi

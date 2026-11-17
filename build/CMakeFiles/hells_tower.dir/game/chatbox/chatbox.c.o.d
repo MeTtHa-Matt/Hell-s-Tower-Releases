@@ -1,8 +1,9 @@
 CMakeFiles/hells_tower.dir/game/chatbox/chatbox.c.o: \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/game/chatbox/chatbox.c \
+ /home/Matthew/Documents/Hell-s-tower-Releases/game/chatbox/chatbox.c \
  /usr/include/stdc-predef.h \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/game/chatbox/chatbox.h \
+ /home/Matthew/Documents/Hell-s-tower-Releases/game/chatbox/chatbox.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/16/include/stdbool.h \
+ /home/Matthew/Documents/Hell-s-tower-Releases/game/chatbox/../ui_scale.h \
  /usr/include/raylib.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/16/include/stdarg.h \
  /usr/include/stdio.h /usr/include/bits/libc-header-start.h \

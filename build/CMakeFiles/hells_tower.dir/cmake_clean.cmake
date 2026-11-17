@@ -12,6 +12,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/hells_tower.dir/game/game_zone/mirror/mirror.c.o.d"
   "CMakeFiles/hells_tower.dir/game/game_zone/rings/rings.c.o"
   "CMakeFiles/hells_tower.dir/game/game_zone/rings/rings.c.o.d"
+  "CMakeFiles/hells_tower.dir/game/game_zone/seals/seals.c.o"
+  "CMakeFiles/hells_tower.dir/game/game_zone/seals/seals.c.o.d"
   "CMakeFiles/hells_tower.dir/game/game_zone/zone.c.o"
   "CMakeFiles/hells_tower.dir/game/game_zone/zone.c.o.d"
   "CMakeFiles/hells_tower.dir/game/inventory/inventory.c.o"

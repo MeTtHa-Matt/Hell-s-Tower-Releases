@@ -1,7 +1,8 @@
 CMakeFiles/hells_tower.dir/game/levels/levels.c.o: \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/game/levels/levels.c \
+ /home/Matthew/Documents/Hell-s-tower-Releases/game/levels/levels.c \
  /usr/include/stdc-predef.h \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/game/levels/levels.h \
+ /home/Matthew/Documents/Hell-s-tower-Releases/game/levels/levels.h \
+ /home/Matthew/Documents/Hell-s-tower-Releases/game/levels/../ui_scale.h \
  /usr/include/raylib.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/16/include/stdarg.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/16/include/stdbool.h \

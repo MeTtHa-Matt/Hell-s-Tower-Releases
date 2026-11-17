@@ -36,47 +36,49 @@ static int sigridLoadedFloor = -1;
 static bool sigridActive;
 
 static const char *dialogues[DIALOGUE_COUNT] = {
-    "Oh ! Un voyageur ! Bonjour, bonjour ! N'aie pas peur, je suis un "
-    "monstre, mais pas de ceux de la tour. Bienvenue a son pied !",
-    "Je m'appelle Sigrid. Je suis un mage-guide... enfin, mes sorts font "
-    "surtout plus de fumee que d'effet. Disons que je me suis perdu en "
-    "cherchant mon seigneur, et que j'aide ceux qui osent grimper.",
-    "Ici, nous sommes dans la zone de paix. Personne n'a le droit de se "
-    "battre, tu peux reprendre ton souffle tranquillement. Et si tu as "
-    "envie de parler, je suis toujours la.",
-    "Avant de monter, laisse-moi te dire ce que je sais. Peu de gens "
-    "m'ecoutent jusqu'au bout, alors merci d'avance. Ceux qui le font vont "
-    "souvent plus loin.",
-    "Cette tour n'a pas ete batie par des mains d'homme. Elle a surgi "
-    "apres la chute d'un royaume, en une seule nuit, et elle accorde "
-    "d'etranges pouvoirs a ceux qu'elle juge dignes de la gravir.",
-    "C'est sa magie : meme si tu echoues dans un etage, ton ame absorbe "
-    "l'echo de tes combats. Certains elus deviennent ainsi plus forts a "
-    "chaque tentative, comme s'ils elevaient leur propre essence.",
-    "Cinquante etages. Cinquante epreuves. Et tous les dix paliers, un "
-    "gardien barre la route, prisonnier d'une douleur qu'il n'a jamais su "
-    "lacher.",
-    "Au dixieme etage regne Behemot, Demon de l'Arrogance. Il est persuade "
-    "que la tour lui appartient. Prouve-lui le contraire. Je l'ai connu "
-    "autrefois : il n'a pas toujours ete un demon.",
-    "Plus haut, Selena, la Deesse Dechue, pleure encore le ciel qu'elle a "
-    "perdu. Agares, Demon de la Vengeance, n'oublie aucun visage.",
-    "Et Dame Marika, Celle qui Regna. On dit que meme son nom fait baisser "
-    "la voix des plus braves.",
-    "Ceux qui redescendent de si haut ne parlent plus. Ils fixent "
-    "l'escalier, comme s'ils entendaient encore un appel.",
-    "Tout au sommet, une derniere gardienne veille. Je prefere taire son "
-    "nom pour l'instant : certains noms pesent trop lourd pour un premier "
-    "jour. Mais on murmure que celui qui la vaincra pourra faire un voeu "
-    "a la tour. Un seul.",
-    "Mon seigneur est monte avant moi, il y a si longtemps. J'ai perdu sa "
-    "trace dans les marches, et je ne sais meme pas s'il est encore en "
-    "vie. Alors je guide ceux qui grimpent, en esperant que l'un d'eux le "
-    "retrouve. Aide-moi, s'il te plait.",
-    "Mais assez parle. Prepare ton equipement dans ton inventaire, et "
-    "tente de gravir la tour des que tu te sentiras pret. Reviens me voir "
-    "apres chaque etage : la zone de paix t'est toujours ouverte, et moi "
-    "aussi.",
+    "Halte la, voyageur... Ne porte pas la main a ton arme. Je suis un monstre, "
+    "il est vrai, mais je ne suis pas ne de la pierre maudite de cet edifice. "
+    "Bienvenue au pied du monolithe.",
+    "Etrange... En posant les yeux sur toi, j'ai eu l'impression fugace de "
+    "t'avoir deja attendu ici, il y a tres longtemps. Bah, les siecles "
+    "jouent des tours a ma vieille memoire.",
+    "On me nomme Sigrid. Jadis, j'etais un mage-guide... bien que mes sortileges "
+    "n'aient jamais su produire plus que de la cendre et de la fumee. J'ai "
+    "perdu celui que je devais proteger, alors j'attends ici, a eclairer la "
+    "route de ceux qui osent defier les cieux.",
+    "Tu foules le Sanctuaire du Seuil. Ici, les lames se taisent et le sang "
+    "ne coule pas. Reprends ton souffle. Tant que tu resteras dans l'ombre de "
+    "cette arche, je veillerai sur ton repos.",
+    "Avant de gravir la premiere marche, accorde-moi un instant. Les ames "
+    "pressees n'ecoutent jamais les avertissements d'un paria... et leurs os "
+    "finissent par paver les etages.",
+    "Cette tour n'a ete erigee par aucune main mortelle. Elle a jailli des "
+    "entrailles de la terre la nuit meme ou notre royaume s'est effondre dans "
+    "les flammes. Depuis, elle appelle les ambitieux et les desesperes.",
+    "Telle est sa sorcellerie : meme si la mort te fauche dans les hauteurs, "
+    "ton ame boit l'echo de tes propres luttes. Ceux que la tour juge dignes "
+    "renaissent de leurs cendres, plus affutes a chaque chute.",
+    "Cinquante etages. Cinquante supplices. Et tous les dix paliers, un "
+    "Gardien te barrera la route. Ne les prends pas pour de simples betes : "
+    "ce sont des ames enchainees a un regret qu'elles n'ont jamais su abjurer.",
+    "Au dixieme palier regne Behemot, le Demon de l'Arrogance. Il s'imagine "
+    "que ces murs lui appartiennent. Brise son illusion. Je l'ai connu sous "
+    "le soleil d'autrefois... avant que l'orgueil ne devore son visage.",
+    "Plus haut encore, Selena, l'Astre Dechu, pleure un firmament qui ne lui "
+    "repond plus. Et au trentieme seuil, Agares, le Fleau de la Vengeance, "
+    "rumine une haine que les siecles n'ont pas su eteindre.",
+    "Puis vient Dame Marika, la Souveraine des Cendres. Meme dans le silence "
+    "de ces pierres, son nom suffit a faire ployer le genou des plus braves.",
+    "Tout au sommet veille une derniere sentinelle. Je tairai son nom pour "
+    "l'heure : certains fardeaux sont trop lourds pour un premier pas. Mais "
+    "les anciens murmuraient que celui qui la terrassera se verra accorder un "
+    "voeu par la tour. Un unique miracle.",
+    "Mon jeune maitre a franchi ces portes bien avant toi, dans la nuit des "
+    "temps. J'ai perdu sa trace dans le dedale des marches. J'ignore s'il "
+    "respire encore... Je t'en conjure, grimpeur : si tu vas la-haut, cherche-le.",
+    "Assez parle. Verifie ton paquetage, affermis ta prise, et affronte "
+    "l'ascension lorsque ton coeur sera pret. Reviens me voir apres chaque "
+    "epreuve : le Sanctuaire t'est ouvert, et ma memoire t'appartient.",
 };
 
 static void LoadSigridDialogues(int floor) {

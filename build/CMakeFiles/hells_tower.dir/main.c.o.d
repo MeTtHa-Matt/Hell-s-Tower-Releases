@@ -1,12 +1,12 @@
 CMakeFiles/hells_tower.dir/main.c.o: \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/main.c \
+ /home/Matthew/Documents/Hell-s-tower-Releases/main.c \
  /usr/include/stdc-predef.h \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/menu/initialisation.h \
+ /home/Matthew/Documents/Hell-s-tower-Releases/menu/initialisation.h \
  /usr/include/raylib.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/16/include/stdarg.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/16/include/stdbool.h \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/menu/buttons/buttons.h \
- /home/Matthew/Documents/Ecole/Langage\ C/Soutenance-jeu-C/linux_desktop.h \
+ /home/Matthew/Documents/Hell-s-tower-Releases/menu/buttons/buttons.h \
+ /home/Matthew/Documents/Hell-s-tower-Releases/linux_desktop.h \
  /usr/include/errno.h /usr/include/features.h \
  /usr/include/features-time64.h /usr/include/bits/wordsize.h \
  /usr/include/bits/timesize.h /usr/include/sys/cdefs.h \
