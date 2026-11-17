@@ -310,9 +310,12 @@ DrawGameZone(BulletHellUpdate, BulletHellDamageCount, "assets/monsters/gobelin.p
 Le niveau et l'expérience affichés viennent du module `levels/`. Chaque niveau
 gagné attribue un item si la zone de stockage n'est pas pleine. Les items sont
 affichés sous les cinq emplacements équipés; un clic droit les déplace vers le
-premier emplacement libre de l'autre zone. Le survol affiche leur nom et leurs
-effets, colorés selon leur rareté. Un item équipé est consommé au lancement
-d'un mini-jeu concerné et ses effets s'y appliquent. Le portrait
+premier emplacement libre de l'autre zone avec le clic gauche. Le clic droit
+ouvre ses effets et le bouton **Jeter l'artefact** le détruit. Les items équipés
+ne sont plus consommés après une partie; leurs effets compatibles sont réappliqués
+au prochain lancement sans cumuler plusieurs fois le même effet. Les changements
+d'inventaire sont conservés dans la sauvegarde en cliquant sur **Sauvegarder**.
+Le portrait
 `assets/player.png` est affiché avec le nom « Melina ».
 
 ### Les mini-jeux
@@ -344,6 +347,11 @@ Le joueur a 3 vies. Bullet hell, Rings et Mirror durent 30 secondes ; Seals dure
 | **Rings** | Des anneaux se rétrécissent vers le centre, avec une ouverture à trouver. Déplacement à la souris. |
 | **Mirror** | L'écran est coupé en deux : le cœur est dupliqué des deux côtés (en miroir) et les projectiles visent chaque copie. |
 | **Seals** | Réservé aux boss : esquive les attaques annoncées, puis reste sur chaque sceau pour en activer quatre. Déplacement avec WASD / flèches, esquive avec **Espace**. |
+
+Les attaques et les vagues montent progressivement avec la difficulté; le
+combat d'entraînement permet de sélectionner un jeu et lance une difficulté
+aléatoire de 8 à 10. Les easter eggs y apparaissent à 1 % lorsqu'il existe des
+monstres ordinaires à afficher.
 
 ### La tour (`tower.h`)
 
@@ -418,7 +426,7 @@ la progression à zéro et revient au menu principal.
 
 | Fonction | Rôle |
 |---|---|
-| `DrawGameButtons(acceptInput)` | Affiche les 6 boutons (Sauvegarder, Menu principal, Quitter, Combat d'entrainement, Monter la tour, Inventaire). `acceptInput` désactive leurs clics pendant un dialogue. Affiche aussi la tour ou le combat d'entraînement quand ils sont actifs. |
+| `DrawGameButtons(acceptInput)` | Affiche les 6 boutons (Sauvegarder, Menu principal, Quitter, Combat d'entrainement, Monter la tour, Inventaire). `acceptInput` désactive leurs clics pendant un dialogue. Le combat d'entraînement propose un choix entre les quatre mini-jeux. |
 | `UpdateGameButtonsMusic()` | Met à jour la musique en cours. |
 | `GameSubscreenActive()` | `true` si le joueur est dans la tour. |
 | `GameTrainingActive()` | `true` si le joueur est en combat d'entraînement. |
