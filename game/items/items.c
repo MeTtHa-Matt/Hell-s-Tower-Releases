@@ -164,14 +164,34 @@ static Color RarityColor(const char *rarity) {
   return RAYWHITE;
 }
 
+static const char *EffectGameLabel(const char *game) {
+  if (strcmp(game, "ALL") == 0)
+    return "TOUS LES MINI-JEUX";
+  if (strcmp(game, "BULLET_HELL") == 0)
+    return "BULLET HELL";
+  if (strcmp(game, "RING") == 0)
+    return "RINGS";
+  if (strcmp(game, "MIRROR") == 0)
+    return "MIRROR";
+  if (strcmp(game, "SEALS") == 0)
+    return "SEALS";
+  return game;
+}
+
+static void FormatEffectText(const ItemEffect *effect, char *text,
+                             size_t textSize) {
+  snprintf(text, textSize, "%s: %s", EffectGameLabel(effect->game),
+           effect->text);
+}
+
 static void DrawEffectText(const char *text, int x, int *y, int width,
                            int fontSize, Color color) {
-  char line[256] = "";
+  char line[384] = "";
   const char *word = text;
   while (*word) {
     const char *end = strchr(word, ' ');
     size_t wordLength = end ? (size_t)(end - word) : strlen(word);
-    char candidate[256];
+    char candidate[384];
     snprintf(candidate, sizeof(candidate), "%s%.*s",
              line[0] ? " " : "", (int)wordLength, word);
     if (line[0] && MeasureText(TextFormat("%s%s", line, candidate), fontSize) > width) {
@@ -191,13 +211,13 @@ static void DrawEffectText(const char *text, int x, int *y, int width,
 }
 
 static int EffectLineCount(const char *text, int width, int fontSize) {
-  char line[256] = "";
+  char line[384] = "";
   int count = 0;
   const char *word = text;
   while (*word) {
     const char *end = strchr(word, ' ');
     size_t wordLength = end ? (size_t)(end - word) : strlen(word);
-    char candidate[256];
+    char candidate[384];
     snprintf(candidate, sizeof(candidate), "%s%.*s",
              line[0] ? " " : "", (int)wordLength, word);
     if (line[0] && MeasureText(TextFormat("%s%s", line, candidate), fontSize) > width) {
@@ -223,10 +243,13 @@ static void DrawItemTooltip(Item *item, Vector2 position) {
   int height;
   do {
     height = GameUiPixels(46);
-    for (int i = 0; i < item->effectCount; i++)
-      height += EffectLineCount(effects[item->effects[i]].text,
-                                width - padding * 2, fontSize) *
+    for (int i = 0; i < item->effectCount; i++) {
+      char effectText[320];
+      FormatEffectText(&effects[item->effects[i]], effectText,
+                       sizeof(effectText));
+      height += EffectLineCount(effectText, width - padding * 2, fontSize) *
                 (fontSize + GameUiPixels(3));
+    }
     if (height <= GetScreenHeight() - margin * 2 ||
         fontSize <= GameUiPixels(10))
       break;
@@ -256,10 +279,13 @@ static void DrawItemTooltip(Item *item, Vector2 position) {
   if (contentHeight < 0)
     contentHeight = 0;
   BeginScissorMode((int)box.x, y, width, contentHeight);
-  for (int i = 0; i < item->effectCount; i++)
-    DrawEffectText(effects[item->effects[i]].text, (int)box.x + padding, &y,
-                   width - padding * 2, fontSize,
-                   RarityColor(effects[item->effects[i]].rarity));
+  for (int i = 0; i < item->effectCount; i++) {
+    ItemEffect *effect = &effects[item->effects[i]];
+    char effectText[320];
+    FormatEffectText(effect, effectText, sizeof(effectText));
+    DrawEffectText(effectText, (int)box.x + padding, &y, width - padding * 2,
+                   fontSize, RarityColor(effect->rarity));
+  }
   EndScissorMode();
 }
 
@@ -460,9 +486,12 @@ static void DrawItemContextMenu(Item *item) {
   int height, lines;
   do {
     lines = 0;
-    for (int i = 0; i < item->effectCount; i++)
-      lines += EffectLineCount(effects[item->effects[i]].text, contentWidth,
-                               fontSize);
+    for (int i = 0; i < item->effectCount; i++) {
+      char effectText[320];
+      FormatEffectText(&effects[item->effects[i]], effectText,
+                       sizeof(effectText));
+      lines += EffectLineCount(effectText, contentWidth, fontSize);
+    }
     height = GameUiPixels(106) + lines * (fontSize + GameUiPixels(3));
     if (height <= GetScreenHeight() - margin * 2 ||
         fontSize <= GameUiPixels(10))
@@ -492,10 +521,13 @@ static void DrawItemContextMenu(Item *item) {
   if (contentHeight < 0)
     contentHeight = 0;
   BeginScissorMode((int)box.x + margin, y, contentWidth, contentHeight);
-  for (int i = 0; i < item->effectCount; i++)
-    DrawEffectText(effects[item->effects[i]].text, (int)box.x + margin, &y,
-                   contentWidth, fontSize,
-                   RarityColor(effects[item->effects[i]].rarity));
+  for (int i = 0; i < item->effectCount; i++) {
+    ItemEffect *effect = &effects[item->effects[i]];
+    char effectText[320];
+    FormatEffectText(effect, effectText, sizeof(effectText));
+    DrawEffectText(effectText, (int)box.x + margin, &y, contentWidth, fontSize,
+                   RarityColor(effect->rarity));
+  }
   EndScissorMode();
 
   DrawContextButton(destroy, "JETER L'ARTEFACT", (Color){120, 35, 35, 255});
