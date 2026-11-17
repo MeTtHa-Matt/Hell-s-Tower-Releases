@@ -315,9 +315,9 @@ effets, colorés selon leur rareté. Un item équipé est consommé au lancement
 d'un mini-jeu concerné et ses effets s'y appliquent. Le portrait
 `assets/player.png` est affiché avec le nom « Melina ».
 
-### Les trois mini-jeux
+### Les mini-jeux
 
-Les trois ont **exactement la même interface** (remplace `Xxx` par `BulletHell`, `Rings` ou `Mirror`) :
+Les mini-jeux de la tour ont **exactement la même interface** (remplace `Xxx` par `BulletHell`, `Rings`, `Mirror` ou `Seals`) :
 
 | Fonction | Rôle |
 |---|---|
@@ -334,14 +334,16 @@ Les trois ont **exactement la même interface** (remplace `Xxx` par `BulletHell`
 | Bullet hell | `HELL_PLAYING` | `HELL_WON` | `HELL_LOST` | `HELL_OFF` |
 | Rings | `RINGS_PLAYING` | `RINGS_WON` | `RINGS_LOST` | `RINGS_OFF` |
 | Mirror | `MIRROR_PLAYING` | `MIRROR_WON` | `MIRROR_LOST` | `MIRROR_OFF` |
+| Seals | `SEALS_PLAYING` | `SEALS_WON` | `SEALS_LOST` | `SEALS_OFF` |
 
-Une partie dure 30 secondes et le joueur a 3 vies. Quand il gagne ou perd, l'état reste `WON` ou `LOST` jusqu'à ce qu'il appuie sur **Entrée** : l'état passe alors à `OFF`. C'est ce passage à `OFF` que le reste du jeu détecte pour continuer.
+Le joueur a 3 vies. Bullet hell, Rings et Mirror durent 30 secondes ; Seals dure 50 secondes et demande d'activer quatre sceaux. Dans la tour, un menu s'affiche après une victoire ou une défaite pour continuer, recommencer ou sortir.
 
 | Mini-jeu | Principe |
 |---|---|
 | **Bullet hell** | Des projectiles viennent de partout et suivent le cœur. Déplacement à la souris ou aux touches WASD / flèches. |
 | **Rings** | Des anneaux se rétrécissent vers le centre, avec une ouverture à trouver. Déplacement à la souris. |
 | **Mirror** | L'écran est coupé en deux : le cœur est dupliqué des deux côtés (en miroir) et les projectiles visent chaque copie. |
+| **Seals** | Réservé aux boss : esquive les attaques annoncées, puis reste sur chaque sceau pour en activer quatre. Déplacement avec WASD / flèches, esquive avec **Espace**. |
 
 ### La tour (`tower.h`)
 
@@ -359,7 +361,7 @@ Une partie dure 30 secondes et le joueur a 3 vies. Quand il gagne ou perd, l'ét
 
 Règles de la tour :
 
-- un boss tous les 10 étages (10, 20, 30, 40, 50) : mini-jeu bullet hell, difficulté 7 à 9 (le dernier boss : difficulté 10)
+- un boss tous les 10 étages (10, 20, 30, 40, 50) : mini-jeu Seals, difficulté 7 à 9 (le dernier boss : difficulté 10)
 - après la victoire à l'étage 50, l'étage suivant est le 51
 - les étages finissant par 5 (5, 15, 25, 35, 45) : difficulté 7
 - les autres étages : difficulté 1 à 6, mini-jeu choisi au hasard (les répétitions sont possibles)
