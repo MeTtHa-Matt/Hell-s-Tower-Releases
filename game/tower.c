@@ -4,6 +4,7 @@
 #include "game_zone/bullet hell/bullethell.h"
 #include "game_zone/mirror/mirror.h"
 #include "game_zone/rings/rings.h"
+#include "game_zone/seals/seals.h"
 #include "game_zone/zone.h"
 #include "items/functionnal/functionnal.h"
 #include "items/items.h"
@@ -92,6 +93,8 @@ static int BossIndex(int floor) {
 }
 
 static int Game(void) {
+  if (BossIndex(currentFloor) >= 0)
+    return 3;
   if (currentGame < 0)
     return 0;
   return currentGame;
@@ -355,6 +358,9 @@ static void StartGame(void) {
   case 1:
     RingsStart(FunctionalDifficulty(currentDifficulty));
     break;
+  case 3:
+    SealsStart(FunctionalDifficulty(currentDifficulty));
+    break;
   default:
     MirrorStart(FunctionalDifficulty(currentDifficulty));
   }
@@ -362,10 +368,12 @@ static void StartGame(void) {
 
 static void StartFloor(void) {
   PrepareFloor();
-  const char *itemGame = currentGame <= 0 ? "BULLET_HELL"
-                         : currentGame == 1 ? "RING"
-                         : currentGame == 2 ? "MIRROR"
-                                            : NULL;
+  int game = Game();
+  const char *itemGame = game == 0 ? "BULLET_HELL"
+                         : game == 1 ? "RING"
+                         : game == 2 ? "MIRROR"
+                         : game == 3 ? "SEALS"
+                                     : NULL;
   ItemsConsumeForGame(itemGame);
   StopMusic();
   StartMusic();
@@ -383,6 +391,9 @@ static void UpdateFloorGame(Rectangle zone) {
     break;
   case 1:
     RingsUpdate(zone);
+    break;
+  case 3:
+    SealsUpdate(zone);
     break;
   default:
     MirrorUpdate(zone);
@@ -413,6 +424,17 @@ static TowerGameState FloorGameState(void) {
     default:
       return GAME_OFF;
     }
+  case 3:
+    switch (SealsState()) {
+    case SEALS_PLAYING:
+      return GAME_PLAYING;
+    case SEALS_WON:
+      return GAME_WON;
+    case SEALS_LOST:
+      return GAME_LOST;
+    default:
+      return GAME_OFF;
+    }
   default:
     switch (MirrorState()) {
     case MIRROR_PLAYING:
@@ -433,6 +455,8 @@ static int FloorGameDamageCount(void) {
     return BulletHellDamageCount();
   case 1:
     return RingsDamageCount();
+  case 3:
+    return SealsDamageCount();
   default:
     return MirrorDamageCount();
   }
@@ -600,6 +624,7 @@ void ResetTower(void) {
   BulletHellUnload();
   MirrorUnload();
   RingsUnload();
+  SealsUnload();
   UnloadGameZone();
 }
 
