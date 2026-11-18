@@ -7,6 +7,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -113,6 +114,43 @@ static int CopyFile(const char *sourcePath, const char *destinationPath) {
             destinationPath, strerror(errno));
     return -1;
   }
+  return 0;
+}
+
+static int HashFile(const char *path, uint64_t *hashResult) {
+  FILE *file = fopen(path, "rb");
+  unsigned char buffer[8192];
+  uint64_t hash = UINT64_C(14695981039346656037);
+  size_t bytesRead;
+
+  if (file == NULL) {
+    fprintf(stderr, "Hell's Tower: impossible de lire l'icône %s : %s\n",
+            path, strerror(errno));
+    return -1;
+  }
+
+  errno = 0;
+  while ((bytesRead = fread(buffer, 1, sizeof(buffer), file)) > 0) {
+    for (size_t i = 0; i < bytesRead; i++) {
+      hash ^= buffer[i];
+      hash *= UINT64_C(1099511628211);
+    }
+  }
+
+  if (ferror(file)) {
+    int savedError = errno != 0 ? errno : EIO;
+    fclose(file);
+    fprintf(stderr, "Hell's Tower: impossible de lire l'icône %s : %s\n",
+            path, strerror(savedError));
+    return -1;
+  }
+  if (fclose(file) != 0) {
+    fprintf(stderr, "Hell's Tower: impossible de fermer l'icône %s : %s\n",
+            path, strerror(errno));
+    return -1;
+  }
+
+  *hashResult = hash;
   return 0;
 }
 
@@ -409,16 +447,29 @@ void RegisterAppImageDesktopEntry(void) {
   if (appDir != NULL && appDir[0] != '\0') {
     char *sourceIcon = JoinPath(appDir,
                                 "usr/share/icons/hicolor/256x256/apps/hells_tower.png");
-    iconPath = JoinPath(iconsDirectory, "hells_tower.png");
-    if (sourceIcon == NULL || iconPath == NULL) {
+    uint64_t iconHash;
+    char iconName[sizeof("hells_tower-0000000000000000.png")];
+
+    if (sourceIcon == NULL) {
       fprintf(stderr, "Hell's Tower: mémoire insuffisante pour installer l'icône\n");
       free(sourceIcon);
       goto cleanup;
-    } else {
-      if (CopyFile(sourceIcon, iconPath) != 0) {
-        free(sourceIcon);
-        goto cleanup;
-      }
+    }
+    if (HashFile(sourceIcon, &iconHash) != 0) {
+      free(sourceIcon);
+      goto cleanup;
+    }
+    snprintf(iconName, sizeof(iconName), "hells_tower-%016llx.png",
+             (unsigned long long)iconHash);
+    iconPath = JoinPath(iconsDirectory, iconName);
+    if (iconPath == NULL) {
+      fprintf(stderr, "Hell's Tower: mémoire insuffisante pour installer l'icône\n");
+      free(sourceIcon);
+      goto cleanup;
+    }
+    if (CopyFile(sourceIcon, iconPath) != 0) {
+      free(sourceIcon);
+      goto cleanup;
     }
     free(sourceIcon);
   } else {
