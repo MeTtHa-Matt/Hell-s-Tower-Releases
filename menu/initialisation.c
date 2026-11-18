@@ -321,9 +321,11 @@ void LoadMenu(void) {
       loadingToGame = true;
     }
 
-    DrawCustomCursor();
+    bool updatePopupActive = LoadingScreenUpdatePopupActive();
     if (LoadingScreenDraw())
       game_running = false;
+    if (!LoadingScreenActive() || updatePopupActive)
+      DrawCustomCursor();
     EndButtonSoundFrame();
     EndDrawing();
   }
@@ -447,11 +449,12 @@ void LoadBlackScreen(void) {
     if (returnToMainMenu)
       leave = true;
 
-    if (paused || !inGame || GameResultActive())
-      DrawCustomCursor();
-
+    bool updatePopupActive = LoadingScreenUpdatePopupActive();
     if (LoadingScreenDraw())
       game_running = false;
+    if (updatePopupActive ||
+        (!LoadingScreenActive() && (paused || !inGame || GameResultActive())))
+      DrawCustomCursor();
     EndButtonSoundFrame();
     EndDrawing();
   }

@@ -175,6 +175,10 @@ bool LoadingScreenActive(void) {
   return active;
 }
 
+bool LoadingScreenUpdatePopupActive(void) {
+  return active && updateRequired;
+}
+
 void LoadingScreenUnload(void) {
   if (defaultBg.id)
     UnloadTexture(defaultBg);

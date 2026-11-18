@@ -13,6 +13,7 @@ void LoadingScreenStartWithBackground(LoadingScreenAction action,
 void LoadingScreenUpdate(void);
 bool LoadingScreenDraw(void);
 bool LoadingScreenActive(void);
+bool LoadingScreenUpdatePopupActive(void);
 void LoadingScreenUnload(void);
 
 #endif
