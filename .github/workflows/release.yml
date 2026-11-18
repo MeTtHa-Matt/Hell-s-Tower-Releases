@@ -333,7 +333,6 @@ jobs:
             exit 1
           fi
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "${FILES[@]}" --repo "$GITHUB_REPOSITORY" --clobber
             gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
               --json body --jq '.body // ""' > "$RUNNER_TEMP/existing-release-notes.md"
             if ! grep -Fxq '## Installation' "$RUNNER_TEMP/existing-release-notes.md"; then
@@ -344,9 +343,26 @@ jobs:
                 --notes-file "$RUNNER_TEMP/existing-release-notes.md"
             fi
           else
-            gh release create "$GITHUB_REF_NAME" "${FILES[@]}" \
+            gh release create "$GITHUB_REF_NAME" \
               --repo "$GITHUB_REPOSITORY" \
               --title "$GITHUB_REF_NAME" \
               --notes-file "$NOTES_FILE" \
               --generate-notes
           fi
+          for file in "${FILES[@]}"; do
+            attempt=1
+            while [ "$attempt" -le 3 ]; do
+              if gh release upload "$GITHUB_REF_NAME" "$file" \
+                --repo "$GITHUB_REPOSITORY" --clobber; then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "Upload failed after $attempt attempts: $file" >&2
+                exit 1
+              fi
+              delay=$((attempt * 10))
+              echo "Upload failed; retrying $file in ${delay}s (attempt $((attempt + 1))/3)." >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+            done
+          done
