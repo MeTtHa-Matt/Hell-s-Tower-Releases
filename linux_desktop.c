@@ -235,7 +235,8 @@ static char *EscapeExecArgument(const char *argument) {
 }
 
 static int WriteDesktopEntry(const char *desktopPath, const char *appImagePath,
-                             const char *appImageDirectory) {
+                             const char *appImageDirectory,
+                             const char *iconPath) {
   char *escapedAppImage = EscapeExecArgument(appImagePath);
   char *temporaryPath;
   size_t temporaryPathLength;
@@ -287,10 +288,10 @@ static int WriteDesktopEntry(const char *desktopPath, const char *appImagePath,
               "Exec=%s\n"
               "TryExec=%s\n"
               "Path=%s\n"
-              "Icon=hells_tower\n"
+              "Icon=%s\n"
               "Terminal=false\n"
               "Categories=Game;\n",
-              escapedAppImage, escapedAppImage, appImageDirectory) < 0 ||
+              escapedAppImage, escapedAppImage, appImageDirectory, iconPath) < 0 ||
       fflush(file) != 0 || fchmod(fileno(file), 0755) != 0)
     succeeded = 0;
 
@@ -403,16 +404,26 @@ void RegisterAppImageDesktopEntry(void) {
   if (MakeDirectories(iconsDirectory) != 0) {
     fprintf(stderr, "Hell's Tower: impossible de créer %s : %s\n",
             iconsDirectory, strerror(errno));
-  } else if (appDir != NULL && appDir[0] != '\0') {
+    goto cleanup;
+  }
+  if (appDir != NULL && appDir[0] != '\0') {
     char *sourceIcon = JoinPath(appDir,
                                 "usr/share/icons/hicolor/256x256/apps/hells_tower.png");
     iconPath = JoinPath(iconsDirectory, "hells_tower.png");
     if (sourceIcon == NULL || iconPath == NULL) {
       fprintf(stderr, "Hell's Tower: mémoire insuffisante pour installer l'icône\n");
+      free(sourceIcon);
+      goto cleanup;
     } else {
-      CopyFile(sourceIcon, iconPath);
+      if (CopyFile(sourceIcon, iconPath) != 0) {
+        free(sourceIcon);
+        goto cleanup;
+      }
     }
     free(sourceIcon);
+  } else {
+    fprintf(stderr, "Hell's Tower: APPDIR n'est pas défini, icône ignorée\n");
+    goto cleanup;
   }
 
   desktopPath = JoinPath(applicationsDirectory, "hells_tower.desktop");
@@ -420,7 +431,9 @@ void RegisterAppImageDesktopEntry(void) {
     fprintf(stderr, "Hell's Tower: mémoire insuffisante pour le raccourci\n");
     goto cleanup;
   }
-  WriteDesktopEntry(desktopPath, permanentAppImagePath, appImageDirectory);
+  if (WriteDesktopEntry(desktopPath, permanentAppImagePath, appImageDirectory,
+                        iconPath) != 0)
+    goto cleanup;
 
 cleanup:
   free(resolvedAppImage);
