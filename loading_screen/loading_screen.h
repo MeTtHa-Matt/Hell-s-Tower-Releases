@@ -11,7 +11,7 @@ void LoadingScreenStartWithUpdateCheck(LoadingScreenAction action);
 void LoadingScreenStartWithBackground(LoadingScreenAction action,
                                      const char *backgroundPath);
 void LoadingScreenUpdate(void);
-void LoadingScreenDraw(void);
+bool LoadingScreenDraw(void);
 bool LoadingScreenActive(void);
 void LoadingScreenUnload(void);
 

@@ -1,18 +1,25 @@
 #include "loading_screen.h"
 #include "../game/ui_scale.h"
+#include "../menu/update_screen.h"
 #include "../updater.h"
 #include "raylib.h"
 #include <stddef.h>
 
-#define FADE_IN 0.45f
-#define LOADING 5.65f
-#define FADE_OUT 0.5f
+#define FADE_IN 0.2f
+#define LOADING 1.8f
+#define FADE_OUT 0.3f
+#define UPDATE_GATE_PROGRESS 0.75f
 
 static Texture2D defaultBg, customBg;
 static bool active, actionDone;
 static bool updateCheckActive;
+static bool updateRequired;
 static LoadingScreenAction action;
 static float timer;
+
+static float UpdateGateTime(void) {
+  return FADE_IN + LOADING * UPDATE_GATE_PROGRESS;
+}
 
 static float GetAlpha(void) {
   if (timer < FADE_IN)
@@ -26,13 +33,9 @@ static float GetProgress(void) {
   float t = timer - FADE_IN;
   if (t <= 0)
     return 0;
-  if (t < 3.0f)
-    return 0.75f * t / 3.0f;
-  if (t < 5.0f)
-    return 0.75f;
-  if (t < LOADING)
-    return 0.75f + 0.25f * (t - 5.0f) / 0.65f;
-  return 1;
+  if (t >= LOADING)
+    return 1;
+  return t / LOADING;
 }
 
 static void UnloadCustomBg(void) {
@@ -52,6 +55,7 @@ void LoadingScreenStart(LoadingScreenAction onComplete) {
   active = true;
   actionDone = false;
   updateCheckActive = false;
+  updateRequired = false;
   action = onComplete;
   timer = 0;
 }
@@ -61,7 +65,8 @@ void LoadingScreenStartWithUpdateCheck(LoadingScreenAction onComplete) {
     return;
   LoadingScreenStart(onComplete);
   updateCheckActive = true;
-  UpdaterStartCheck();
+  if (!UpdaterHasPendingUpdate())
+    UpdaterStartCheck();
 }
 
 void LoadingScreenStartWithBackground(LoadingScreenAction onComplete,
@@ -76,20 +81,37 @@ void LoadingScreenUpdate(void) {
   if (!active)
     return;
 
+  if (updateRequired) {
+    timer = UpdateGateTime();
+    return;
+  }
+
   timer += GetFrameTime();
 
-  if (!actionDone && timer >= FADE_IN + LOADING) {
-    if (updateCheckActive && !UpdaterCheckFinished()) {
-      timer = FADE_IN + LOADING;
+  if (updateCheckActive && timer >= UpdateGateTime()) {
+    timer = UpdateGateTime();
+    if (UpdaterHasPendingUpdate()) {
+      updateRequired = true;
+      updateCheckActive = false;
       return;
     }
-    actionDone = true;
-    if (updateCheckActive && UpdaterUpdateAvailable()) {
+    if (!UpdaterCheckFinished())
+      return;
+
+    if (UpdaterUpdateAvailable()) {
       UpdaterPersistUpdate(UpdaterLatestVersion());
-    } else if (action) {
-      action();
+      updateRequired = UpdaterHasPendingUpdate();
+      updateCheckActive = false;
+      if (updateRequired)
+        return;
     }
     updateCheckActive = false;
+  }
+
+  if (!actionDone && timer >= FADE_IN + LOADING) {
+    actionDone = true;
+    if (action)
+      action();
   }
 
   if (timer >= FADE_IN + LOADING + FADE_OUT) {
@@ -98,9 +120,9 @@ void LoadingScreenUpdate(void) {
   }
 }
 
-void LoadingScreenDraw(void) {
+bool LoadingScreenDraw(void) {
   if (!active)
-    return;
+    return false;
 
   int sw = GetScreenWidth();
   int sh = GetScreenHeight();
@@ -142,6 +164,11 @@ void LoadingScreenDraw(void) {
   int size = GameUiPixels(20);
   DrawText(text, (sw - MeasureText(text, size)) / 2,
            (int)(y - 32 * scale), size, gold);
+
+  if (updateRequired)
+    return UpdateRequiredScreenDraw(UpdaterPendingVersion()) ==
+           UPDATE_SCREEN_QUIT;
+  return false;
 }
 
 bool LoadingScreenActive(void) {
@@ -155,5 +182,6 @@ void LoadingScreenUnload(void) {
   UnloadCustomBg();
   active = false;
   updateCheckActive = false;
+  updateRequired = false;
   action = NULL;
 }

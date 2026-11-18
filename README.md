@@ -61,7 +61,7 @@ cmake --build build --parallel
 
 Le binaire et les ressources sont dans `build/` ; `make` exécute ces mêmes étapes et met aussi à jour l'ancien exécutable `hells_tower` à la racine. Le fond animé est lu par raylib depuis `assets/menu_background.htv` à 24 images/s ; aucun lecteur vidéo externe n'est requis à l'exécution. Les paquets embarquent les ressources nécessaires, les avis de licence des bibliothèques et démarrent depuis leur répertoire d'installation.
 
-Au clic sur **Jouer**, le jeu vérifie les nouvelles releases GitHub en arrière-plan. Si une version plus récente existe, l'accès au jeu est bloqué jusqu'à son installation. La version requise est mémorisée dans le dossier utilisateur avec la sauvegarde, afin que l'écran reste affiché même hors ligne; il disparaît au lancement d'une version au moins aussi récente.
+Au clic sur **Jouer**, le jeu vérifie les nouvelles releases GitHub en arrière-plan. Si une version plus récente existe, l'écran de mise à jour apparaît à 75 % du chargement et bloque l'accès au jeu jusqu'à son installation. La version requise est mémorisée dans le dossier utilisateur avec la sauvegarde, afin que l'écran reste affiché même hors ligne; il disparaît au lancement d'une version au moins aussi récente. Les autres écrans de chargement durent environ 2,3 secondes.
 
 #### Installer le build Linux dans son compte utilisateur
 

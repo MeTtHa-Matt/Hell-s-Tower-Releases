@@ -309,27 +309,21 @@ void LoadMenu(void) {
     BeginButtonSoundFrame();
     BeginDrawing();
     ClearBackground(BLACK);
-    if (UpdaterHasPendingUpdate() && !LoadingScreenActive()) {
-      UpdateScreenAction updateAction =
-          UpdateRequiredScreenDraw(UpdaterPendingVersion());
-      if (updateAction == UPDATE_SCREEN_QUIT)
-        game_running = false;
-    } else {
-      UpdateAndDrawMenuBackground();
-      DrawMenuTitle(TITLE);
-      Button("Jouer");
-      Button("Options");
-      Button("Quitter");
+    UpdateAndDrawMenuBackground();
+    DrawMenuTitle(TITLE);
+    Button("Jouer");
+    Button("Options");
+    Button("Quitter");
 
-      if (StartPlayingRequested() && !loadingToGame) {
-        ClearStartPlayingRequest();
-        LoadingScreenStartWithUpdateCheck(LoadSavedGame);
-        loadingToGame = true;
-      }
+    if (StartPlayingRequested() && !loadingToGame) {
+      ClearStartPlayingRequest();
+      LoadingScreenStartWithUpdateCheck(LoadSavedGame);
+      loadingToGame = true;
     }
 
     DrawCustomCursor();
-    LoadingScreenDraw();
+    if (LoadingScreenDraw())
+      game_running = false;
     EndButtonSoundFrame();
     EndDrawing();
   }
@@ -456,7 +450,8 @@ void LoadBlackScreen(void) {
     if (paused || !inGame || GameResultActive())
       DrawCustomCursor();
 
-    LoadingScreenDraw();
+    if (LoadingScreenDraw())
+      game_running = false;
     EndButtonSoundFrame();
     EndDrawing();
   }
