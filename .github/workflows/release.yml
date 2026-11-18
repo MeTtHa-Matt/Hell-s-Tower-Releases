@@ -51,7 +51,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build imagemagick \
-            libasound2-dev libgl1-mesa-dev \
+            libasound2-dev libcurl4-openssl-dev libgl1-mesa-dev \
             libx11-dev libxext-dev libxinerama-dev libxcursor-dev libxrandr-dev \
             libxi-dev libxfixes-dev libxrender-dev libwayland-dev libxkbcommon-dev
 
@@ -61,7 +61,7 @@ jobs:
         with:
           msystem: MINGW64
           update: true
-          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-curl
 
       - name: Configure and build (Windows)
         if: matrix.platform == 'windows'

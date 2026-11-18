@@ -39,18 +39,18 @@ La publication Windows nécessite `WINDOWS_SIGNING_PFX_BASE64` et `WINDOWS_SIGNI
 
 ### Compiler depuis les sources
 
-Il faut CMake 3.16+, un compilateur C et Git. Si raylib n'est pas déjà installée, CMake la télécharge et la compile à partir de la version 5.5.
+Il faut CMake 3.16+, un compilateur C, Git et libcurl. Si raylib n'est pas déjà installée, CMake la télécharge et la compile à partir de la version 5.5.
 
 Sur Linux (Ubuntu/Debian), installer d'abord les bibliothèques nécessaires :
 
 ```bash
 sudo apt-get install build-essential cmake ninja-build git \
-    libasound2-dev libgl1-mesa-dev libx11-dev libxext-dev libxinerama-dev \
+    libasound2-dev libcurl4-openssl-dev libgl1-mesa-dev libx11-dev libxext-dev libxinerama-dev \
     libxcursor-dev libxrandr-dev libxi-dev libxfixes-dev libxrender-dev \
     libwayland-dev libxkbcommon-dev
 ```
 
-Sur Windows, utiliser MSYS2 avec GCC et Ninja. Sur macOS, installer les outils en ligne de commande Xcode (`xcode-select --install`).
+Sur Windows, utiliser MSYS2 avec GCC, Ninja et libcurl. Sur macOS, installer les outils en ligne de commande Xcode (`xcode-select --install`).
 
 Puis compiler et lancer :
 
@@ -60,6 +60,8 @@ cmake --build build --parallel
 ```
 
 Le binaire et les ressources sont dans `build/` ; `make` exécute ces mêmes étapes et met aussi à jour l'ancien exécutable `hells_tower` à la racine. Le fond animé est lu par raylib depuis `assets/menu_background.htv` à 24 images/s ; aucun lecteur vidéo externe n'est requis à l'exécution. Les paquets embarquent les ressources nécessaires, les avis de licence des bibliothèques et démarrent depuis leur répertoire d'installation.
+
+Au clic sur **Jouer**, le jeu vérifie les nouvelles releases GitHub en arrière-plan. Si une version plus récente existe, l'accès au jeu est bloqué jusqu'à son installation. La version requise est mémorisée dans le dossier utilisateur avec la sauvegarde, afin que l'écran reste affiché même hors ligne; il disparaît au lancement d'une version au moins aussi récente.
 
 #### Installer le build Linux dans son compte utilisateur
 
@@ -80,8 +82,10 @@ Les sauvegardes sont stockées dans le dossier utilisateur de chaque système : 
 ```
 main.c                      point d'entrée
 loading_screen/             écran de chargement avec barre de progression
+updater.c / updater.h       vérification asynchrone des nouvelles releases
 menu/
   initialisation.c          Init, LoadMenu, LoadBlackScreen, Shutdown
+  update_screen.c           écran d'information lorsqu'une mise à jour est disponible
   background/               vidéo de fond du menu
   buttons/                  boutons Jouer / Options / Quitter
   title/                    titre animé

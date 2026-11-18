@@ -8,7 +8,9 @@
 #include "../game/tower.h"
 #include "../game/ui_scale.h"
 #include "../loading_screen/loading_screen.h"
+#include "../updater.h"
 #include "raylib.h"
+#include "update_screen.h"
 #include "title/title.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -246,6 +248,7 @@ void Init(void) {
     TraceLog(LOG_ERROR, "Icône de l'application introuvable");
   }
   LoadingScreenInit();
+  UpdaterInitialize();
   SetRandomSeed((unsigned int)(GetTime() * 1000000));
   SetExitKey(KEY_NULL);
 
@@ -306,16 +309,23 @@ void LoadMenu(void) {
     BeginButtonSoundFrame();
     BeginDrawing();
     ClearBackground(BLACK);
-    UpdateAndDrawMenuBackground();
-    DrawMenuTitle(TITLE);
-    Button("Jouer");
-    Button("Options");
-    Button("Quitter");
+    if (UpdaterHasPendingUpdate() && !LoadingScreenActive()) {
+      UpdateScreenAction updateAction =
+          UpdateRequiredScreenDraw(UpdaterPendingVersion());
+      if (updateAction == UPDATE_SCREEN_QUIT)
+        game_running = false;
+    } else {
+      UpdateAndDrawMenuBackground();
+      DrawMenuTitle(TITLE);
+      Button("Jouer");
+      Button("Options");
+      Button("Quitter");
 
-    if (StartPlayingRequested() && !loadingToGame) {
-      ClearStartPlayingRequest();
-      LoadingScreenStart(LoadSavedGame);
-      loadingToGame = true;
+      if (StartPlayingRequested() && !loadingToGame) {
+        ClearStartPlayingRequest();
+        LoadingScreenStartWithUpdateCheck(LoadSavedGame);
+        loadingToGame = true;
+      }
     }
 
     DrawCustomCursor();
@@ -471,6 +481,7 @@ void Shutdown(void) {
     UnloadMusicStream(ambientMusic);
 
   LoadingScreenUnload();
+  UpdaterShutdown();
   if (IsAudioDeviceReady())
     CloseAudioDevice();
 }

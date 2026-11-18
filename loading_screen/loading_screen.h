@@ -7,6 +7,7 @@ typedef void (*LoadingScreenAction)(void);
 
 void LoadingScreenInit(void);
 void LoadingScreenStart(LoadingScreenAction action);
+void LoadingScreenStartWithUpdateCheck(LoadingScreenAction action);
 void LoadingScreenStartWithBackground(LoadingScreenAction action,
                                      const char *backgroundPath);
 void LoadingScreenUpdate(void);

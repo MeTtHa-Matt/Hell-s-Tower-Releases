@@ -1,5 +1,6 @@
 #include "loading_screen.h"
 #include "../game/ui_scale.h"
+#include "../updater.h"
 #include "raylib.h"
 #include <stddef.h>
 
@@ -9,6 +10,7 @@
 
 static Texture2D defaultBg, customBg;
 static bool active, actionDone;
+static bool updateCheckActive;
 static LoadingScreenAction action;
 static float timer;
 
@@ -49,8 +51,17 @@ void LoadingScreenStart(LoadingScreenAction onComplete) {
   UnloadCustomBg();
   active = true;
   actionDone = false;
+  updateCheckActive = false;
   action = onComplete;
   timer = 0;
+}
+
+void LoadingScreenStartWithUpdateCheck(LoadingScreenAction onComplete) {
+  if (active)
+    return;
+  LoadingScreenStart(onComplete);
+  updateCheckActive = true;
+  UpdaterStartCheck();
 }
 
 void LoadingScreenStartWithBackground(LoadingScreenAction onComplete,
@@ -68,9 +79,17 @@ void LoadingScreenUpdate(void) {
   timer += GetFrameTime();
 
   if (!actionDone && timer >= FADE_IN + LOADING) {
+    if (updateCheckActive && !UpdaterCheckFinished()) {
+      timer = FADE_IN + LOADING;
+      return;
+    }
     actionDone = true;
-    if (action)
+    if (updateCheckActive && UpdaterUpdateAvailable()) {
+      UpdaterPersistUpdate(UpdaterLatestVersion());
+    } else if (action) {
       action();
+    }
+    updateCheckActive = false;
   }
 
   if (timer >= FADE_IN + LOADING + FADE_OUT) {
@@ -135,5 +154,6 @@ void LoadingScreenUnload(void) {
   defaultBg = (Texture2D){0};
   UnloadCustomBg();
   active = false;
+  updateCheckActive = false;
   action = NULL;
 }

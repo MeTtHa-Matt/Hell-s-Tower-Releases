@@ -3,10 +3,26 @@ project(hells_tower LANGUAGES C)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+if(NOT DEFINED APP_VERSION)
+  execute_process(
+    COMMAND git describe --tags --abbrev=0
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    OUTPUT_VARIABLE APP_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+  )
+  if(NOT APP_VERSION)
+    set(APP_VERSION "v0.0.0-dev")
+  endif()
+endif()
+
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 set(USE_EXTERNAL_GLFW OFF CACHE BOOL "" FORCE)
+
+find_package(CURL REQUIRED)
+find_package(Threads REQUIRED)
 
 find_package(raylib QUIET)
 if(TARGET raylib)
@@ -38,7 +54,10 @@ file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/loading_screen/*.c"
 )
 
-add_executable(hells_tower main.c ${GAME_SOURCES})
+add_executable(hells_tower main.c updater.c ${GAME_SOURCES})
+if(NOT CMAKE_C_FLAGS MATCHES "(^| )-DAPP_VERSION")
+  target_compile_definitions(hells_tower PRIVATE APP_VERSION="${APP_VERSION}")
+endif()
 if(WIN32)
   configure_file(
     packaging/windows/hells_tower.rc.in
@@ -50,7 +69,7 @@ endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_sources(hells_tower PRIVATE linux_desktop.c)
 endif()
-target_link_libraries(hells_tower PRIVATE ${RAYLIB_TARGET})
+target_link_libraries(hells_tower PRIVATE ${RAYLIB_TARGET} CURL::libcurl Threads::Threads)
 
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(hells_tower PRIVATE -Wall -Wextra)
