@@ -8,6 +8,8 @@
   <string>com.metthama.hellstower</string>
   <key>CFBundleName</key>
   <string>Hell's Tower</string>
+  <key>CFBundleIconFile</key>
+  <string>hells_tower</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

@@ -111,7 +111,7 @@ assets/                     images, musiques, textes et médias
 ### Assets présents
 
 - À la racine : `button.png`, `button_move.mp3`, `button_click.mp3`, `cursor.png`,
-  `dialoguebox1.png`, `heart.png`,
+  `dialoguebox1.png`, `heart.png`, `logo.png` (icône de l'application),
   `loading_screen.png`, `monster1.png`, `button_monster1.png`, `dead_sigrid.png`,
   `button_dead_sigrid.png`, `player.png`, `projectile.png`, `tower.png`,
   `menu_background.htv` (fond animé), `video.mp4` (source du fond),

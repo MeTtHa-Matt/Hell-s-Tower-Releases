@@ -238,6 +238,13 @@ void Init(void) {
              assetsDirectory);
 
   InitWindow(800, 450, TITLE);
+  Image windowIcon = LoadImage("assets/logo.png");
+  if (windowIcon.data != NULL) {
+    SetWindowIcon(windowIcon);
+    UnloadImage(windowIcon);
+  } else {
+    TraceLog(LOG_ERROR, "Icône de l'application introuvable");
+  }
   LoadingScreenInit();
   SetRandomSeed((unsigned int)(GetTime() * 1000000));
   SetExitKey(KEY_NULL);

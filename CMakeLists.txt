@@ -39,6 +39,14 @@ file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS
 )
 
 add_executable(hells_tower main.c ${GAME_SOURCES})
+if(WIN32)
+  configure_file(
+    packaging/windows/hells_tower.rc.in
+    "${CMAKE_CURRENT_BINARY_DIR}/hells_tower.rc"
+    @ONLY
+  )
+  target_sources(hells_tower PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/hells_tower.rc")
+endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_sources(hells_tower PRIVATE linux_desktop.c)
 endif()

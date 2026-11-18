@@ -48,7 +48,7 @@ Name=Hell's Tower
 Comment=Grimpez les étages de la tour
 Exec="$escaped_exec"
 Path=$install_dir
-Icon=$install_dir/assets/heart.png
+Icon=$install_dir/assets/logo.png
 Categories=Game;
 Terminal=false
 EOF

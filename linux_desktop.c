@@ -389,7 +389,7 @@ void RegisterAppImageDesktopEntry(void) {
   }
 
   applicationsDirectory = JoinPath(dataDirectory, "applications");
-  iconsDirectory = JoinPath(dataDirectory, "icons/hicolor/16x16/apps");
+  iconsDirectory = JoinPath(dataDirectory, "icons/hicolor/256x256/apps");
   if (applicationsDirectory == NULL || iconsDirectory == NULL) {
     fprintf(stderr, "Hell's Tower: mémoire insuffisante pour les dossiers XDG\n");
     goto cleanup;
@@ -405,7 +405,7 @@ void RegisterAppImageDesktopEntry(void) {
             iconsDirectory, strerror(errno));
   } else if (appDir != NULL && appDir[0] != '\0') {
     char *sourceIcon = JoinPath(appDir,
-                                "usr/share/icons/hicolor/16x16/apps/hells_tower.png");
+                                "usr/share/icons/hicolor/256x256/apps/hells_tower.png");
     iconPath = JoinPath(iconsDirectory, "hells_tower.png");
     if (sourceIcon == NULL || iconPath == NULL) {
       fprintf(stderr, "Hell's Tower: mémoire insuffisante pour installer l'icône\n");

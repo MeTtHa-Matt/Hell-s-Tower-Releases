@@ -23,6 +23,7 @@ OutputBaseFilename=Hells-Tower-Setup-Windows-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=hells_tower.ico
 UninstallDisplayIcon={app}\hells_tower.exe
 
 [Tasks]

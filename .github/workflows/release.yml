@@ -131,6 +131,16 @@ jobs:
           APP="$RUNNER_TEMP/Hells Tower.app"
           DMG_DIR="$RUNNER_TEMP/dmg"
           mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$DMG_DIR"
+          ICONSET="$RUNNER_TEMP/hells_tower.iconset"
+          mkdir -p "$ICONSET"
+          for size in 16 32 128 256 512; do
+            sips -z "$size" "$size" assets/logo.png \
+              --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+            double_size=$((size * 2))
+            sips -z "$double_size" "$double_size" assets/logo.png \
+              --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+          done
+          iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/hells_tower.icns"
           cp build/hells_tower "$APP/Contents/MacOS/hells_tower"
           cp -R assets "$APP/Contents/Resources/assets"
           rm -f "$APP/Contents/Resources/assets/video.mp4"
@@ -216,10 +226,10 @@ jobs:
       - name: Package Linux AppImage
         if: matrix.platform == 'linux'
         run: |
-          mkdir -p AppDir/usr/bin/assets AppDir/usr/share/icons/hicolor/16x16/apps dist
+          mkdir -p AppDir/usr/bin/assets AppDir/usr/share/icons/hicolor/256x256/apps dist
           cp -R assets/. AppDir/usr/bin/assets/
           rm -f AppDir/usr/bin/assets/video.mp4
-          cp assets/heart.png AppDir/usr/share/icons/hicolor/16x16/apps/hells_tower.png
+          cp assets/logo.png AppDir/usr/share/icons/hicolor/256x256/apps/hells_tower.png
           cp packaging/linux/hells_tower.desktop AppDir/hells_tower.desktop
           install -Dm644 build/THIRD_PARTY_NOTICES.txt \
             AppDir/usr/share/doc/hells-tower/THIRD_PARTY_NOTICES.txt
@@ -235,7 +245,7 @@ jobs:
           export APPIMAGE_EXTRACT_AND_RUN=1
           "$LINUXDEPLOY" --appdir AppDir --executable AppDir/usr/bin/hells_tower \
             --desktop-file AppDir/hells_tower.desktop \
-            --icon-file AppDir/usr/share/icons/hicolor/16x16/apps/hells_tower.png \
+            --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/hells_tower.png \
             --output appimage
           mv ./*.AppImage "dist/Hells-Tower-Linux-x64.AppImage"
 
