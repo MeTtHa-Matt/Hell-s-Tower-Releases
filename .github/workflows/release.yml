@@ -45,6 +45,7 @@ jobs:
             VERSION="0.0.0-dev.${GITHUB_RUN_NUMBER}"
           fi
           echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "app_value=v$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Install Linux build dependencies
         if: matrix.platform == 'linux'
@@ -66,14 +67,20 @@ jobs:
       - name: Configure and build (Windows)
         if: matrix.platform == 'windows'
         shell: msys2 {0}
+        env:
+          APP_VERSION: ${{ steps.version.outputs.app_value }}
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DAPP_VERSION="$APP_VERSION"
           cmake --build build --parallel
 
       - name: Configure and build (Unix)
         if: matrix.platform != 'windows'
+        env:
+          APP_VERSION: ${{ steps.version.outputs.app_value }}
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DAPP_VERSION="$APP_VERSION" \
             ${{ matrix.platform == 'macos' && format('-DCMAKE_OSX_ARCHITECTURES={0}', matrix.arch) || '' }}
           cmake --build build --parallel
 
