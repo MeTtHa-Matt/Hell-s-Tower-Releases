@@ -50,7 +50,8 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libasound2-dev libgl1-mesa-dev \
+          sudo apt-get install -y cmake ninja-build imagemagick \
+            libasound2-dev libgl1-mesa-dev \
             libx11-dev libxext-dev libxinerama-dev libxcursor-dev libxrandr-dev \
             libxi-dev libxfixes-dev libxrender-dev libwayland-dev libxkbcommon-dev
 
@@ -229,7 +230,10 @@ jobs:
           mkdir -p AppDir/usr/bin/assets AppDir/usr/share/icons/hicolor/256x256/apps dist
           cp -R assets/. AppDir/usr/bin/assets/
           rm -f AppDir/usr/bin/assets/video.mp4
-          cp assets/logo.png AppDir/usr/share/icons/hicolor/256x256/apps/hells_tower.png
+          convert assets/logo.png -resize 256x256 \
+            AppDir/usr/share/icons/hicolor/256x256/apps/hells_tower.png
+          test "$(identify -format '%wx%h' \
+            AppDir/usr/share/icons/hicolor/256x256/apps/hells_tower.png)" = "256x256"
           cp packaging/linux/hells_tower.desktop AppDir/hells_tower.desktop
           install -Dm644 build/THIRD_PARTY_NOTICES.txt \
             AppDir/usr/share/doc/hells-tower/THIRD_PARTY_NOTICES.txt
