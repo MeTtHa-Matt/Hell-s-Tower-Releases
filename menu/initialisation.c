@@ -527,7 +527,7 @@ static bool ShowStartupSequence(void) {
     }
   }
 
-  static const float durations[] = {1.0f, 1.5f, 1.0f, 0.8f, 14.0f, 0.8f};
+  static const float durations[] = {1.0f, 1.5f, 1.0f, 0.8f, 3.4f, 0.8f};
   int phase = 0;
   float elapsed = 0;
   while (phase < 6 && !WindowShouldClose() && game_running) {

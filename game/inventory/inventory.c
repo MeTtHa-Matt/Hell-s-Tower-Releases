@@ -7,7 +7,7 @@
 #define SLOT 88
 #define PITCH 98
 #define STORED_SLOT 70
-#define STORED_PITCH 82
+#define STORED_PITCH 74
 #define QUEST_SLOT 58
 #define QUEST_GAP 8
 #define COLUMNS 5
@@ -123,12 +123,12 @@ bool DrawInventory(bool allowClose) {
   Rectangle equipped[COLUMNS];
   Rectangle stored[COLUMNS * ROWS];
   Rectangle quest[QUEST_ITEM_COUNT];
-  DrawCentered("OBJETS DE QUETE", 721, 80, 22, textColor);
+  DrawCentered("OBJETS DE QUETE", 721, 685, 22, textColor);
   float questWidth = QUEST_SLOT * QUEST_ITEM_COUNT +
                      QUEST_GAP * (QUEST_ITEM_COUNT - 1);
   float questX = 481 + (480 - questWidth) / 2;
   for (int i = 0; i < QUEST_ITEM_COUNT; i++) {
-    Rectangle slot = Box(questX + i * (QUEST_SLOT + QUEST_GAP), 101,
+    Rectangle slot = Box(questX + i * (QUEST_SLOT + QUEST_GAP), 701,
                          QUEST_SLOT, QUEST_SLOT);
     quest[i] = slot;
     DrawSlot(slot, (Color){33, 30, 25, 255}, (Color){170, 130, 65, 255});
@@ -149,7 +149,7 @@ bool DrawInventory(bool allowClose) {
     for (int col = 0; col < COLUMNS; col++) {
       int index = row * COLUMNS + col;
       Rectangle slot = Box(storedX + col * STORED_PITCH,
-                           309 + row * STORED_PITCH, STORED_SLOT, STORED_SLOT);
+                           307 + row * STORED_PITCH, STORED_SLOT, STORED_SLOT);
       stored[index] = slot;
       DrawSlot(slot, (Color){38, 48, 48, 255}, (Color){110, 115, 115, 255});
     }
