@@ -61,6 +61,8 @@ static const Color trainingAccents[] = {
 typedef struct {
   const char *label;
   void (*action)(void);
+  int side;
+  int row;
   float inward;
 } Button;
 
@@ -488,14 +490,14 @@ static bool TrainingFinished(void) {
 }
 
 static Button buttons[8] = {
-    {"Sauvegarder", Save, 0.045f},
-    {"Menu principal", Menu, 0.0f},
-    {"Quitter", Quit, 0.09f},
-    {"Combat d'entrainement", Training, 0.045f},
-    {"Monter la tour", Subscreen, 0.0f},
-    {"Inventaire", OpenInventory, 0.09f},
-    {"Boutique", OpenShop, 0.045f},
-    {"Forger des items", OpenForge, 0.0f},
+    {"Sauvegarder", Save, 0, 0, 0.075f},
+    {"Menu principal", Menu, 0, 1, 0.0f},
+    {"Quitter", Quit, 0, 2, 0.065f},
+    {"Combat d'entrainement", Training, 1, 2, 0.0f},
+    {"Monter la tour", Subscreen, 1, 3, 0.035f},
+    {"Inventaire", OpenInventory, 1, 4, 0.075f},
+    {"Boutique", OpenShop, 1, 0, 0.075f},
+    {"Forger des items", OpenForge, 1, 1, 0.04f},
 };
 
 static void DrawButton(int i, bool acceptInput) {
@@ -504,14 +506,15 @@ static void DrawButton(int i, bool acceptInput) {
   float w = sw * 0.24f;
   float h = sh * 0.07f;
   float offset = sw * buttons[i].inward;
+  int count = buttons[i].side == 0 ? 3 : 5;
+  float rowSpacing = buttons[i].side == 0 ? 1.55f : 1.3f;
 
   Rectangle r;
-  if (i < 4)
+  if (buttons[i].side == 0)
     r.x = sw * 0.02f + offset;
   else
     r.x = sw - w - sw * 0.02f - offset;
-  int row = i < 4 ? i : i - 4;
-  r.y = sh / 2 + (row - 1.5f) * h * 1.3f;
+  r.y = sh / 2 + (buttons[i].row - (count - 1) / 2.0f) * h * rowSpacing;
   r.width = w;
   r.height = h;
 
