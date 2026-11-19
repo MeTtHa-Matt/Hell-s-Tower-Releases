@@ -258,6 +258,7 @@ void Init(void) {
   SetWindowSize(w, h);
   ToggleFullscreen();
   SetTargetFPS(60);
+  InitHomeButtons();
 
   cursorTexture = LoadTexture("assets/cursor.png");
   if (cursorTexture.id != 0)
@@ -471,6 +472,7 @@ void LoadBlackScreen(void) {
 
 void Shutdown(void) {
   UnloadButtonSounds();
+  UnloadHomeButtons();
   UnloadGameButtons();
   UnloadTexture(cursorTexture);
   UnloadTexture(titleTexture);

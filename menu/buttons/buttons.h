@@ -8,4 +8,6 @@ void OptionsButton(void);
 void QuitButton(void);
 bool StartPlayingRequested(void);
 void ClearStartPlayingRequest(void);
+void InitHomeButtons(void);
+void UnloadHomeButtons(void);
 void Button(const char *name);
