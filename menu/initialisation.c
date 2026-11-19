@@ -30,6 +30,7 @@ static bool ambientMusicLoaded;
 static bool ambientMusicStarted;
 static bool ambientMusicPaused;
 static Texture2D cursorTexture;
+static Texture2D titleTexture;
 static bool returnToMainMenu;
 static char sigridDialogues[MAX_SIGRID_DIALOGUES][SIGRID_TEXT_LEN];
 static char sigridFinal[SIGRID_TEXT_LEN];
@@ -264,6 +265,10 @@ void Init(void) {
   else
     TraceLog(LOG_ERROR, "Curseur introuvable");
 
+  titleTexture = LoadTexture("assets/title.png");
+  if (titleTexture.id == 0)
+    TraceLog(LOG_ERROR, "Titre du menu introuvable");
+
   InitAudioDevice();
   if (IsAudioDeviceReady()) {
     InitButtonSounds();
@@ -310,7 +315,7 @@ void LoadMenu(void) {
     BeginDrawing();
     ClearBackground(BLACK);
     UpdateAndDrawMenuBackground();
-    DrawMenuTitle(TITLE);
+    DrawMenuTitle(titleTexture);
     Button("Jouer");
     Button("Options");
     Button("Quitter");
@@ -468,6 +473,7 @@ void Shutdown(void) {
   UnloadButtonSounds();
   UnloadGameButtons();
   UnloadTexture(cursorTexture);
+  UnloadTexture(titleTexture);
   ShowCursor();
   UnloadChatbox();
   UnloadMonster();

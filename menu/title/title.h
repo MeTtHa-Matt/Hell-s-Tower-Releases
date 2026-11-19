@@ -1,3 +1,3 @@
 #include "raylib.h"
 
-void DrawMenuTitle(const char *titre);
+void DrawMenuTitle(Texture2D title);
