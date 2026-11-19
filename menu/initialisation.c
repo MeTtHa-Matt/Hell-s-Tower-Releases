@@ -6,6 +6,7 @@
 #include "../game/chatbox/chatbox.h"
 #include "../game/buttons/buttons.h"
 #include "../game/buttons/button_sounds.h"
+#include "../game/achievements/achievements.h"
 #include "../game/tower.h"
 #include "../game/items/items.h"
 #include "../game/ui_scale.h"
@@ -369,6 +370,7 @@ void Init(void) {
              assetsDirectory);
 
   InitWindow(800, 450, TITLE);
+  AchievementsInit();
   Image windowIcon = LoadImage("assets/logo.png");
   if (windowIcon.data != NULL) {
     SetWindowIcon(windowIcon);
@@ -420,6 +422,7 @@ void Init(void) {
 
 void LoadMenu(void) {
   bool loadingToGame = false;
+  bool achievementsOpen = false;
 
   if (menuMusicLoaded)
     PlayMusicStream(menuMusic);
@@ -457,9 +460,17 @@ void LoadMenu(void) {
       }
     } else {
       DrawMenuTitle(titleTexture);
-      Button("Jouer");
-      Button("Options");
-      Button("Quitter");
+      if (achievementsOpen) {
+        if (AchievementsDrawScreen())
+          achievementsOpen = false;
+      } else {
+        Button("Jouer");
+        Button("Succès");
+        Button("Options");
+        Button("Quitter");
+        if (TakeSuccessesRequest())
+          achievementsOpen = true;
+      }
     }
 
     if (StartPlayingRequested() && !loadingToGame) {
@@ -471,6 +482,7 @@ void LoadMenu(void) {
     bool updatePopupActive = LoadingScreenUpdatePopupActive();
     if (LoadingScreenDraw())
       game_running = false;
+    AchievementsDrawNotifications();
     if (!LoadingScreenActive() || updatePopupActive)
       DrawCustomCursor();
     EndButtonSoundFrame();
@@ -615,6 +627,8 @@ void LoadBlackScreen(void) {
     bool updatePopupActive = LoadingScreenUpdatePopupActive();
     if (LoadingScreenDraw())
       game_running = false;
+    if (!leave)
+      AchievementsDrawNotifications();
     if (updatePopupActive ||
         (!LoadingScreenActive() && (paused || !inGame || GameResultActive())))
       DrawCustomCursor();

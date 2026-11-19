@@ -7,6 +7,7 @@
 #include "../inventory/inventory.h"
 #include "../items/functionnal/functionnal.h"
 #include "../items/items.h"
+#include "../achievements/achievements.h"
 #include "../pause_menu/pause_menu.h"
 #include "../tower.h"
 #include "../ui_scale.h"
@@ -118,6 +119,7 @@ static void ReturnToMenu(void) {
 static void NewGame(void) {
   if (!DeleteTowerProgressFile())
     return;
+  AchievementsUnlock(ACHIEVEMENT_COMPLETE_GAME);
   ResetTowerProgress();
   ReturnToMenu();
 }
@@ -565,6 +567,8 @@ bool GameMelinaEndingRequested(void) {
 bool GameFinishMelinaEnding(void) {
   if (!DeleteTowerProgressFile())
     return false;
+  AchievementsUnlock(ACHIEVEMENT_COMPLETE_GAME);
+  AchievementsUnlock(ACHIEVEMENT_MELINA_ENDING);
   ResetTowerProgress();
   ReturnToMenu();
   return true;

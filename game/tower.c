@@ -6,6 +6,7 @@
 #include "game_zone/rings/rings.h"
 #include "game_zone/seals/seals.h"
 #include "game_zone/zone.h"
+#include "achievements/achievements.h"
 #include "items/functionnal/functionnal.h"
 #include "items/items.h"
 #include "levels/levels.h"
@@ -36,8 +37,13 @@ static int resultSelection;
 
 static const char *gameNames[3] = {"bullethell", "rings", "mirror"};
 
-static bool BuildSavePaths(char *directory, size_t directorySize,
-                           char *savePath, size_t savePathSize) {
+bool TowerBuildDataFilePath(const char *filename, char *directory,
+                            size_t directorySize, char *filePath,
+                            size_t filePathSize) {
+  if (!filename || !filename[0] || !directory || !directorySize ||
+      !filePath || !filePathSize || strchr(filename, '/') ||
+      strchr(filename, '\\'))
+    return false;
   const char *baseDirectory;
   int directoryLength;
 
@@ -73,9 +79,15 @@ static bool BuildSavePaths(char *directory, size_t directorySize,
   if (directoryLength < 0 || (size_t)directoryLength >= directorySize)
     return false;
 
-  int savePathLength =
-      snprintf(savePath, savePathSize, "%s/save.txt", directory);
-  return savePathLength >= 0 && (size_t)savePathLength < savePathSize;
+  int filePathLength =
+      snprintf(filePath, filePathSize, "%s/%s", directory, filename);
+  return filePathLength >= 0 && (size_t)filePathLength < filePathSize;
+}
+
+static bool BuildSavePaths(char *directory, size_t directorySize,
+                           char *savePath, size_t savePathSize) {
+  return TowerBuildDataFilePath("save.txt", directory, directorySize,
+                                savePath, savePathSize);
 }
 
 static const struct {
@@ -601,6 +613,9 @@ void Tower(void) {
       LevelsAddXP(gainedXP);
       for (int i = oldLevel; i < LevelsLevel(); i++)
         ItemsGrantForLevelUp();
+      if (after == GAME_WON && BossIndex(currentFloor) >= 0)
+        AchievementsUnlock((AchievementId)(ACHIEVEMENT_FLOOR_10 +
+                                           BossIndex(currentFloor)));
       if (after == GAME_WON && playerCharacter == 0) {
         if (currentFloor == 5)
           ItemsGrantQuestLetter();

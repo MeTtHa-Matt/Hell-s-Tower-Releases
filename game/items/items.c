@@ -1,4 +1,5 @@
 #include "items.h"
+#include "../achievements/achievements.h"
 #include "functionnal/functionnal.h"
 #include "../ui_scale.h"
 #include "raylib.h"
@@ -625,6 +626,11 @@ void ItemsGrantForLevelUp(void) {
     }
     item->effects[i] = effect;
   }
+  for (int i = 0; i < item->effectCount; i++)
+    if (strcmp(effects[item->effects[i]].rarity, "LEGENDAIRE") == 0) {
+      AchievementsUnlock(ACHIEVEMENT_LEGENDARY_ITEM);
+      break;
+    }
   rewardSlot = slot;
   questRewardSlot = -1;
   rewardTimer = 7;

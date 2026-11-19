@@ -73,7 +73,7 @@ Après la compilation, installez le jeu sans `sudo` :
 
 Le script copie le jeu et ses ressources dans `~/.local/opt/hells-tower` et crée le raccourci **Hell's Tower** dans le menu des applications (`$XDG_DATA_HOME/applications`, ou `~/.local/share/applications` par défaut). Il suit le standard XDG et ne dépend pas d'un gestionnaire de paquets ; il fonctionne sur les distributions Linux avec un environnement de bureau compatible, dès lors que les dépendances de compilation du projet y sont installées. Relancez le script après une nouvelle compilation pour mettre à jour l'installation.
 
-Les sauvegardes sont stockées dans le dossier utilisateur de chaque système : `%LOCALAPPDATA%/HellsTower` sous Windows, `~/Library/Application Support/Hells Tower` sous macOS, ou `$XDG_DATA_HOME/hells-tower` (par défaut `~/.local/share/hells-tower`) sous Linux. Une ancienne sauvegarde `save.txt` dans le répertoire du jeu est encore chargée et supprimée lors d'une réinitialisation.
+Les sauvegardes sont stockées dans le dossier utilisateur de chaque système : `%LOCALAPPDATA%/HellsTower` sous Windows, `~/Library/Application Support/Hells Tower` sous macOS, ou `$XDG_DATA_HOME/hells-tower` (par défaut `~/.local/share/hells-tower`) sous Linux. Une ancienne sauvegarde `save.txt` dans le répertoire du jeu est encore chargée et supprimée lors d'une réinitialisation. Les succès sont enregistrés dans `succes.txt`, au même endroit. Ce fichier est uniquement lu et complété : il n'est jamais réécrit ni supprimé lors d'une nouvelle partie.
 
 ---
 
@@ -90,6 +90,7 @@ menu/
   buttons/                  boutons Jouer / Options / Quitter
   title/                    titre animé
 game/
+  achievements/             succès, notifications et écran du menu
   tower.c                   logique de la tour (étages, boss, sauvegarde)
   items/                    génération, affichage, sauvegarde et effets des items
   levels/                   niveaux, expérience et notification de niveau
@@ -458,13 +459,18 @@ par l'écran de chargement, remet la progression à zéro et revient au menu.
 
 | Fonction | Rôle |
 |---|---|
-| `Button("Jouer")` / `Button("Options")` / `Button("Quitter")` | Dessine le bouton et exécute son action au clic. Seuls ces trois noms sont reconnus. |
+| `Button("Jouer")` / `Button("Succès")` / `Button("Options")` / `Button("Quitter")` | Dessine le bouton et exécute son action au clic. |
 | `StartPlayingRequested()` | `true` quand "Jouer" a été cliqué. |
 | `ClearStartPlayingRequest()` | Remet cette demande à `false`. |
 | `DrawMenuTitle("Hell's Tower")` | Dessine le titre animé. |
 | `InitMenuBackground()` | Charge le GIF animé du menu avec raylib. |
 | `UpdateAndDrawMenuBackground()` | Avance et affiche l'image suivante du GIF, en boucle. |
 | `UnloadMenuBackground()` | Libère les images et la texture du fond. |
+
+Le menu **Succès** liste les huit succès disponibles et leur état. Leur
+déblocage affiche une notification dorée non cliquable pendant cinq secondes.
+Le fichier `succes.txt` conserve les identifiants déverrouillés en ajout
+uniquement.
 
 ---
 

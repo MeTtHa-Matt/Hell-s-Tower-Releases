@@ -4,9 +4,11 @@
 extern bool game_running;
 
 void StartPlayingButton(void);
+void SuccessesButton(void);
 void OptionsButton(void);
 void QuitButton(void);
 bool StartPlayingRequested(void);
+bool TakeSuccessesRequest(void);
 void ClearStartPlayingRequest(void);
 void InitHomeButtons(void);
 void UnloadHomeButtons(void);

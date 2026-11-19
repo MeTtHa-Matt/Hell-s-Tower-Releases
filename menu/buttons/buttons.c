@@ -6,6 +6,7 @@
 #include <string.h>
 
 static bool startPlayingRequested;
+static bool successesRequested;
 static Texture2D homeButtonTexture;
 static Font homeButtonFont;
 static bool homeButtonFontLoaded;
@@ -75,6 +76,8 @@ void StartPlayingButton(void) {
   startPlayingRequested = true;
 }
 
+void SuccessesButton(void) { successesRequested = true; }
+
 void OptionsButton(void) {
 }
 
@@ -86,6 +89,12 @@ bool StartPlayingRequested(void) {
   return startPlayingRequested;
 }
 
+bool TakeSuccessesRequest(void) {
+  bool requested = successesRequested;
+  successesRequested = false;
+  return requested;
+}
+
 void ClearStartPlayingRequest(void) {
   startPlayingRequested = false;
 }
@@ -94,10 +103,12 @@ void Button(const char *name) {
   int i = -1;
   if (strcmp(name, "Jouer") == 0)
     i = 0;
-  else if (strcmp(name, "Options") == 0)
+  else if (strcmp(name, "Succès") == 0)
     i = 1;
-  else if (strcmp(name, "Quitter") == 0)
+  else if (strcmp(name, "Options") == 0)
     i = 2;
+  else if (strcmp(name, "Quitter") == 0)
+    i = 3;
   if (i < 0)
     return;
 
@@ -106,12 +117,13 @@ void Button(const char *name) {
   int w = (int)(sw * 0.22f);
   int h = (int)(sh * 0.055f);
   int gap = (int)(h * 0.35f);
-  int top = (int)(sh * 0.68f) - (h * 3 + gap * 2) / 2;
+  int top = (int)(sh * 0.68f) - (h * 4 + gap * 3) / 2;
 
   Rectangle r = {(sw - w) / 2.0f, (float)(top + i * (h + gap)), (float)w, (float)h};
 
   static const ButtonSoundId soundIds[] = {
       BUTTON_SOUND_MENU_PLAY,
+      BUTTON_SOUND_MENU_OPTIONS,
       BUTTON_SOUND_MENU_OPTIONS,
       BUTTON_SOUND_MENU_QUIT,
   };
@@ -119,6 +131,8 @@ void Button(const char *name) {
     if (i == 0)
       StartPlayingButton();
     else if (i == 1)
+      SuccessesButton();
+    else if (i == 2)
       OptionsButton();
     else
       QuitButton();
