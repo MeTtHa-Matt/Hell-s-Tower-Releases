@@ -465,7 +465,7 @@ void LoadMenu(void) {
           achievementsOpen = false;
       } else {
         Button("Jouer");
-        Button("Succès");
+        Button("Succes");
         Button("Options");
         Button("Quitter");
         if (TakeSuccessesRequest())

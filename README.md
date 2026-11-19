@@ -459,7 +459,7 @@ par l'écran de chargement, remet la progression à zéro et revient au menu.
 
 | Fonction | Rôle |
 |---|---|
-| `Button("Jouer")` / `Button("Succès")` / `Button("Options")` / `Button("Quitter")` | Dessine le bouton et exécute son action au clic. |
+| `Button("Jouer")` / `Button("Succes")` / `Button("Options")` / `Button("Quitter")` | Dessine le bouton et exécute son action au clic. |
 | `StartPlayingRequested()` | `true` quand "Jouer" a été cliqué. |
 | `ClearStartPlayingRequest()` | Remet cette demande à `false`. |
 | `DrawMenuTitle("Hell's Tower")` | Dessine le titre animé. |

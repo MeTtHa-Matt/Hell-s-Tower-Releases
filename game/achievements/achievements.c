@@ -168,12 +168,12 @@ static void DrawAchievementRow(int index, Rectangle box, float scale) {
   int titleSize = GameUiPixels(17);
   int descriptionSize = GameUiPixels(12);
   int statusSize = GameUiPixels(13);
-  DrawText(achievements[index].name, (int)box.x + padding,
-           (int)box.y + GameUiPixels(4), titleSize,
+  DrawText(isUnlocked ? achievements[index].name : "???",
+           (int)box.x + padding, (int)box.y + GameUiPixels(6), titleSize,
            isUnlocked ? (Color){255, 225, 145, 255} : (Color){205, 205, 210, 255});
-  DrawText(achievements[index].description, (int)box.x + padding,
-           (int)box.y + GameUiPixels(25), descriptionSize,
-           (Color){170, 172, 180, 255});
+  DrawText(isUnlocked ? achievements[index].description : "???",
+           (int)box.x + padding, (int)box.y + GameUiPixels(34),
+           descriptionSize, (Color){170, 172, 180, 255});
   const char *status = isUnlocked ? "DÉBLOQUÉ" : "VERROUILLÉ";
   int statusX = (int)(box.x + box.width - padding -
                       MeasureText(status, statusSize));
@@ -190,9 +190,9 @@ bool AchievementsDrawScreen(void) {
   Rectangle panel = {(sw - width) / 2, (sh - height) / 2, width, height};
   Rectangle list = {panel.x + 14 * scale, panel.y + 72 * scale,
                     panel.width - 28 * scale, panel.height - 132 * scale};
-  float rowHeight = 54 * scale;
+  float rowHeight = 64 * scale;
   float maxScroll =
-      fmaxf(0, ACHIEVEMENT_COUNT * rowHeight - list.height);
+      fmaxf(0, ACHIEVEMENT_COUNT * rowHeight - 8 * scale - list.height);
   Vector2 mouse = GetMousePosition();
   if (CheckCollisionPointRec(mouse, list))
     achievementScroll -= GetMouseWheelMove() * rowHeight * 2;
@@ -221,7 +221,7 @@ bool AchievementsDrawScreen(void) {
                    (int)list.height);
   for (int i = 0; i < ACHIEVEMENT_COUNT; i++) {
     Rectangle row = {list.x, list.y + i * rowHeight - achievementScroll,
-                     list.width, rowHeight - 4 * scale};
+                     list.width, rowHeight - 8 * scale};
     DrawAchievementRow(i, row, scale);
   }
   EndScissorMode();

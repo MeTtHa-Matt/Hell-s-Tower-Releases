@@ -103,7 +103,7 @@ void Button(const char *name) {
   int i = -1;
   if (strcmp(name, "Jouer") == 0)
     i = 0;
-  else if (strcmp(name, "Succès") == 0)
+  else if (strcmp(name, "Succes") == 0)
     i = 1;
   else if (strcmp(name, "Options") == 0)
     i = 2;
