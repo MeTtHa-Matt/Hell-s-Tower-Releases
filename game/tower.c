@@ -225,7 +225,7 @@ bool LoadTowerProgress(void) {
   bool known = fields >= 2 && floor > 0 && (seen == 0 || seen == 1);
   bool characterValid =
       version == 3 ? fields >= 8 && (savedCharacter == 1 || savedCharacter == 2)
-      : version == 4 ? fields >= 8 && savedCharacter >= 0 && savedCharacter <= 2
+      : version == 4 ? fields >= 8 && savedCharacter >= 0 && savedCharacter <= 5
                      : true;
   if (fields == 6)
     oldSigrid = (int)savedSigrid;
@@ -263,7 +263,7 @@ bool SaveTowerProgress(void) {
   char text[SAVE_LEN];
   char saveDirectory[SAVE_PATH_LEN], savePath[SAVE_PATH_LEN];
 
-  if (playerCharacter < 0 || playerCharacter > 2) {
+  if (playerCharacter < 0 || playerCharacter > 5) {
     TraceLog(LOG_ERROR, "Impossible de sauvegarder sans personnage choisi");
     return false;
   }
@@ -331,7 +331,7 @@ bool TowerProgressNeedsSaving(void) {
 }
 
 bool SetTowerPlayerCharacter(int character) {
-  if (character < 0 || character > 2)
+  if (character < 0 || character > 5)
     return false;
   playerCharacter = character;
   return true;

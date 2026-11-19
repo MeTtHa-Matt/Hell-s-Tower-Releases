@@ -13,6 +13,7 @@
 #include "../../loading_screen/loading_screen.h"
 #include "button_sounds.h"
 #include "raylib.h"
+#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -36,6 +37,18 @@ static const ButtonSoundId trainingSounds[] = {
     BUTTON_SOUND_TRAINING_RINGS,
     BUTTON_SOUND_TRAINING_MIRROR,
     BUTTON_SOUND_TRAINING_SEALS,
+};
+static const char *trainingDescriptions[] = {
+    "Esquivez les projectiles.",
+    "Traversez les anneaux.",
+    "Affrontez votre reflet.",
+    "Brisez les sceaux.",
+};
+static const Color trainingAccents[] = {
+    {230, 105, 95, 255},
+    {90, 195, 220, 255},
+    {175, 140, 235, 255},
+    {235, 190, 85, 255},
 };
 
 typedef struct {
@@ -168,24 +181,134 @@ static void StartSelectedTraining(void) {
   LoadingScreenStart(StartTraining);
 }
 
+static void DrawTrainingText(const char *text, float centerX, float y,
+                             float maxWidth, float size, Color color) {
+  float spacing = GameUiScale();
+  Vector2 textSize = MeasureTextEx(font, text, size, spacing);
+  if (textSize.x > maxWidth) {
+    size *= maxWidth / textSize.x;
+    textSize = MeasureTextEx(font, text, size, spacing);
+  }
+  DrawTextEx(font, text, (Vector2){centerX - textSize.x / 2, y}, size, spacing,
+             color);
+}
+
 static bool DrawTrainingOption(Rectangle box, const char *label, bool selected,
                                ButtonSoundId soundId) {
   bool hover = CheckCollisionPointRec(GetMousePosition(), box);
   float scale = GameUiScale();
   UpdateButtonHoverSound(soundId, hover);
 
-  Color fill = selected ? (Color){75, 58, 28, 255}
-                        : hover ? (Color){42, 42, 50, 255}
-                                : (Color){25, 25, 30, 245};
-  Color edge = selected ? (Color){245, 205, 95, 255} : RAYWHITE;
-  DrawRectangleRec(box, fill);
-  DrawRectangleLinesEx(box, (selected ? 3 : 1) * scale, edge);
-  int size = (int)(box.height * 0.48f);
-  while (size > 1 && MeasureText(label, size) > box.width - 12 * scale)
-    size--;
-  DrawText(label, (int)(box.x + (box.width - MeasureText(label, size)) / 2),
-           (int)(box.y + (box.height - size) / 2), size, RAYWHITE);
+  Color fill = selected ? (Color){86, 62, 29, 255}
+                        : hover ? (Color){51, 48, 41, 255}
+                                : (Color){25, 27, 34, 255};
+  Color edge = selected ? (Color){245, 205, 105, 255}
+                        : hover ? (Color){174, 151, 106, 255}
+                                : (Color){91, 94, 105, 255};
+  DrawRectangleRounded(box, 0.18f, 8, fill);
+  DrawRectangleRoundedLinesEx(box, 0.18f, 8, (selected ? 2 : 1) * scale, edge);
+  float size = fmaxf(10, box.height * 0.38f);
+  DrawTrainingText(label, box.x + box.width / 2, box.y + (box.height - size) / 2,
+                   box.width - 12 * scale, size, RAYWHITE);
 
+  bool clicked = hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+  if (clicked)
+    PlayButtonClickSound();
+  return clicked;
+}
+
+static void DrawTrainingIcon(int index, Vector2 center, float radius,
+                             Color accent) {
+  DrawCircleV(center, radius * 1.25f,
+              (Color){accent.r, accent.g, accent.b, 28});
+  if (index == 0) {
+    static const float points[][2] = {
+        {-0.68f, -0.42f}, {0, -0.78f}, {0.68f, -0.42f},
+        {-0.68f, 0.42f},  {0, 0.78f},  {0.68f, 0.42f},
+    };
+    for (int i = 0; i < 6; i++)
+      DrawCircleV((Vector2){center.x + points[i][0] * radius,
+                            center.y + points[i][1] * radius},
+                  radius * 0.13f, accent);
+    DrawCircleV(center, radius * 0.19f, RAYWHITE);
+  } else if (index == 1) {
+    DrawCircleLines((int)center.x, (int)center.y, radius * 0.78f, accent);
+    DrawCircleLines((int)center.x, (int)center.y, radius * 0.4f, accent);
+    DrawCircleV((Vector2){center.x + radius * 0.76f, center.y},
+                radius * 0.13f, RAYWHITE);
+  } else if (index == 2) {
+    Vector2 top = {center.x, center.y - radius};
+    Vector2 left = {center.x - radius * 0.7f, center.y};
+    Vector2 right = {center.x + radius * 0.7f, center.y};
+    Vector2 bottom = {center.x, center.y + radius};
+    DrawTriangle(top, left, center, accent);
+    DrawTriangle(center, right, bottom,
+                 (Color){accent.r, accent.g, accent.b, 145});
+  } else {
+    DrawCircleLines((int)center.x, (int)center.y, radius * 0.8f, accent);
+    DrawCircleLines((int)center.x, (int)center.y, radius * 0.4f, accent);
+    DrawLineEx((Vector2){center.x - radius * 0.58f, center.y},
+               (Vector2){center.x + radius * 0.58f, center.y}, 2, RAYWHITE);
+    DrawLineEx((Vector2){center.x, center.y - radius * 0.58f},
+               (Vector2){center.x, center.y + radius * 0.58f}, 2, RAYWHITE);
+  }
+}
+
+static bool DrawTrainingCard(Rectangle box, int index, bool selected,
+                             float scale) {
+  bool hover = CheckCollisionPointRec(GetMousePosition(), box);
+  Color accent = trainingAccents[index];
+  Color fill = selected ? (Color){34, 31, 29, 255}
+                        : hover ? (Color){29, 31, 39, 255}
+                                : (Color){19, 21, 28, 245};
+  Color edge = selected ? accent
+                        : hover ? (Color){143, 139, 128, 255}
+                                : (Color){66, 70, 81, 255};
+  DrawRectangleRounded(box, 0.1f, 10, fill);
+  DrawRectangleRoundedLinesEx(box, 0.1f, 10, (selected ? 2.5f : 1) * scale,
+                              edge);
+  if (selected)
+    DrawRectangleRounded((Rectangle){box.x + 2 * scale, box.y + box.height * 0.2f,
+                                     3 * scale, box.height * 0.6f},
+                         0.8f, 6, accent);
+
+  bool shortCard = box.height < 78 * fmaxf(scale, 0.75f);
+  bool narrowCard = box.width < 220 * fmaxf(scale, 0.75f);
+  Vector2 iconCenter;
+  float radius;
+  if (shortCard) {
+    iconCenter = (Vector2){box.x + box.width * 0.17f,
+                           box.y + box.height * 0.5f};
+    radius = fminf(box.width * 0.1f, box.height * 0.23f);
+    DrawTrainingIcon(index, iconCenter, radius, accent);
+    float titleSize = fmaxf(10, box.height * 0.3f);
+    DrawTrainingText(trainingNames[index], box.x + box.width * 0.62f,
+                     box.y + (box.height - titleSize) / 2, box.width * 0.66f,
+                     titleSize, RAYWHITE);
+  } else if (narrowCard) {
+    iconCenter = (Vector2){box.x + box.width * 0.5f,
+                           box.y + box.height * 0.36f};
+    radius = fminf(box.width * 0.19f, box.height * 0.17f);
+    DrawTrainingIcon(index, iconCenter, radius, accent);
+    float titleSize = fmaxf(10, box.height * 0.17f);
+    DrawTrainingText(trainingNames[index], box.x + box.width / 2,
+                     box.y + box.height * 0.7f, box.width * 0.88f, titleSize,
+                     RAYWHITE);
+  } else {
+    iconCenter = (Vector2){box.x + box.width * 0.16f,
+                           box.y + box.height * 0.5f};
+    radius = fminf(box.width * 0.09f, box.height * 0.24f);
+    DrawTrainingIcon(index, iconCenter, radius, accent);
+    float titleSize = fmaxf(10, fminf(25 * scale, box.height * 0.2f));
+    DrawTrainingText(trainingNames[index], box.x + box.width * 0.61f,
+                     box.y + box.height * 0.3f, box.width * 0.7f, titleSize,
+                     RAYWHITE);
+    DrawTrainingText(trainingDescriptions[index], box.x + box.width * 0.61f,
+                     box.y + box.height * 0.58f, box.width * 0.7f,
+                     fmaxf(11 * scale, box.height * 0.11f),
+                     (Color){184, 187, 196, 255});
+  }
+  UpdateButtonHoverSound(trainingSounds[index], hover);
   bool clicked = hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
   if (clicked)
     PlayButtonClickSound();
@@ -196,21 +319,22 @@ static void DrawTrainingSelection(void) {
   int sw = GetScreenWidth(), sh = GetScreenHeight();
   float scale = GameUiScale();
   float maxScale = scale > 1 ? scale : 1;
-  float panelW = sw * 0.9f, panelH = sh * 0.94f;
-  if (panelW > 760 * maxScale)
-    panelW = 760 * maxScale;
-  if (panelH > 820 * maxScale)
-    panelH = 820 * maxScale;
+  float panelW = fminf(sw * 0.94f, 980 * maxScale);
+  float panelH = fminf(sh * 0.94f, 900 * maxScale);
   Rectangle panel = {(sw - panelW) / 2, (sh - panelH) / 2, panelW, panelH};
-  float rowX = panel.x + panelW * 0.12f;
-  float rowW = panelW * 0.76f;
-  float rowGap = panelH * 0.02f;
-  float rowY = panel.y + panelH * 0.18f;
-  float buttonH = panelH * 0.10f;
-  float buttonY = panel.y + panelH * 0.83f;
-  float difficultyH = panelH * 0.075f;
-  float difficultyY = buttonY - panelH * 0.025f - difficultyH;
-  float rowHeight = (difficultyY - rowY - rowGap * 4) / 4;
+  float contentX = panel.x + panelW * 0.08f;
+  float contentW = panelW * 0.84f;
+  float cardGap = panelW * 0.035f;
+  float cardW = (contentW - cardGap) / 2;
+  float cardH = panelH * 0.17f;
+  float cardY = panel.y + panelH * 0.24f;
+  float cardRowGap = panelH * 0.025f;
+  float difficultyY = panel.y + panelH * 0.67f;
+  float difficultyH = panelH * 0.12f;
+  float footerY = panel.y + panelH * 0.84f;
+  float footerH = panelH * 0.1f;
+  float footerGap = panelW * 0.035f;
+  float footerW = (contentW - footerGap) / 2;
 
   if (IsKeyPressed(KEY_ESCAPE)) {
     trainingSelectionActive = false;
@@ -225,51 +349,76 @@ static void DrawTrainingSelection(void) {
   if (IsKeyPressed(KEY_RIGHT) && trainingDifficulty < 10)
     trainingDifficulty++;
 
-  DrawRectangle(0, 0, sw, sh, (Color){0, 0, 0, 185});
-  DrawRectangleRec(panel, (Color){15, 15, 20, 250});
-  DrawRectangleLinesEx(panel, 3 * scale, (Color){225, 185, 40, 255});
+  DrawRectangle(0, 0, sw, sh, (Color){5, 6, 10, 205});
+  Rectangle shadow = {panel.x + 5 * scale, panel.y + 7 * scale, panel.width,
+                      panel.height};
+  DrawRectangleRounded(shadow, 0.045f, 12, (Color){0, 0, 0, 145});
+  DrawRectangleRounded(panel, 0.045f, 12, (Color){17, 19, 25, 250});
+  DrawRectangleRoundedLinesEx(panel, 0.045f, 12, 2 * scale,
+                              (Color){145, 119, 70, 255});
+  Rectangle accent = {panel.x + panelW * 0.08f, panel.y + 2 * scale,
+                      panelW * 0.84f, 4 * scale};
+  DrawRectangleRounded(accent, 0.8f, 8, (Color){223, 184, 103, 255});
 
-  int titleSize = (int)(panelH * 0.075f);
-  DrawText("COMBAT D'ENTRAINEMENT",
-           (int)(panel.x + (panelW - MeasureText("COMBAT D'ENTRAINEMENT",
-                                                  titleSize)) / 2),
-           (int)(panel.y + panelH * 0.06f), titleSize,
-           (Color){245, 220, 130, 255});
+  DrawTrainingText("COMBAT D'ENTRAINEMENT", panel.x + panelW / 2,
+                   panel.y + panelH * 0.065f, panelW * 0.86f,
+                   panelH * 0.055f, (Color){245, 222, 169, 255});
+  DrawTrainingText("CHOISISSEZ VOTRE EPREUVE", panel.x + panelW / 2,
+                   panel.y + panelH * 0.15f, panelW * 0.8f,
+                   fmaxf(10, panelH * 0.022f),
+                   (Color){166, 169, 180, 255});
 
   for (int i = 0; i < 4; i++) {
-    Rectangle row = {rowX, rowY + i * (rowHeight + rowGap), rowW, rowHeight};
-    if (DrawTrainingOption(row, trainingNames[i], trainingGame == i,
-                           trainingSounds[i]))
+    Rectangle card = {contentX + (i % 2) * (cardW + cardGap),
+                      cardY + (i / 2) * (cardH + cardRowGap), cardW, cardH};
+    if (DrawTrainingCard(card, i, trainingGame == i, scale))
       trainingGame = i;
   }
 
-  float difficultyW = panelW * 0.12f;
-  Rectangle easier = {panel.x + panelW * 0.18f, difficultyY, difficultyW,
-                      difficultyH};
-  Rectangle harder = {panel.x + panelW * 0.70f, difficultyY, difficultyW,
-                      difficultyH};
+  DrawTrainingText("DIFFICULTE", panel.x + panelW / 2,
+                   difficultyY + difficultyH * 0.04f, panelW * 0.6f,
+                   fmaxf(10, difficultyH * 0.27f),
+                   (Color){171, 174, 184, 255});
+  float controlH = difficultyH * 0.48f;
+  float controlW = panelW * 0.1f;
+  Rectangle easier = {panel.x + panelW * 0.22f,
+                      difficultyY + difficultyH * 0.34f, controlW, controlH};
+  Rectangle harder = {panel.x + panelW * 0.68f,
+                      difficultyY + difficultyH * 0.34f, controlW, controlH};
   if (DrawTrainingOption(easier, "-", false, BUTTON_SOUND_TRAINING_EASIER) &&
       trainingDifficulty > 1)
     trainingDifficulty--;
   if (DrawTrainingOption(harder, "+", false, BUTTON_SOUND_TRAINING_HARDER) &&
       trainingDifficulty < 10)
     trainingDifficulty++;
-  char difficultyLabel[32];
-  snprintf(difficultyLabel, sizeof(difficultyLabel), "DIFFICULTE : %d / 10",
+  char difficultyLabel[24];
+  snprintf(difficultyLabel, sizeof(difficultyLabel), "%02d / 10",
            trainingDifficulty);
-  int difficultySize = (int)(difficultyH * 0.45f);
-  DrawText(difficultyLabel,
-           (int)(panel.x +
-                 (panelW - MeasureText(difficultyLabel, difficultySize)) / 2),
-           (int)(difficultyY + (difficultyH - difficultySize) / 2),
-           difficultySize, (Color){245, 220, 130, 255});
+  DrawTrainingText(difficultyLabel, panel.x + panelW / 2,
+                   difficultyY + difficultyH * 0.36f, panelW * 0.3f,
+                   fmaxf(10, difficultyH * 0.34f),
+                   (Color){245, 220, 150, 255});
+  float meterW = panelW * 0.3f;
+  float meterGap = 3 * scale;
+  float meterX = panel.x + (panelW - meterW) / 2;
+  float meterY = difficultyY + difficultyH * 0.82f;
+  float meterH = 3 * scale;
+  float meterStepW = (meterW - meterGap * 9) / 10;
+  for (int i = 0; i < 10; i++) {
+    Rectangle step = {meterX + i * (meterStepW + meterGap), meterY, meterStepW,
+                      meterH};
+    DrawRectangleRounded(step, 0.8f, 4,
+                         i < trainingDifficulty
+                             ? (Color){223, 184, 103, 255}
+                             : (Color){62, 65, 75, 255});
+  }
 
-  Rectangle back = {rowX, buttonY, rowW * 0.44f, buttonH};
-  Rectangle start = {rowX + rowW * 0.56f, buttonY, rowW * 0.44f, buttonH};
+  Rectangle back = {contentX, footerY, footerW, footerH};
+  Rectangle start = {contentX + footerW + footerGap, footerY, footerW, footerH};
   bool backClicked =
       DrawTrainingOption(back, "ANNULER", false, BUTTON_SOUND_TRAINING_CANCEL);
   bool startClicked =
-      DrawTrainingOption(start, "JOUER", false, BUTTON_SOUND_TRAINING_START);
+      DrawTrainingOption(start, "JOUER", true, BUTTON_SOUND_TRAINING_START);
   if (backClicked) {
     trainingSelectionActive = false;
   } else if (startClicked || IsKeyPressed(KEY_ENTER)) {

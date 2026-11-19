@@ -324,8 +324,8 @@ d'inventaire sont conservés dans la sauvegarde en cliquant sur **Sauvegarder**.
 Chaque effet généré tire sa rareté séparément : **Commun 50 %**, **Rare 30 %**,
 **Épique 15 %**, **Légendaire 4 %** et **Maudit 1 %**. Un effet déjà présent sur
 l'item ne peut pas être tiré une deuxième fois.
-Le portrait
-`assets/player0.png` est affiché avec le nom « Melina ».
+Les portraits `assets/player0.png` à `assets/player5.png` correspondent,
+dans l'ordre, à Melina, Elyssia, Kaelen, Gorran, Ysolde et Thaddeus.
 
 ### Les mini-jeux
 

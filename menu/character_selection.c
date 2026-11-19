@@ -7,11 +7,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#define CHARACTER_COUNT 3
+#define CHARACTER_COUNT 6
 
-static const char *names[CHARACTER_COUNT] = {"Melina", "Elyssia", "Kaelen"};
+static const char *names[CHARACTER_COUNT] = {
+    "Melina", "Elyssia", "Kaelen", "Gorran", "Ysolde", "Thaddeus"};
 static const char *storyPaths[CHARACTER_COUNT] = {
-    "assets/player0.txt", "assets/player1.txt", "assets/player2.txt"};
+    "assets/player0.txt", "assets/player1.txt", "assets/player2.txt",
+    "assets/player3.txt", "assets/player4.txt", "assets/player5.txt"};
 static Texture2D portraits[CHARACTER_COUNT];
 static char *stories[CHARACTER_COUNT];
 static Texture2D buttonTexture;

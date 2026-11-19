@@ -274,6 +274,12 @@ jobs:
           test -f build/assets/player1.txt
           test -f build/assets/player2.png
           test -f build/assets/player2.txt
+          test -f build/assets/player3.png
+          test -f build/assets/player3.txt
+          test -f build/assets/player4.png
+          test -f build/assets/player4.txt
+          test -f build/assets/player5.png
+          test -f build/assets/player5.txt
           test -f build/assets/arrow_left.png
           test -f build/assets/arrow_right.png
           test -f build/assets/NotoSerif-Light.ttf

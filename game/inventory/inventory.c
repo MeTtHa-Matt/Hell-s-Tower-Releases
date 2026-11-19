@@ -57,7 +57,7 @@ static void DrawPlayer(void) {
 
 bool DrawInventory(bool allowClose) {
   int character = TowerPlayerCharacter();
-  if (character < 0 || character > 2)
+  if (character < 0 || character > 5)
     character = 1;
   if (playerTexCharacter != character) {
     if (playerTex.id != 0)
@@ -97,7 +97,8 @@ bool DrawInventory(bool allowClose) {
   DrawPlayer();
   DrawRectangleRec(Box(170, 66, 160, 38), (Color){18, 18, 24, 240});
   DrawRectangleLinesEx(Box(170, 66, 160, 38), 3 * scale, darkGold);
-  static const char *names[] = {"Melina", "Elyssia", "Kaelen"};
+  static const char *names[] = {
+      "Melina", "Elyssia", "Kaelen", "Gorran", "Ysolde", "Thaddeus"};
   DrawCentered(names[character], 250, 85, 24, textColor);
 
   DrawCentered(TextFormat("LVL %d", LevelsLevel()), 245, 562, 40, textColor);
