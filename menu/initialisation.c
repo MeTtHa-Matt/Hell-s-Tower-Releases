@@ -36,6 +36,8 @@ static bool ambientMusicStarted;
 static bool ambientMusicPaused;
 static Texture2D cursorTexture;
 static Texture2D titleTexture;
+static Font introFont;
+static bool introFontLoaded, introFontReady, startupSequencePlayed;
 static bool returnToMainMenu;
 static bool characterSelectionPending;
 static char tutorialDialogues[TUTORIAL_DIALOGUE_COUNT][SIGRID_TEXT_LEN];
@@ -420,10 +422,150 @@ void Init(void) {
   InitMenuBackground();
 }
 
+static void DrawStartupTitle(float opacity) {
+  if (titleTexture.id == 0)
+    return;
+  float width = GetScreenWidth() * 0.82f;
+  float height = width * titleTexture.height / titleTexture.width;
+  float maxHeight = GetScreenHeight() * 0.55f;
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = height * titleTexture.width / titleTexture.height;
+  }
+  Rectangle source = {0, 0, (float)titleTexture.width,
+                     (float)titleTexture.height};
+  Rectangle dest = {(GetScreenWidth() - width) / 2,
+                    (GetScreenHeight() - height) / 2, width, height};
+  DrawTexturePro(titleTexture, source, dest, (Vector2){0, 0}, 0,
+                 (Color){255, 255, 255, (unsigned char)(opacity * 255)});
+}
+
+static void DrawStartupParagraph(const char *text, Rectangle bounds,
+                                 float size, float opacity) {
+  char copy[768], lines[8][256] = {{0}};
+  snprintf(copy, sizeof(copy), "%s", text);
+  float spacing = size * 0.015f;
+  int row = 0;
+  char *word = strtok(copy, " ");
+  while (word && row < 8) {
+    char candidate[256];
+    snprintf(candidate, sizeof(candidate), "%s%s%s", lines[row],
+             lines[row][0] ? " " : "", word);
+    if (lines[row][0] &&
+        MeasureTextEx(introFont, candidate, size, spacing).x > bounds.width) {
+      row++;
+      if (row == 8)
+        break;
+      snprintf(lines[row], sizeof(lines[row]), "%s", word);
+    } else {
+      snprintf(lines[row], sizeof(lines[row]), "%s", candidate);
+    }
+    word = strtok(NULL, " ");
+  }
+
+  float lineHeight = size * 1.45f;
+  float y = bounds.y + (bounds.height - (row + 1) * lineHeight) / 2;
+  Color color = {229, 220, 199, (unsigned char)(opacity * 255)};
+  for (int i = 0; i <= row; i++) {
+    Vector2 textSize = MeasureTextEx(introFont, lines[i], size, spacing);
+    DrawTextEx(introFont, lines[i],
+               (Vector2){bounds.x + (bounds.width - textSize.x) / 2, y},
+               size, spacing, color);
+    y += lineHeight;
+  }
+}
+
+static void DrawStartupTerms(float opacity) {
+  int sw = GetScreenWidth(), sh = GetScreenHeight();
+  float scale = GameUiScale();
+  Rectangle panel = {sw * 0.08f, sh * 0.2f, sw * 0.84f, sh * 0.6f};
+  unsigned char alpha = (unsigned char)(opacity * 255);
+  DrawRectangleRounded(panel, 0.025f, 12, (Color){22, 18, 17, alpha});
+  DrawRectangleRoundedLinesEx(panel, 0.025f, 12, 2 * scale,
+                              (Color){205, 166, 96, alpha});
+
+  const char *heading = "Conditions d'utilisation";
+  float headingSize = GameUiPixels(42);
+  float headingSpacing = headingSize * 0.015f;
+  Vector2 headingDimensions =
+      MeasureTextEx(introFont, heading, headingSize, headingSpacing);
+  DrawTextEx(introFont, heading,
+             (Vector2){(sw - headingDimensions.x) / 2,
+                       panel.y + panel.height * 0.13f},
+             headingSize, headingSpacing,
+             (Color){230, 194, 130, alpha});
+
+  Rectangle textBounds = {panel.x + panel.width * 0.1f,
+                          panel.y + panel.height * 0.3f,
+                          panel.width * 0.8f, panel.height * 0.56f};
+  DrawStartupParagraph(
+      "Ce jeu est une œuvre de fiction créée pour le divertissement. Ta "
+      "progression est sauvegardée localement sur cet appareil et peut être "
+      "perdue si les données du jeu sont supprimées. Conserve une copie de ta "
+      "sauvegarde si tu souhaites la garder.",
+      textBounds, GameUiPixels(30), opacity);
+}
+
+static bool ShowStartupSequence(void) {
+  if (startupSequencePlayed)
+    return true;
+  if (!introFontReady) {
+    int codepoints[226];
+    for (int i = 0; i < 224; i++)
+      codepoints[i] = i + 32;
+    codepoints[224] = 0x0152;
+    codepoints[225] = 0x0153;
+    introFont =
+        LoadFontEx("assets/IMFellEnglish-Regular.ttf", 64, codepoints, 226);
+    introFontLoaded = introFont.texture.id != 0;
+    introFontReady = true;
+    if (!introFontLoaded) {
+      TraceLog(LOG_ERROR, "Police de l'ecran d'introduction introuvable");
+      introFont = GetFontDefault();
+    } else {
+      SetTextureFilter(introFont.texture, TEXTURE_FILTER_BILINEAR);
+    }
+  }
+
+  static const float durations[] = {1.0f, 1.5f, 1.0f, 0.8f, 14.0f, 0.8f};
+  int phase = 0;
+  float elapsed = 0;
+  while (phase < 6 && !WindowShouldClose() && game_running) {
+    float opacity = 1;
+    if (phase == 0 || phase == 3)
+      opacity = elapsed / durations[phase];
+    else if (phase == 2 || phase == 5)
+      opacity = 1 - elapsed / durations[phase];
+    if (opacity < 0)
+      opacity = 0;
+    if (opacity > 1)
+      opacity = 1;
+
+    BeginDrawing();
+    ClearBackground(BLACK);
+    UpdateAndDrawMenuBackground();
+    if (phase < 3)
+      DrawStartupTitle(opacity);
+    else
+      DrawStartupTerms(opacity);
+    EndDrawing();
+
+    elapsed += GetFrameTime();
+    if (elapsed >= durations[phase]) {
+      phase++;
+      elapsed = 0;
+    }
+  }
+  startupSequencePlayed = phase == 6;
+  return startupSequencePlayed;
+}
+
 void LoadMenu(void) {
   bool loadingToGame = false;
   bool achievementsOpen = false;
 
+  if (!ShowStartupSequence())
+    return;
   if (menuMusicLoaded)
     PlayMusicStream(menuMusic);
 
@@ -655,6 +797,8 @@ void Shutdown(void) {
   UnloadGameButtons();
   UnloadTexture(cursorTexture);
   UnloadTexture(titleTexture);
+  if (introFontLoaded)
+    UnloadFont(introFont);
   if (creditsBackground.id != 0)
     UnloadTexture(creditsBackground);
   ShowCursor();

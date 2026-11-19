@@ -768,7 +768,7 @@ static float DrawLetterText(const char *text, Rectangle box, float size,
       if (line[0]) {
         if (y + lineHeight > box.y && y < box.y + box.height)
           DrawTextEx(textFont, line, (Vector2){box.x, y}, size, spacing,
-                     (Color){42, 37, 31, 255});
+                     (Color){224, 214, 194, 255});
         line[0] = '\0';
         y += lineHeight;
       } else {
@@ -795,7 +795,7 @@ static float DrawLetterText(const char *text, Rectangle box, float size,
         MeasureTextEx(textFont, candidate, size, spacing).x > box.width) {
       if (y + lineHeight > box.y && y < box.y + box.height)
         DrawTextEx(textFont, line, (Vector2){box.x, y}, size, spacing,
-                   (Color){42, 37, 31, 255});
+                   (Color){224, 214, 194, 255});
       line[0] = '\0';
       y += lineHeight;
       continue;
@@ -805,7 +805,7 @@ static float DrawLetterText(const char *text, Rectangle box, float size,
   }
   if (line[0] && y + lineHeight > box.y && y < box.y + box.height)
     DrawTextEx(textFont, line, (Vector2){box.x, y}, size, spacing,
-               (Color){42, 37, 31, 255});
+               (Color){224, 214, 194, 255});
   EndScissorMode();
   return fmaxf(0, y + lineHeight - startY);
 }
