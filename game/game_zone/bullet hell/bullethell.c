@@ -86,8 +86,9 @@ static void Spawn(Rectangle a, float k) {
     float angle = GetRandomValue(0, 359) * DEG2RAD;
     Vector2 pos = {c.x + cosf(angle) * a.width, c.y + sinf(angle) * a.width};
 
-    float spread = (20 + 60 * (10 - difficulty) / 9.0f) * k;
-    float speed = (110 + 29 * difficulty) * k;
+    float progress = (difficulty - 1) / 9.0f;
+    float spread = (75 - 45 * progress) * k;
+    float speed = (145 + 135 * progress) * k;
 
     float dirX = player.x + Jitter(spread) - pos.x;
     float dirY = player.y + Jitter(spread) - pos.y;
@@ -171,6 +172,8 @@ static void UpdateBullet(Bullet *b, Rectangle a, float k, float dt) {
   float speed = items->bulletSpeed;
   if (hypotf(player.x - b->pos.x, player.y - b->pos.y) < 100 * k)
     speed *= items->nearbyBulletSpeed;
+  if (difficulty >= 7 && items->bulletHellHighAid)
+    speed *= 0.88f;
   b->pos.x += b->vel.x * speed * dt;
   b->pos.y += b->vel.y * speed * dt;
 
@@ -216,7 +219,8 @@ static void Update(Rectangle a, float k) {
   }
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
-    spawnTimer = (0.9f - 0.055f * (difficulty - 1)) * items->bulletSpawn;
+    float progress = (difficulty - 1) / 9.0f;
+    spawnTimer = (0.95f - 0.30f * progress) * items->bulletSpawn;
     Spawn(a, k);
   }
 

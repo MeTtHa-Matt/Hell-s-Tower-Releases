@@ -11,6 +11,7 @@ typedef struct {
   float sealWarning, sealCharge, sealSpawn, sealChargeDecay, sealDashCooldown;
   bool shield, clearBullets, removeRings, ringDash;
   bool mirrorInvincible, mirrorRepel, sealWard;
+  bool bulletHellHighAid, ringHighAid, mirrorHighAid, sealHighAid;
 } FunctionalSettings;
 
 void FunctionalReset(void);

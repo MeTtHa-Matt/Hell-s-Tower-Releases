@@ -51,6 +51,10 @@ void FunctionalAddEffect(int effect) {
   case 33: settings.sealChargeDecay *= 0.6f; break;
   case 34: settings.sealDashCooldown *= 0.8f; break;
   case 35: settings.sealWard = true; break;
+  case 36: settings.bulletHellHighAid = true; break;
+  case 37: settings.ringHighAid = true; break;
+  case 38: settings.mirrorHighAid = true; break;
+  case 39: settings.sealHighAid = true; break;
   }
 }
 

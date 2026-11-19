@@ -35,23 +35,28 @@ static float Limit(float value, float min, float max) {
 }
 
 static float GapWidth(void) {
-  return (90 - 55 * (difficulty - 1) / 9.0f) *
-         FunctionalGet()->ringGap * DEG2RAD;
+  float progress = (difficulty - 1) / 9.0f;
+  const FunctionalSettings *items = FunctionalGet();
+  float width = 90 - 45 * progress;
+  if (difficulty >= 7 && items->ringHighAid)
+    width *= 1.15f;
+  return width * items->ringGap * DEG2RAD;
 }
 
 static int RingCount(void) {
   if (difficulty <= 3)
     return GetRandomValue(6, 7);
-  return 7 + difficulty / 3;
+  return 7 + (difficulty - 4) / 3;
 }
 
 static float Speed(float k) {
   const FunctionalSettings *items = FunctionalGet();
-  return (30 + 7 * difficulty) * k * items->ringSpeed * items->bulletSpeed;
+  float progress = (difficulty - 1) / 9.0f;
+  return (35 + 45 * progress) * k * items->ringSpeed * items->bulletSpeed;
 }
 
 static float RingSpacing(float k) {
-  return (60 + 5 * difficulty) * k;
+  return (60 + 4 * difficulty) * k;
 }
 
 static float OuterRadius(Rectangle a, float k) {

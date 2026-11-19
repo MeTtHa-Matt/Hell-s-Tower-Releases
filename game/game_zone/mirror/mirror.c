@@ -111,7 +111,8 @@ static void SpawnOne(Rectangle a, float k, int side, float angle) {
 
     Vector2 pos = SpawnPosition(Half(a, side), angle, k);
     Vector2 heart = Heart(a, side);
-    float spread = (20 + 60 * (10 - difficulty) / 9.0f) * k;
+    float progress = (difficulty - 1) / 9.0f;
+    float spread = (75 - 40 * progress) * k;
 
     float dirX = heart.x + Jitter(spread) - pos.x;
     float dirY = heart.y + Jitter(spread) - pos.y;
@@ -121,7 +122,7 @@ static void SpawnOne(Rectangle a, float k, int side, float angle) {
       dirY /= length;
     }
 
-    float speed = (80 + 25 * difficulty) * k;
+    float speed = (100 + 155 * progress) * k;
     bullets[i].pos = pos;
     bullets[i].vel = (Vector2){dirX * speed, dirY * speed};
     bullets[i].side = side;
@@ -218,6 +219,8 @@ static void UpdateBullet(Bullet *b, Rectangle a, float k, float dt) {
   float speed = items->bulletSpeed;
   if (b->side == 1)
     speed *= items->mirrorRightSpeed;
+  if (difficulty >= 7 && items->mirrorHighAid)
+    speed *= 0.88f;
   b->pos.x += b->vel.x * speed * dt;
   b->pos.y += b->vel.y * speed * dt;
 
@@ -262,7 +265,8 @@ static void Update(Rectangle a, float k) {
   }
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
-    spawnTimer = 0.9f - 0.06f * difficulty;
+    float progress = (difficulty - 1) / 9.0f;
+    spawnTimer = 0.85f - 0.30f * progress;
     SpawnPair(a, k);
   }
 

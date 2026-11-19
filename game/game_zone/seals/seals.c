@@ -60,9 +60,11 @@ static void DrawCentered(Rectangle a, const char *text, int size, float y, Color
 
 // Temps d'avertissement avant qu'un danger devienne actif.
 static float Warn(void) {
-  return Limit(1.2f - 0.055f * difficulty +
-                   FunctionalGet()->sealWarning,
-               0.65f, 1.32f);
+  const FunctionalSettings *items = FunctionalGet();
+  float bonus = items->sealWarning;
+  if (difficulty >= 7 && items->sealHighAid)
+    bonus += 0.12f;
+  return Limit(1.15f - 0.04f * (difficulty - 1) + bonus, 0.8f, 1.32f);
 }
 
 static void AddHazard(int kind, Vector2 pos, float size) {
@@ -261,8 +263,8 @@ static void Update(Rectangle a, float k) {
 
   spawnTimer -= dt;
   if (spawnTimer <= 0 && state == SEALS_PLAYING) {
-    float delay = 1.35f - 0.055f * difficulty - 0.08f * sealed;
-    spawnTimer = Limit(delay, 0.5f, 1.3f) * items->sealSpawn;
+    float delay = 1.35f - 0.045f * (difficulty - 1) - 0.06f * sealed;
+    spawnTimer = Limit(delay, 0.9f, 1.3f) * items->sealSpawn;
     for (int i = 0; i <= sealed / 2; i++)
       SpawnHazards(k);
   }
