@@ -145,11 +145,11 @@ void chatbox(const char *text, const char *position) {
   if (tex.id == 0)
     return;
   if (!dialogueFontReady) {
-    dialogueFont = LoadFontEx("assets/NotoSerif-Light.ttf", 64, NULL, 0);
+    dialogueFont = LoadFontEx("assets/Cinzel.ttf", 64, NULL, 0);
     dialogueFontLoaded = dialogueFont.texture.id != 0;
     dialogueFontReady = true;
     if (!dialogueFontLoaded) {
-      TraceLog(LOG_ERROR, "Police des dialogues introuvable");
+      TraceLog(LOG_ERROR, "Police Cinzel introuvable");
       dialogueFont = GetFontDefault();
     } else {
       SetTextureFilter(dialogueFont.texture, TEXTURE_FILTER_BILINEAR);
@@ -168,14 +168,19 @@ void chatbox(const char *text, const char *position) {
 
   float length = (float)Utf8Length(current);
 
-  float w = GetScreenWidth() * 0.425f;
+  float w = GetScreenWidth() * 0.55f;
   float h = w * tex.height / tex.width;
+  float maxHeight = GetScreenHeight() * 0.25f;
+  if (h > maxHeight) {
+    h = maxHeight;
+    w = h * tex.width / tex.height;
+  }
   float x = (GetScreenWidth() - w) / 2;
   float margin = GameUiPixels(20);
   float y = high ? margin : GetScreenHeight() - h - margin;
-  float fontSize = GameUiPixels(26);
-  float spacing = GameUiScale() * 0.5f;
-  int lineHeight = GameUiPixels(35);
+  float fontSize = GameUiPixels(40);
+  float spacing = fontSize * 0.01f;
+  int lineHeight = GameUiPixels(52);
   Rectangle source = {0, 0, (float)tex.width, (float)tex.height};
   Rectangle dest = {x, y, w, h};
 
@@ -197,8 +202,8 @@ void chatbox(const char *text, const char *position) {
 
   DrawTexturePro(tex, source, dest, (Vector2){0, 0}, 0, WHITE);
 
-  float textX = x + w * 0.06f, textY = y + h * 0.25f;
-  float textWidth = w * 0.88f, textHeight = h * 0.57f;
+  float textX = x + w * 0.06f, textY = y + h * 0.15f;
+  float textWidth = w * 0.88f, textHeight = h * 0.72f;
   int visibleRows = (int)(textHeight / lineHeight);
   if (visibleRows < 1)
     visibleRows = 1;
