@@ -54,7 +54,11 @@ static float Speed(float k) {
 }
 
 static float RingSpacing(float k) {
-  return BalanceRingSpacing(difficulty) * k;
+  float spacing = BalanceRingSpacing(difficulty);
+  float collisionClearance = (THICK + 16) * FunctionalGet()->hitbox + 2;
+  if (spacing < collisionClearance)
+    spacing = collisionClearance;
+  return spacing * k;
 }
 
 static float OuterRadius(Rectangle a, float k) {
@@ -79,6 +83,7 @@ static void DrawCentered(Rectangle a, const char *text, int size, float y, Color
 
 static int SpawnWave(float startRadius, float k, int count) {
   int spawned = 0;
+  float waveGap = remainderf(lastGap + 137.507764f * DEG2RAD, 2 * PI);
   for (int i = 0; i < MAX_RINGS && spawned < count; i++) {
     if (!rings[i].on) {
       int sequence = spawned++;
@@ -87,9 +92,8 @@ static int SpawnWave(float startRadius, float k, int count) {
           ringSpawnCount % FunctionalGet()->ringSkipInterval == 0) {
         continue;
       }
-      lastGap = remainderf(lastGap + 137.507764f * DEG2RAD, 2 * PI);
       rings[i].radius = startRadius + (count - 1 - sequence) * RingSpacing(k);
-      rings[i].gapAngle = lastGap;
+      rings[i].gapAngle = waveGap;
       float gapMin = BalanceRingGapRandomMin(floorNumber, difficulty);
       float gapMax = BalanceRingGapRandomMax(floorNumber, difficulty);
       rings[i].gapWidth =
@@ -100,6 +104,8 @@ static int SpawnWave(float startRadius, float k, int count) {
       rings[i].hit = false;
     }
   }
+  if (spawned > 0)
+    lastGap = waveGap;
   return spawned;
 }
 

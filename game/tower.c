@@ -35,6 +35,7 @@ static int currentGame = -1;
 static int playerCharacter = -1;
 static bool towerStarted, tutorialSeen;
 static bool exitRequested, musicAttempted;
+static int preparedFloor;
 static unsigned long long sigridSeen;
 static char opponentPath[512], floorMusicPath[512], savedText[SAVE_LEN];
 static Music floorMusic;
@@ -196,10 +197,14 @@ static void PrepareFloor(void) {
     snprintf(opponentPath, 512, "%s", bosses[boss].image);
     snprintf(floorMusicPath, 512, "%s", bosses[boss].music);
     currentGame = -1;
+    preparedFloor = currentFloor;
     return;
   }
 
-  currentGame = PickMinigame();
+  if (preparedFloor != currentFloor || currentGame < 0) {
+    currentGame = PickMinigame();
+    preparedFloor = currentFloor;
+  }
   if (!FileExists(opponentPath)) {
     opponentPath[0] = '\0';
     PickFile("assets/monsters", ".png", opponentPath);
@@ -220,6 +225,7 @@ bool LoadTowerProgress(void) {
   char saveDirectory[SAVE_PATH_LEN], savePath[SAVE_PATH_LEN];
   bool complete = false;
   etris = 0;
+  preparedFloor = 0;
 
   FILE *file = NULL;
   bool savePathsFound = BuildSavePaths(saveDirectory, sizeof(saveDirectory),
@@ -292,6 +298,7 @@ bool LoadTowerProgress(void) {
     etris = version == 6 && fields >= 9 && savedEtris > 0 ? savedEtris : 0;
     currentDifficulty = diff;
     currentGame = gameIndex;
+    preparedFloor = currentFloor;
     strcpy(opponentPath, opp);
     strcpy(floorMusicPath, mus);
     FormatSave(savedText);
@@ -356,6 +363,7 @@ void ResetTowerProgress(void) {
   etrisDisplay = 0;
   currentDifficulty = 0;
   currentGame = -1;
+  preparedFloor = 0;
   playerCharacter = -1;
   towerStarted = tutorialSeen = false;
   resultState = GAME_OFF;
