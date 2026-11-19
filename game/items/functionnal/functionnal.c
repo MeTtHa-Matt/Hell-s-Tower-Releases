@@ -8,7 +8,8 @@ void FunctionalReset(void) {
       .playerSpeed = 1, .hitbox = 1, .bulletSpeed = 1,
       .bulletSize = 1, .bulletSpawn = 1, .nearbyBulletSpeed = 1,
       .ringSpeed = 1, .ringGap = 1, .mirrorRightSpeed = 1,
-      .sealCharge = 1, .sealSpawn = 1};
+      .sealCharge = 1, .sealSpawn = 1, .sealChargeDecay = 1,
+      .sealDashCooldown = 1};
   shieldReady = false;
 }
 
@@ -47,6 +48,9 @@ void FunctionalAddEffect(int effect) {
   case 30: settings.sealWarning += 0.12f; break;
   case 31: settings.sealCharge *= 1.15f; break;
   case 32: settings.sealSpawn *= 1.15f; break;
+  case 33: settings.sealChargeDecay *= 0.6f; break;
+  case 34: settings.sealDashCooldown *= 0.8f; break;
+  case 35: settings.sealWard = true; break;
   }
 }
 

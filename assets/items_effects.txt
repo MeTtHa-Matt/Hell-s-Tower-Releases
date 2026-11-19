@@ -31,3 +31,6 @@ Commence le mini-jeu avec 2 vies au lieu de 3;MAUDIT;ALL
 Avertissements des sceaux prolonges de 0,12 s;RARE;SEALS
 Activation des sceaux acceleree de 15%;EPIQUE;SEALS
 Attaques des sceaux espacees de 15%;LEGENDAIRE;SEALS
+Charge du sceau qui se dissipe 40% moins vite;RARE;SEALS
+Temps de recharge de l'esquive reduit de 20%;RARE;SEALS
+Chaque sceau active offre une protection contre un coup;EPIQUE;SEALS

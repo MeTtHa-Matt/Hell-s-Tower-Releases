@@ -33,7 +33,7 @@ static Texture2D heartTex, sealTex, blastTex, shadowTex, sprites[4][2];
 static Vector2 player, rune, dir;
 static bool ready;
 static SealsStatus state;
-static int difficulty, lives, maxLives, damageCount, sealed, facing;
+static int difficulty, lives, maxLives, damageCount, sealed, sealWards, facing;
 static float timeLeft, spawnTimer, invincible, charge, step, dashTime, dashCooldown;
 
 static float Limit(float value, float min, float max) {
@@ -130,9 +130,10 @@ void SealsStart(int d) {
     lives = maxLives = 1;
   damageCount = 0;
   sealed = 0;
+  sealWards = 0;
   state = SEALS_PLAYING;
   timeLeft = DURATION + items->duration;
-  spawnTimer = 1.5f;
+  spawnTimer = 1.5f * items->sealSpawn;
   invincible = charge = step = dashTime = dashCooldown = 0;
   dir = (Vector2){0, 1};
   facing = FRONT;
@@ -173,7 +174,7 @@ static void MovePlayer(Rectangle a, float k, float dt) {
 
   if (IsKeyPressed(KEY_SPACE) && dashCooldown <= 0 && dashTime <= 0) {
     dashTime = DASH_TIME;
-    dashCooldown = DASH_COOLDOWN;
+    dashCooldown = DASH_COOLDOWN * items->sealDashCooldown;
   }
 
   float speed = 200 * k * items->playerSpeed;
@@ -212,6 +213,10 @@ static void UpdateHazard(Hazard *h, float k, float dt) {
   h->hit = true;
   if (FunctionalBlockDamage())
     return;
+  if (items->sealWard && sealWards > 0) {
+    sealWards--;
+    return;
+  }
   invincible = 1.5f + items->invincibility;
   damageCount++;
   lives--;
@@ -224,15 +229,17 @@ static void UpdateRune(Rectangle a, float k, float dt) {
   if (hypotf(player.x - rune.x, player.y - rune.y) < 45 * k)
     charge += dt * items->sealCharge;
   else
-    charge -= dt * 1.5f;
+    charge -= dt * 1.5f * items->sealChargeDecay;
   charge = Limit(charge, 0, SEAL_TIME);
 
   if (charge < SEAL_TIME)
     return;
 
   sealed++;
+  if (items->sealWard)
+    sealWards++;
   charge = 0;
-  spawnTimer = 1.0f;
+  spawnTimer = items->sealSpawn;
   memset(hazards, 0, sizeof(hazards));
   if (sealed >= GOAL)
     state = SEALS_WON;
@@ -357,6 +364,9 @@ static void Draw(Rectangle a, float k) {
 
   DrawCentered(a, TextFormat("SCEAUX %d/%d", sealed, GOAL), 20,
                a.y + GameUiPixels(6), GOLD);
+  if (FunctionalGet()->sealWard)
+    DrawCentered(a, TextFormat("PROTECTIONS %d", sealWards), 16,
+                 a.y + GameUiPixels(28), GOLD);
 
   float shownTime = timeLeft;
   if (shownTime < 0)

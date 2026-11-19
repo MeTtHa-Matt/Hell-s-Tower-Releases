@@ -8,9 +8,9 @@ typedef struct {
   float duration, playerSpeed, hitbox, bulletSpeed, bulletSize;
   float bulletSpawn, nearbyBulletSpeed, invincibility, regeneration;
   float ringSpeed, ringGap, mirrorRightSpeed;
-  float sealWarning, sealCharge, sealSpawn;
+  float sealWarning, sealCharge, sealSpawn, sealChargeDecay, sealDashCooldown;
   bool shield, clearBullets, removeRings, ringDash;
-  bool mirrorInvincible, mirrorRepel;
+  bool mirrorInvincible, mirrorRepel, sealWard;
 } FunctionalSettings;
 
 void FunctionalReset(void);

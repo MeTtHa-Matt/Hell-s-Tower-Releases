@@ -354,7 +354,7 @@ Les mini-jeux de la tour ont **exactement la même interface** (remplace `Xxx` p
 | Mirror | `MIRROR_PLAYING` | `MIRROR_WON` | `MIRROR_LOST` | `MIRROR_OFF` |
 | Seals | `SEALS_PLAYING` | `SEALS_WON` | `SEALS_LOST` | `SEALS_OFF` |
 
-Le joueur a 3 vies. Bullet hell, Rings et Mirror durent 30 secondes ; Seals dure 50 secondes et demande d'activer quatre sceaux. Dans la tour, un menu s'affiche après une victoire ou une défaite pour continuer, recommencer ou sortir.
+Le joueur a 3 vies. Bullet hell, Rings et Mirror durent 30 secondes ; Seals dure 50 secondes et demande d'activer quatre sceaux. Dans la tour, un menu s'affiche après une victoire ou une défaite pour continuer, recommencer ou sortir. Les effets SEALS équipés peuvent préserver la charge, accélérer l'esquive et offrir une protection après l'activation d'un sceau.
 
 | Mini-jeu | Principe |
 |---|---|
