@@ -543,7 +543,6 @@ static bool ShowStartupSequence(void) {
 
     BeginDrawing();
     ClearBackground(BLACK);
-    UpdateAndDrawMenuBackground();
     if (phase < 3)
       DrawStartupTitle(opacity);
     else
