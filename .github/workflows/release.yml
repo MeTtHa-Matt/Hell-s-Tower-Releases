@@ -276,6 +276,8 @@ jobs:
           test -f build/assets/player2.txt
           test -f build/assets/arrow_left.png
           test -f build/assets/arrow_right.png
+          test -f build/assets/NotoSerif-Light.ttf
+          test -f build/assets/NotoSerif-OFL.txt
           test -f build/THIRD_PARTY_NOTICES.txt
           case "$PLATFORM" in
             windows)

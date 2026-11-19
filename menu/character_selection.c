@@ -17,7 +17,7 @@ static char *stories[CHARACTER_COUNT];
 static Texture2D buttonTexture;
 static Texture2D leftArrowTexture, rightArrowTexture;
 static Font font, storyFont;
-static bool fontLoaded;
+static bool fontLoaded, storyFontLoaded;
 static int selected, scrollFrom, scrollTo, scrollDirection;
 static Vector2 dragStart;
 static float entryProgress, scrollProgress = 1, detailProgress, confirmProgress;
@@ -247,7 +247,14 @@ void InitCharacterSelection(void) {
   } else {
     SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
   }
-  storyFont = GetFontDefault();
+  storyFont = LoadFontEx("assets/NotoSerif-Light.ttf", 64, codepoints, 224);
+  storyFontLoaded = storyFont.texture.id != 0;
+  if (!storyFontLoaded) {
+    TraceLog(LOG_ERROR, "Police des histoires introuvable");
+    storyFont = GetFontDefault();
+  } else {
+    SetTextureFilter(storyFont.texture, TEXTURE_FILTER_BILINEAR);
+  }
 }
 
 void StartCharacterSelection(void) {
@@ -284,10 +291,13 @@ void UnloadCharacterSelection(void) {
     UnloadTexture(rightArrowTexture);
   if (fontLoaded)
     UnloadFont(font);
+  if (storyFontLoaded)
+    UnloadFont(storyFont);
   buttonTexture = (Texture2D){0};
   leftArrowTexture = rightArrowTexture = (Texture2D){0};
-  font = (Font){0};
+  font = storyFont = (Font){0};
   fontLoaded = false;
+  storyFontLoaded = false;
 }
 
 bool DrawCharacterSelection(void) {
