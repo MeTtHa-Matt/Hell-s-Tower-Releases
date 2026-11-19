@@ -38,3 +38,32 @@ Niveaux 7+ : projectiles ralentis de 12%;RARE;BULLET_HELL
 Niveaux 7+ : passages des anneaux elargis de 15%;RARE;RING
 Niveaux 7+ : projectiles ralentis de 12%;RARE;MIRROR
 Niveaux 7+ : avertissements prolonges de 0,12 s;RARE;SEALS
+Une vie supplementaire au debut du mini-jeu;RARE;ALL
+Vitesse de deplacement augmentee de 12%;COMMUN;ALL
+Hitbox reduite de 10%;RARE;ALL
+Invulnerabilite apres un degat prolongee de 0,5 s;RARE;ALL
+Chronometre prolonge de 2 s;EPIQUE;ALL
+Une vie regeneree apres 20 s sans degat;LEGENDAIRE;ALL
+Efface les menaces restantes a 20 s;EPIQUE;ALL
+Cadence des projectiles reduite de 12%;RARE;BULLET_HELL
+Projectiles ralentis de 15% pres du joueur;RARE;BULLET_HELL
+Taille des projectiles reduite de 10%;EPIQUE;BULLET_HELL
+Ouverture des anneaux elargie de 12%;RARE;RING
+Vitesse des anneaux reduite de 12%;EPIQUE;RING
+Recharge de l'esquive des anneaux reduite de 20%;EPIQUE;RING
+Un anneau sur trois disparait;LEGENDAIRE;RING
+Projectiles du cote droit ralentis de 12%;RARE;MIRROR
+Protection au debut de Mirror prolongee de 3 s;EPIQUE;MIRROR
+Les projectiles proches du reflet gauche sont repousses plus loin;LEGENDAIRE;MIRROR
+Avertissements des sceaux prolonges de 0,18 s;RARE;SEALS
+Charge des sceaux acceleree de 20%;EPIQUE;SEALS
+Attaques des sceaux espacees de 12%;RARE;SEALS
+Recharge de l'esquive des sceaux reduite de 20%;RARE;SEALS
+Chaque sceau actif offre une protection supplementaire;LEGENDAIRE;SEALS
+Recompenses d'Etris augmentees de 50%;LEGENDAIRE;ALL
+UNIQUE : deux vies supplementaires, un bouclier et un rempart fatal;UNIQUE;ALL
+UNIQUE : experience doublee et un artefact supplementaire par niveau;UNIQUE;ALL
+UNIQUE : projectiles ralentis et balayage de menaces avance;UNIQUE;BULLET_HELL
+UNIQUE : ouvertures elargies et esquive rechargee;UNIQUE;RING
+UNIQUE : protection renforcee des deux reflets;UNIQUE;MIRROR
+UNIQUE : avertissements et charge des sceaux fortement ameliores;UNIQUE;SEALS

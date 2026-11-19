@@ -3,6 +3,7 @@ project(hells_tower LANGUAGES C)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+include(CTest)
 if(NOT DEFINED APP_VERSION)
   execute_process(
     COMMAND git describe --tags --abbrev=0
@@ -55,6 +56,15 @@ file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS
 )
 
 add_executable(hells_tower main.c updater.c ${GAME_SOURCES})
+if(BUILD_TESTING)
+  add_executable(game_balance_test
+    tests/game_balance_test.c
+    game/game_zone/balance.c
+    game/items/drop_rates.c
+    game/items/functionnal/functionnal.c
+  )
+  add_test(NAME game_balance_test COMMAND game_balance_test)
+endif()
 if(NOT CMAKE_C_FLAGS MATCHES "(^| )-DAPP_VERSION")
   target_compile_definitions(hells_tower PRIVATE APP_VERSION="${APP_VERSION}")
 endif()

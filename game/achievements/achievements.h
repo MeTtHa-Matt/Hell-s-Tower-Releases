@@ -15,9 +15,24 @@ typedef enum {
   ACHIEVEMENT_COUNT
 } AchievementId;
 
+typedef enum {
+  TITLE_CHANGED_FATE,
+  TITLE_FOUND_TRUTH,
+  TITLE_FIRST_ASCENT,
+  TITLE_TOWER_CONQUEROR,
+  TITLE_UNTOUCHED,
+  TITLE_COUNT
+} TitleId;
+
 void AchievementsInit(void);
 bool AchievementsUnlock(AchievementId achievement);
+bool AchievementsUnlockTitle(TitleId title);
+bool AchievementsTitleUnlocked(TitleId title);
+int AchievementsTitleCount(void);
+const char *AchievementsTitleName(int index);
+bool AchievementsTitleNotificationPending(void);
 void AchievementsDrawNotifications(void);
+void AchievementsDrawTitleNotification(void);
 bool AchievementsDrawScreen(void);
 
 #endif

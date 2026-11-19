@@ -610,7 +610,7 @@ void LoadMenu(void) {
       if (achievementsOpen) {
         if (AchievementsDrawScreen())
           achievementsOpen = false;
-      } else {
+      } else if (!AchievementsTitleNotificationPending()) {
         Button("Jouer");
         Button("Succes");
         Button("Options");
@@ -628,6 +628,9 @@ void LoadMenu(void) {
 
     bool updatePopupActive = LoadingScreenUpdatePopupActive();
     AchievementsDrawNotifications();
+    if (!characterSelectionPending && !achievementsOpen &&
+        !LoadingScreenActive() && !startupMenuFadePending)
+      AchievementsDrawTitleNotification();
     if (LoadingScreenDraw())
       game_running = false;
     if (!LoadingScreenActive() || updatePopupActive)

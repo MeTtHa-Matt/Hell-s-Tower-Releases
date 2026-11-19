@@ -1,5 +1,6 @@
 #include "character_selection.h"
 #include "../game/buttons/button_sounds.h"
+#include "../game/characters/characters.h"
 #include "../game/ui_scale.h"
 #include "raylib.h"
 #include <math.h>
@@ -439,12 +440,44 @@ bool DrawCharacterSelection(void) {
     DrawTextEx(font, names[selected], (Vector2){panelX, nameY}, nameSize,
                nameSize * 0.06f, textColor);
 
+    float detailsX = portraitLayout ? sw * 0.08f : panelX;
+    float detailsWidth = portraitLayout ? sw * 0.84f : sw * 0.4f;
+    float detailsLabelSize = sh * 0.021f;
+    float detailsTextSize = sh * 0.018f;
+    float skillLabelY = sh * (portraitLayout ? 0.47f : 0.32f);
+    float skillTextY = sh * (portraitLayout ? 0.5f : 0.35f);
+    float titleLabelY = sh * (portraitLayout ? 0.565f : 0.42f);
+    float titleTextY = sh * (portraitLayout ? 0.595f : 0.45f);
+    DrawTextEx(font, "COMPÉTENCE", (Vector2){detailsX, skillLabelY},
+               detailsLabelSize, detailsLabelSize * 0.05f, textColor);
+    Rectangle skillBox = {detailsX, skillTextY, detailsWidth,
+                          sh * (portraitLayout ? 0.055f : 0.06f)};
+    DrawWrappedText(TextFormat("%s — %s", CharacterSkillName(selected),
+                               CharacterSkillDescription(selected)),
+                    skillBox, detailsTextSize, textColor, 0);
+    DrawTextEx(font, "TITRE DU PERSONNAGE",
+               (Vector2){detailsX, titleLabelY},
+               detailsLabelSize, detailsLabelSize * 0.05f, textColor);
+    Rectangle titleBox = {detailsX, titleTextY, detailsWidth,
+                          sh * (portraitLayout ? 0.055f : 0.06f)};
+    DrawWrappedText(TextFormat("%s — %s", CharacterTitleName(selected),
+                               CharacterTitleDescription(selected)),
+                    titleBox, detailsTextSize, textColor, 0);
+    DrawTextEx(font, "TITRES DU JOUEUR",
+               (Vector2){detailsX, sh * (portraitLayout ? 0.65f : 0.515f)},
+               detailsLabelSize, detailsLabelSize * 0.05f, textColor);
+    char playerTitles[512];
+    CharacterPlayerTitlesText(playerTitles, sizeof(playerTitles));
+    Rectangle playerTitlesBox =
+        {detailsX, sh * (portraitLayout ? 0.68f : 0.54f), detailsWidth,
+         sh * 0.06f};
+    DrawWrappedText(playerTitles, playerTitlesBox, sh * 0.013f, textColor, 0);
     Rectangle storyBox =
         portraitLayout
-            ? (Rectangle){sw * 0.08f, sh * 0.49f, sw * 0.84f, sh * 0.35f}
-            : (Rectangle){panelX, sh * 0.35f, sw * 0.4f, sh * 0.34f};
+            ? (Rectangle){sw * 0.08f, sh * 0.75f, sw * 0.84f, sh * 0.09f}
+            : (Rectangle){panelX, sh * 0.61f, sw * 0.4f, sh * 0.14f};
     float storySize =
-        portraitLayout ? fminf(sh * 0.027f, shortSide * 0.04f) : sh * 0.027f;
+        portraitLayout ? fminf(sh * 0.022f, shortSide * 0.032f) : sh * 0.022f;
     Rectangle storyTextBox = storyBox;
     storyTextBox.width -= 14 * GameUiScale();
     Color storyColor = (Color){235, 230, 215, (unsigned char)(255 * panelAlpha)};

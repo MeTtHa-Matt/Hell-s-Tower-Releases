@@ -7,6 +7,7 @@
 #include "game_zone/seals/seals.h"
 #include "game_zone/zone.h"
 #include "achievements/achievements.h"
+#include "characters/characters.h"
 #include "items/functionnal/functionnal.h"
 #include "items/items.h"
 #include "levels/levels.h"
@@ -440,6 +441,7 @@ static void StartFloor(void) {
                          : game == 3 ? "SEALS"
                                      : NULL;
   ItemsApplyForGame(itemGame);
+  CharacterApplyForGame(playerCharacter);
   StopMusic();
   StartMusic();
   StartGame();
@@ -628,11 +630,16 @@ void Tower(void) {
       if (after == GAME_WON)
         multiplier = BossIndex(currentFloor) >= 0 ? currentFloor : 3;
       double reward = (int)(gameTime + 0.5f) * (double)currentFloor *
-                      currentDifficulty * multiplier;
+                      currentDifficulty * multiplier *
+                      CharacterExperienceMultiplier(playerCharacter);
       int gainedXP = reward > 2147483647 ? 2147483647 : (int)reward;
       LevelsAddXP(gainedXP);
       for (int i = oldLevel; i < LevelsLevel(); i++) {
-        ItemsGrantForLevelUp();
+        int itemCount = CharacterItemsPerLevel(playerCharacter);
+        if (itemCount > 5)
+          itemCount = 5;
+        for (int j = 0; j < itemCount; j++)
+          ItemsGrantForLevelUp();
         TowerAddEtris(25LL + ((long long)i + 1) * 20);
       }
       if (after == GAME_WON) {
@@ -640,11 +647,20 @@ void Tower(void) {
                              (0.75 + currentDifficulty * 0.25);
         if (BossIndex(currentFloor) >= 0)
           etrisReward *= 4;
+        etrisReward *= CharacterEtrisMultiplier(playerCharacter) *
+                       FunctionalGet()->etrisMultiplier;
         TowerAddEtris((long long)etrisReward);
       }
       if (after == GAME_WON && BossIndex(currentFloor) >= 0)
         AchievementsUnlock((AchievementId)(ACHIEVEMENT_FLOOR_10 +
                                            BossIndex(currentFloor)));
+      if (after == GAME_WON && currentFloor == 10)
+        AchievementsUnlockTitle(TITLE_FIRST_ASCENT);
+      if (after == GAME_WON && currentFloor == 50)
+        AchievementsUnlockTitle(TITLE_TOWER_CONQUEROR);
+      if (after == GAME_WON && BossIndex(currentFloor) >= 0 &&
+          FloorGameDamageCount() == 0)
+        AchievementsUnlockTitle(TITLE_UNTOUCHED);
       if (after == GAME_WON && playerCharacter == 0) {
         if (currentFloor == 5)
           ItemsGrantQuestLetter();

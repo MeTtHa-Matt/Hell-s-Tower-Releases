@@ -1,4 +1,6 @@
 #include "inventory.h"
+#include "../achievements/achievements.h"
+#include "../characters/characters.h"
 #include "../items/items.h"
 #include "../levels/levels.h"
 #include "../tower.h"
@@ -32,6 +34,13 @@ static void DrawCentered(const char *text, float cx, float cy, int size, Color c
   DrawText(text, x, y, fontSize, color);
 }
 
+static void DrawFitCentered(const char *text, float cx, float cy, int width,
+                            int size, Color color) {
+  while (size > 8 && MeasureText(text, (int)(size * scale)) > width * scale)
+    size--;
+  DrawCentered(text, cx, cy, size, color);
+}
+
 static void DrawSlot(Rectangle r, Color fill, Color border) {
   Color line = border;
   if (CheckCollisionPointRec(GetMousePosition(), r))
@@ -45,8 +54,8 @@ static void DrawPlayer(void) {
   if (playerTex.id == 0)
     return;
 
-  float scaleW = 340.0f / playerTex.width;
-  float scaleH = 410.0f / playerTex.height;
+  float scaleW = 285.0f / playerTex.width;
+  float scaleH = 360.0f / playerTex.height;
   float playerScale = scaleW;
   if (scaleH < playerScale)
     playerScale = scaleH;
@@ -54,7 +63,7 @@ static void DrawPlayer(void) {
 
   float w = playerTex.width * playerScale;
   float h = playerTex.height * playerScale;
-  Vector2 center = Point(250, 298);
+  Vector2 center = Point(250, 278);
   DrawTextureEx(playerTex, (Vector2){center.x - w / 2, center.y - h / 2},
                 0, playerScale, WHITE);
 }
@@ -110,14 +119,33 @@ bool DrawInventory(bool allowClose) {
       "Melina", "Elyssia", "Kaelen", "Gorran", "Ysolde", "Thaddeus"};
   DrawCentered(names[character], 250, 85, 24, textColor);
 
-  DrawCentered(TextFormat("LVL %d", LevelsLevel()), 245, 562, 40, textColor);
-  DrawRectangleRec(Box(88, 595, 322, 33), (Color){220, 220, 30, 255});
-  DrawRectangleRec(Box(94, 601, 310, 21), (Color){95, 105, 20, 255});
+  DrawFitCentered(TextFormat("COMPÉTENCE : %s", CharacterSkillName(character)),
+                  250, 470, 440, 16, textColor);
+  DrawFitCentered(CharacterSkillDescription(character), 250, 490, 440, 12,
+                  (Color){210, 205, 190, 255});
+  DrawFitCentered(TextFormat("TITRE DU PERSONNAGE : %s",
+                             CharacterTitleName(character)),
+                  250, 520, 440, 15, textColor);
+  DrawFitCentered(CharacterTitleDescription(character), 250, 540, 440, 12,
+                  (Color){210, 205, 190, 255});
+  DrawCentered("TITRES DU JOUEUR", 250, 558, 12, textColor);
+  if (AchievementsTitleCount() == 0) {
+    DrawFitCentered("Aucun titre personnel débloqué.", 250, 576, 440, 10,
+                    (Color){210, 205, 190, 255});
+  } else {
+    for (int i = 0; i < AchievementsTitleCount(); i++)
+      DrawFitCentered(AchievementsTitleName(i), 250, 572 + i * 12, 440, 10,
+                      (Color){210, 205, 190, 255});
+  }
+
+  DrawCentered(TextFormat("LVL %d", LevelsLevel()), 245, 645, 40, textColor);
+  DrawRectangleRec(Box(88, 678, 322, 33), (Color){220, 220, 30, 255});
+  DrawRectangleRec(Box(94, 684, 310, 21), (Color){95, 105, 20, 255});
   float progress = (float)LevelsXP() / LevelsXPNeeded();
   if (progress > 1)
     progress = 1;
-  DrawRectangleRec(Box(94, 601, 310 * progress, 21), (Color){220, 190, 45, 255});
-  DrawCentered(TextFormat("EXP %d/%d", LevelsXP(), LevelsXPNeeded()), 249, 663, 40,
+  DrawRectangleRec(Box(94, 684, 310 * progress, 21), (Color){220, 190, 45, 255});
+  DrawCentered(TextFormat("EXP %d/%d", LevelsXP(), LevelsXPNeeded()), 249, 735, 34,
                textColor);
 
   Rectangle equipped[COLUMNS];

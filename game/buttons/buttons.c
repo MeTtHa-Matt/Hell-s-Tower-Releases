@@ -7,6 +7,7 @@
 #include "../inventory/inventory.h"
 #include "../items/functionnal/functionnal.h"
 #include "../items/items.h"
+#include "../characters/characters.h"
 #include "../achievements/achievements.h"
 #include "../pause_menu/pause_menu.h"
 #include "../shop/shop.h"
@@ -125,6 +126,7 @@ static void NewGame(void) {
   if (!DeleteTowerProgressFile())
     return;
   AchievementsUnlock(ACHIEVEMENT_COMPLETE_GAME);
+  AchievementsUnlockTitle(TITLE_CHANGED_FATE);
   ResetTowerProgress();
   ReturnToMenu();
 }
@@ -163,6 +165,7 @@ static void StartTraining(void) {
                          : trainingGame == 2 ? "MIRROR"
                                              : "SEALS";
   ItemsApplyForGame(gameName);
+  CharacterApplyForGame(TowerPlayerCharacter());
   int difficulty = FunctionalDifficulty(trainingDifficulty);
   switch (trainingGame) {
   case 0:
@@ -578,6 +581,7 @@ bool GameFinishMelinaEnding(void) {
     return false;
   AchievementsUnlock(ACHIEVEMENT_COMPLETE_GAME);
   AchievementsUnlock(ACHIEVEMENT_MELINA_ENDING);
+  AchievementsUnlockTitle(TITLE_FOUND_TRUTH);
   ResetTowerProgress();
   ReturnToMenu();
   return true;

@@ -29,10 +29,26 @@ static const Achievement achievements[ACHIEVEMENT_COUNT] = {
     {"floor_50", "Terminer l'étage 50", "Vaincre le boss du cinquantième étage."},
 };
 
+static const Achievement titles[TITLE_COUNT] = {
+    {"changed_fate", "Celui qui a changé le destin",
+     "Les victoires rapportent 25 % d'Etris supplémentaires."},
+    {"found_truth", "Celui qui a découvert toute la vérité",
+     "L'expérience obtenue est augmentée de 20 %."},
+    {"first_ascent", "Pionnier de la tour",
+     "Les avertissements des sceaux sont prolongés de 0,2 seconde."},
+    {"tower_conqueror", "Conquérant de la tour",
+     "Commence chaque mini-jeu avec une vie supplémentaire."},
+    {"untouched", "Intouchable",
+     "Une protection annule le premier dégât de chaque mini-jeu."},
+};
+
 static bool unlocked[ACHIEVEMENT_COUNT];
 static int notificationQueue[ACHIEVEMENT_COUNT];
 static int notificationHead, notificationCount;
+static bool titleUnlocked[TITLE_COUNT];
+static int titleQueue[TITLE_COUNT], titleHead, titleCount, activeTitle = -1;
 static float notificationTime, achievementScroll;
+static float titleAnimation;
 
 static bool AchievementPaths(char *directory, char *path) {
   if (!TowerBuildDataFilePath("succes.txt", directory, DATA_PATH_LEN, path,
@@ -46,7 +62,11 @@ static bool AchievementPaths(char *directory, char *path) {
 void AchievementsInit(void) {
   memset(unlocked, 0, sizeof(unlocked));
   notificationHead = notificationCount = 0;
+  memset(titleUnlocked, 0, sizeof(titleUnlocked));
+  titleHead = titleCount = 0;
+  activeTitle = -1;
   notificationTime = achievementScroll = 0;
+  titleAnimation = 0;
   char directory[DATA_PATH_LEN], path[DATA_PATH_LEN], line[128];
   if (!AchievementPaths(directory, path))
     return;
@@ -61,18 +81,15 @@ void AchievementsInit(void) {
     for (int i = 0; i < ACHIEVEMENT_COUNT; i++)
       if (strcmp(line, achievements[i].key) == 0)
         unlocked[i] = true;
+    if (strncmp(line, "title:", 6) == 0)
+      for (int i = 0; i < TITLE_COUNT; i++)
+        if (strcmp(line + 6, titles[i].key) == 0)
+          titleUnlocked[i] = true;
   }
   fclose(file);
 }
 
-bool AchievementsUnlock(AchievementId achievement) {
-  if (achievement < 0 || achievement >= ACHIEVEMENT_COUNT) {
-    TraceLog(LOG_WARNING, "Identifiant de succès invalide");
-    return false;
-  }
-  if (unlocked[achievement])
-    return false;
-
+static bool AppendUnlock(const char *key) {
   char directory[DATA_PATH_LEN], path[DATA_PATH_LEN];
   if (!AchievementPaths(directory, path))
     return false;
@@ -99,22 +116,68 @@ bool AchievementsUnlock(AchievementId achievement) {
     written = false;
   }
   if (written)
-    written = fprintf(file, "%s\n", achievements[achievement].key) >= 0;
+    written = fprintf(file, "%s\n", key) >= 0;
   if (written && fflush(file) != 0)
     written = false;
   if (fclose(file) != 0)
     written = false;
   if (!written) {
     TraceLog(LOG_ERROR, "Impossible d'enregistrer le succès: %s",
-             achievements[achievement].key);
+             key);
     return false;
   }
+  return true;
+}
+
+bool AchievementsUnlock(AchievementId achievement) {
+  if (achievement < 0 || achievement >= ACHIEVEMENT_COUNT) {
+    TraceLog(LOG_WARNING, "Identifiant de succès invalide");
+    return false;
+  }
+  if (unlocked[achievement] || !AppendUnlock(achievements[achievement].key))
+    return false;
 
   unlocked[achievement] = true;
   int tail = (notificationHead + notificationCount) % ACHIEVEMENT_COUNT;
   notificationQueue[tail] = achievement;
   notificationCount++;
   return true;
+}
+
+bool AchievementsUnlockTitle(TitleId title) {
+  if (title < 0 || title >= TITLE_COUNT) {
+    TraceLog(LOG_WARNING, "Identifiant de titre invalide");
+    return false;
+  }
+  if (titleUnlocked[title] ||
+      !AppendUnlock(TextFormat("title:%s", titles[title].key)))
+    return false;
+  titleUnlocked[title] = true;
+  titleQueue[(titleHead + titleCount) % TITLE_COUNT] = title;
+  titleCount++;
+  return true;
+}
+
+bool AchievementsTitleUnlocked(TitleId title) {
+  return title >= 0 && title < TITLE_COUNT && titleUnlocked[title];
+}
+
+int AchievementsTitleCount(void) {
+  int count = 0;
+  for (int i = 0; i < TITLE_COUNT; i++)
+    count += titleUnlocked[i];
+  return count;
+}
+
+const char *AchievementsTitleName(int index) {
+  for (int i = 0; i < TITLE_COUNT; i++)
+    if (titleUnlocked[i] && index-- == 0)
+      return titles[i].name;
+  return "";
+}
+
+bool AchievementsTitleNotificationPending(void) {
+  return titleCount > 0 || activeTitle >= 0;
 }
 
 void AchievementsDrawNotifications(void) {
@@ -154,6 +217,62 @@ void AchievementsDrawNotifications(void) {
   DrawText(achievements[id].name, (int)box.x + padding,
            (int)box.y + GameUiPixels(43), titleSize,
            Fade((Color){255, 242, 205, 255}, alpha));
+}
+
+void AchievementsDrawTitleNotification(void) {
+  if (notificationCount > 0 || (titleCount == 0 && activeTitle < 0))
+    return;
+  if (activeTitle < 0) {
+    activeTitle = titleQueue[titleHead];
+    titleAnimation = 0;
+  }
+  titleAnimation = fminf(1, titleAnimation + GetFrameTime() / 0.55f);
+  float eased = 1 - powf(1 - titleAnimation, 3);
+  float scale = GameUiScale();
+  int sw = GetScreenWidth(), sh = GetScreenHeight();
+  DrawRectangle(0, 0, sw, sh, Fade((Color){10, 9, 8, 245}, eased));
+  float w = fminf(sw * 0.9f, 1050 * fmaxf(scale, 1));
+  float h = fminf(sh * 0.56f, 430 * fmaxf(scale, 1));
+  Rectangle panel = {(sw - w) / 2, (sh - h) / 2, w, h};
+  DrawRectangleRounded(panel, 0.04f, 12,
+                       Fade((Color){32, 27, 19, 255}, eased));
+  DrawRectangleRoundedLinesEx(panel, 0.04f, 12, 3 * scale,
+                              Fade((Color){243, 204, 112, 255}, eased));
+  const char *header = "NOUVEAU TITRE";
+  int headerSize = GameUiPixels(22);
+  DrawText(header, (sw - MeasureText(header, headerSize)) / 2,
+           (int)(panel.y + h * 0.2f), headerSize,
+           Fade((Color){224, 192, 125, 255}, eased));
+  float titleSize = fminf(sh * 0.085f, 78 * fmaxf(scale, 1)) *
+                    (0.8f + eased * 0.2f);
+  int size = (int)titleSize;
+  while (size > GameUiPixels(12) &&
+         MeasureText(titles[activeTitle].name, size) > w * 0.84f)
+    size--;
+  DrawText(titles[activeTitle].name,
+           (sw - MeasureText(titles[activeTitle].name, size)) / 2,
+           (int)(panel.y + h * 0.4f), size,
+           Fade((Color){255, 236, 182, 255}, eased));
+  int descSize = GameUiPixels(20);
+  const char *description = titles[activeTitle].description;
+  int descWidth = MeasureText(description, descSize);
+  if (descWidth > w * 0.82f)
+    descSize = (int)(descSize * w * 0.82f / descWidth);
+  DrawText(description, (sw - MeasureText(description, descSize)) / 2,
+           (int)(panel.y + h * 0.63f), descSize,
+           Fade((Color){221, 214, 195, 255}, eased));
+  const char *hint = "CLIQUEZ POUR CONTINUER";
+  int hintSize = GameUiPixels(15);
+  DrawText(hint, (sw - MeasureText(hint, hintSize)) / 2,
+           (int)(panel.y + h * 0.84f), hintSize,
+           Fade((Color){205, 184, 137, 255}, eased));
+  if (titleAnimation >= 1 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    titleHead = (titleHead + 1) % TITLE_COUNT;
+    titleCount--;
+    activeTitle = -1;
+    titleAnimation = 0;
+    PlayButtonClickSound();
+  }
 }
 
 static void DrawAchievementRow(int index, Rectangle box, float scale) {

@@ -1,4 +1,5 @@
 #include "mirror.h"
+#include "../balance.h"
 #include "../../items/functionnal/functionnal.h"
 #include "../../ui_scale.h"
 #include "raylib.h"
@@ -111,8 +112,7 @@ static void SpawnOne(Rectangle a, float k, int side, float angle) {
 
     Vector2 pos = SpawnPosition(Half(a, side), angle, k);
     Vector2 heart = Heart(a, side);
-    float progress = (difficulty - 1) / 9.0f;
-    float spread = (75 - 40 * progress) * k;
+    float spread = BalanceMirrorSpread(difficulty) * k;
 
     float dirX = heart.x + Jitter(spread) - pos.x;
     float dirY = heart.y + Jitter(spread) - pos.y;
@@ -122,7 +122,7 @@ static void SpawnOne(Rectangle a, float k, int side, float angle) {
       dirY /= length;
     }
 
-    float speed = (100 + 155 * progress) * k;
+    float speed = BalanceMirrorSpeed(difficulty) * k;
     bullets[i].pos = pos;
     bullets[i].vel = (Vector2){dirX * speed, dirY * speed};
     bullets[i].side = side;
@@ -159,7 +159,7 @@ void MirrorStart(int d) {
   spawnTimer = 0;
   invincible = 0;
   idleTimer = 0;
-  protectedTime = items->mirrorInvincible ? 5 : 0;
+  protectedTime = items->mirrorInvincible ? items->mirrorInvincibleDuration : 0;
   protectedSide = GetRandomValue(0, 1);
   bulletsCleared = false;
   playerReady = false;
@@ -206,7 +206,8 @@ static void UpdateBullet(Bullet *b, Rectangle a, float k, float dt) {
   }
 
   if (items->mirrorRepel && b->side == 0 &&
-      hypotf(heart.x - b->pos.x, heart.y - b->pos.y) < 100 * k) {
+      hypotf(heart.x - b->pos.x, heart.y - b->pos.y) <
+          items->mirrorRepelRange * k) {
     float length = hypotf(b->pos.x - heart.x, b->pos.y - heart.y);
     if (length > 0) {
       float speed = hypotf(b->vel.x, b->vel.y);
@@ -227,7 +228,7 @@ static void UpdateBullet(Bullet *b, Rectangle a, float k, float dt) {
   if (NearSegment(heart, previous, b->pos, 20 * k * items->hitbox)) {
     b->on = false;
     if (invincible <= 0 && !(protectedTime > 0 && b->side == protectedSide)) {
-      if (!FunctionalBlockDamage()) {
+      if (!FunctionalBlockDamageAtLives(lives)) {
         invincible = 1.5f + items->invincibility;
         damageCount++;
         lives--;
@@ -259,14 +260,14 @@ static void Update(Rectangle a, float k) {
     lives++;
     idleTimer = 0;
   }
-  if (items->clearBullets && !bulletsCleared && timeLeft <= 15) {
+  if (items->clearBullets && !bulletsCleared &&
+      timeLeft <= items->clearBulletsAt) {
     memset(bullets, 0, sizeof(bullets));
     bulletsCleared = true;
   }
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
-    float progress = (difficulty - 1) / 9.0f;
-    spawnTimer = 0.85f - 0.30f * progress;
+    spawnTimer = BalanceMirrorSpawnInterval(difficulty);
     SpawnPair(a, k);
   }
 

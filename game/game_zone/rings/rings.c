@@ -1,4 +1,5 @@
 #include "rings.h"
+#include "../balance.h"
 #include "../../items/functionnal/functionnal.h"
 #include "../../ui_scale.h"
 #include "raylib.h"
@@ -35,9 +36,8 @@ static float Limit(float value, float min, float max) {
 }
 
 static float GapWidth(void) {
-  float progress = (difficulty - 1) / 9.0f;
   const FunctionalSettings *items = FunctionalGet();
-  float width = 90 - 45 * progress;
+  float width = BalanceRingGapDegrees(difficulty);
   if (difficulty >= 7 && items->ringHighAid)
     width *= 1.15f;
   return width * items->ringGap * DEG2RAD;
@@ -46,17 +46,17 @@ static float GapWidth(void) {
 static int RingCount(void) {
   if (difficulty <= 3)
     return GetRandomValue(6, 7);
-  return 7 + (difficulty - 4) / 3;
+  return BalanceRingCountMinimum(difficulty);
 }
 
 static float Speed(float k) {
   const FunctionalSettings *items = FunctionalGet();
-  float progress = (difficulty - 1) / 9.0f;
-  return (35 + 45 * progress) * k * items->ringSpeed * items->bulletSpeed;
+  return BalanceRingSpeed(difficulty) * k * items->ringSpeed *
+         items->bulletSpeed;
 }
 
 static float RingSpacing(float k) {
-  return (60 + 4 * difficulty) * k;
+  return BalanceRingSpacing(difficulty) * k;
 }
 
 static float OuterRadius(Rectangle a, float k) {
@@ -85,7 +85,8 @@ static int SpawnWave(float startRadius, float k, int count) {
     if (!rings[i].on) {
       int sequence = spawned++;
       ringSpawnCount++;
-      if (FunctionalGet()->removeRings && ringSpawnCount % 4 == 0) {
+      if (FunctionalGet()->removeRings &&
+          ringSpawnCount % FunctionalGet()->ringSkipInterval == 0) {
         continue;
       }
       lastGap = remainderf(lastGap + 137.507764f * DEG2RAD, 2 * PI);
@@ -145,7 +146,7 @@ static void Update(Rectangle a, float k) {
 
   if (items->ringDash && IsKeyPressed(KEY_SPACE) && dashCooldown <= 0) {
     dashTime = 0.35f;
-    dashCooldown = 2;
+    dashCooldown = items->ringDashCooldown;
   }
   dashTime -= dt;
   dashCooldown -= dt;
@@ -153,7 +154,8 @@ static void Update(Rectangle a, float k) {
 
   timeLeft -= dt;
   spawnTimer -= dt;
-  if (items->clearBullets && !hazardsCleared && timeLeft <= 15) {
+  if (items->clearBullets && !hazardsCleared &&
+      timeLeft <= items->clearBulletsAt) {
     memset(rings, 0, sizeof(rings));
     hazardsCleared = true;
   }
@@ -196,7 +198,7 @@ static void Update(Rectangle a, float k) {
     if (!r->hit && touchesRing && outsideGap && dashTime <= 0 &&
         invincible <= 0) {
       r->hit = true;
-      if (!FunctionalBlockDamage()) {
+      if (!FunctionalBlockDamageAtLives(lives)) {
         invincible = 1.5f + items->invincibility;
         damageCount++;
         lives--;

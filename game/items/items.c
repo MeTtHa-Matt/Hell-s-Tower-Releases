@@ -1,5 +1,6 @@
 #include "items.h"
 #include "../achievements/achievements.h"
+#include "drop_rates.h"
 #include "functionnal/functionnal.h"
 #include "../tower.h"
 #include "../ui_scale.h"
@@ -38,11 +39,6 @@ typedef struct {
   Texture2D texture;
 } QuestItem;
 
-typedef struct {
-  const char *name;
-  int chance;
-} RarityChance;
-
 static Item items[ITEM_COUNT];
 static QuestItem questItems[QUEST_ITEM_COUNT];
 static ItemEffect effects[EFFECT_LIMIT_COUNT];
@@ -62,9 +58,8 @@ static int letterSealsUsed;
 static bool letterAwarded, letterRead, letterReaderActive, letterReachedEnd;
 static char *letterText;
 static float letterScroll, letterMaxScroll;
-static const RarityChance rarityChances[] = {
-    {"COMMUN", 50}, {"RARE", 30}, {"EPIQUE", 15},
-    {"LEGENDAIRE", 4}, {"MAUDIT", 1},
+static const char *rarityNames[DROP_RARITY_COUNT] = {
+    "COMMUN", "RARE", "EPIQUE", "LEGENDAIRE", "MAUDIT", "UNIQUE",
 };
 
 static void CloseLetterReader(void);
@@ -204,6 +199,8 @@ static int RaritySellValue(const char *rarity) {
     return 150;
   if (strcmp(rarity, "MAUDIT") == 0)
     return 10;
+  if (strcmp(rarity, "UNIQUE") == 0)
+    return 600;
   return 0;
 }
 
@@ -333,16 +330,10 @@ static void UnloadItem(Item *item) {
 }
 
 static int PickEffectForItem(const Item *item, int selectedCount) {
-  int roll = GetRandomValue(1, 100);
-  const char *rarity = NULL;
-  for (int i = 0; i < (int)(sizeof(rarityChances) / sizeof(rarityChances[0]));
-       i++) {
-    if (roll <= rarityChances[i].chance) {
-      rarity = rarityChances[i].name;
-      break;
-    }
-    roll -= rarityChances[i].chance;
-  }
+  int rarityIndex =
+      ItemsRarityForRoll(GetRandomValue(0, 9999),
+                         TowerPlayerCharacter() == 1);
+  const char *rarity = rarityNames[rarityIndex];
 
   int candidates[EFFECT_LIMIT_COUNT];
   int candidateCount = 0;
@@ -353,6 +344,11 @@ static int PickEffectForItem(const Item *item, int selectedCount) {
     for (int j = 0; j < selectedCount; j++)
       if (item->effects[j] == i)
         alreadySelected = true;
+    if (rarityIndex == DROP_UNIQUE) {
+      for (int j = 0; j < selectedCount; j++)
+        if (strcmp(effects[item->effects[j]].rarity, "UNIQUE") == 0)
+          alreadySelected = true;
+    }
     if (!alreadySelected)
       candidates[candidateCount++] = i;
   }
@@ -395,6 +391,8 @@ static Color RarityColor(const char *rarity) {
     return (Color){255, 205, 70, 255};
   if (strcmp(rarity, "MAUDIT") == 0)
     return (Color){255, 100, 100, 255};
+  if (strcmp(rarity, "UNIQUE") == 0)
+    return (Color){90, 245, 240, 255};
   return RAYWHITE;
 }
 
@@ -761,7 +759,8 @@ void ItemsGrantForLevelUp(void) {
   }
   RememberItem(item);
   for (int i = 0; i < item->effectCount; i++)
-    if (strcmp(effects[item->effects[i]].rarity, "LEGENDAIRE") == 0) {
+    if (strcmp(effects[item->effects[i]].rarity, "LEGENDAIRE") == 0 ||
+        strcmp(effects[item->effects[i]].rarity, "UNIQUE") == 0) {
       AchievementsUnlock(ACHIEVEMENT_LEGENDARY_ITEM);
       break;
     }
@@ -972,7 +971,8 @@ bool ItemsForgeComplete(const char *name, const int *selectedEffects,
   memcpy(item->effects, selectedEffects,
          (size_t)selectedEffectCount * sizeof(selectedEffects[0]));
   for (int i = 0; i < selectedEffectCount; i++)
-    if (strcmp(effects[selectedEffects[i]].rarity, "LEGENDAIRE") == 0) {
+    if (strcmp(effects[selectedEffects[i]].rarity, "LEGENDAIRE") == 0 ||
+        strcmp(effects[selectedEffects[i]].rarity, "UNIQUE") == 0) {
       AchievementsUnlock(ACHIEVEMENT_LEGENDARY_ITEM);
       break;
     }

@@ -125,6 +125,8 @@ static int EffectPrice(int effect) {
     return 300;
   if (strcmp(rarity, "MAUDIT") == 0)
     return 450;
+  if (strcmp(rarity, "UNIQUE") == 0)
+    return 1000;
   return 0;
 }
 

@@ -1,4 +1,5 @@
 #include "bullethell.h"
+#include "../balance.h"
 #include "../../items/functionnal/functionnal.h"
 #include "../../ui_scale.h"
 #include "raylib.h"
@@ -86,9 +87,8 @@ static void Spawn(Rectangle a, float k) {
     float angle = GetRandomValue(0, 359) * DEG2RAD;
     Vector2 pos = {c.x + cosf(angle) * a.width, c.y + sinf(angle) * a.width};
 
-    float progress = (difficulty - 1) / 9.0f;
-    float spread = (75 - 45 * progress) * k;
-    float speed = (145 + 135 * progress) * k;
+    float spread = BalanceBulletHellSpread(difficulty) * k;
+    float speed = BalanceBulletHellSpeed(difficulty) * k;
 
     float dirX = player.x + Jitter(spread) - pos.x;
     float dirY = player.y + Jitter(spread) - pos.y;
@@ -182,7 +182,7 @@ static void UpdateBullet(Bullet *b, Rectangle a, float k, float dt) {
                   27 * k * items->hitbox * items->bulletSize)) {
     b->on = false;
     if (invincible <= 0) {
-      if (!FunctionalBlockDamage()) {
+      if (!FunctionalBlockDamageAtLives(lives)) {
         invincible = 1.5f + items->invincibility;
         damageCount++;
         lives--;
@@ -213,14 +213,14 @@ static void Update(Rectangle a, float k) {
     lives++;
     idleTimer = 0;
   }
-  if (items->clearBullets && !bulletsCleared && timeLeft <= 15) {
+  if (items->clearBullets && !bulletsCleared &&
+      timeLeft <= items->clearBulletsAt) {
     memset(bullets, 0, sizeof(bullets));
     bulletsCleared = true;
   }
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
-    float progress = (difficulty - 1) / 9.0f;
-    spawnTimer = (0.95f - 0.30f * progress) * items->bulletSpawn;
+    spawnTimer = BalanceBulletHellSpawnInterval(difficulty) * items->bulletSpawn;
     Spawn(a, k);
   }
 

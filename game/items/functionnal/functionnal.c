@@ -1,7 +1,7 @@
 #include "functionnal.h"
 
 static FunctionalSettings settings;
-static bool shieldReady;
+static bool shieldReady, lastStandReady;
 
 void FunctionalReset(void) {
   settings = (FunctionalSettings){
@@ -9,8 +9,11 @@ void FunctionalReset(void) {
       .bulletSize = 1, .bulletSpawn = 1, .nearbyBulletSpeed = 1,
       .ringSpeed = 1, .ringGap = 1, .mirrorRightSpeed = 1,
       .sealCharge = 1, .sealSpawn = 1, .sealChargeDecay = 1,
-      .sealDashCooldown = 1};
-  shieldReady = false;
+      .sealDashCooldown = 1, .experienceMultiplier = 1,
+      .etrisMultiplier = 1, .clearBulletsAt = 15,
+      .ringDashCooldown = 2, .mirrorInvincibleDuration = 5,
+      .mirrorRepelRange = 100, .ringSkipInterval = 4};
+  shieldReady = lastStandReady = false;
 }
 
 void FunctionalAddEffect(int effect) {
@@ -55,6 +58,75 @@ void FunctionalAddEffect(int effect) {
   case 37: settings.ringHighAid = true; break;
   case 38: settings.mirrorHighAid = true; break;
   case 39: settings.sealHighAid = true; break;
+  case 40: settings.extraLives++; break;
+  case 41: settings.playerSpeed *= 1.12f; break;
+  case 42: settings.hitbox *= 0.90f; break;
+  case 43: settings.invincibility += 0.5f; break;
+  case 44: settings.duration += 2; break;
+  case 45: settings.regeneration = 20; break;
+  case 46:
+    settings.clearBullets = true;
+    settings.clearBulletsAt = 20;
+    break;
+  case 47: settings.bulletSpawn *= 1.15f; break;
+  case 48: settings.nearbyBulletSpeed *= 0.85f; break;
+  case 49: settings.bulletSize *= 0.90f; break;
+  case 50: settings.ringGap *= 1.12f; break;
+  case 51: settings.ringSpeed *= 0.88f; break;
+  case 52:
+    settings.ringDash = true;
+    settings.ringDashCooldown *= 0.80f;
+    break;
+  case 53:
+    settings.removeRings = true;
+    settings.ringSkipInterval = 3;
+    break;
+  case 54: settings.mirrorRightSpeed *= 0.88f; break;
+  case 55: settings.mirrorInvincibleDuration += 3; break;
+  case 56:
+    settings.mirrorRepel = true;
+    settings.mirrorRepelRange *= 1.4f;
+    break;
+  case 57: settings.sealWarning += 0.18f; break;
+  case 58: settings.sealCharge *= 1.2f; break;
+  case 59: settings.sealSpawn *= 1.12f; break;
+  case 60: settings.sealDashCooldown *= 0.8f; break;
+  case 61: settings.sealWard = true; break;
+  case 62: settings.etrisMultiplier *= 1.5f; break;
+  case 63:
+    settings.extraLives += 2;
+    settings.shield = shieldReady = true;
+    settings.lastStand = lastStandReady = true;
+    settings.invincibility += 2;
+    break;
+  case 64:
+    settings.experienceMultiplier *= 2;
+    settings.bonusLevelItems++;
+    break;
+  case 65:
+    settings.bulletSpeed *= 0.65f;
+    settings.bulletSpawn *= 1.4f;
+    settings.clearBullets = true;
+    settings.clearBulletsAt = 20;
+    break;
+  case 66:
+    settings.ringGap *= 1.5f;
+    settings.ringSpeed *= 0.7f;
+    settings.ringDash = true;
+    settings.ringDashCooldown *= 0.5f;
+    break;
+  case 67:
+    settings.mirrorRightSpeed *= 0.5f;
+    settings.mirrorInvincible = true;
+    settings.mirrorInvincibleDuration = 10;
+    settings.mirrorRepel = true;
+    break;
+  case 68:
+    settings.sealWarning += 0.8f;
+    settings.sealCharge *= 1.5f;
+    settings.sealSpawn *= 1.3f;
+    settings.sealWard = true;
+    break;
   }
 }
 
@@ -77,4 +149,42 @@ bool FunctionalBlockDamage(void) {
   shieldReady = false;
   settings.shield = false;
   return true;
+}
+
+bool FunctionalBlockDamageAtLives(int lives) {
+  if (FunctionalBlockDamage())
+    return true;
+  if (!settings.lastStand || !lastStandReady || lives > 1)
+    return false;
+  lastStandReady = false;
+  return true;
+}
+
+void FunctionalApplyCharacter(int character) {
+  switch (character) {
+  case 0: settings.invincibility += 0.5f; break;
+  case 2: settings.playerSpeed *= 1.2f; break;
+  case 3: settings.lastStand = lastStandReady = true; break;
+  case 4: settings.mirrorRightSpeed *= 0.8f; break;
+  case 5: settings.sealCharge *= 1.2f; break;
+  }
+}
+
+void FunctionalApplyCharacterTitle(int character) {
+  switch (character) {
+  case 2: settings.shield = shieldReady = true; break;
+  case 3: settings.extraLives++; break;
+  case 4: settings.duration += 2; break;
+  case 5: settings.sealWarning += 0.3f; break;
+  }
+}
+
+void FunctionalApplyPlayerTitle(int title) {
+  switch (title) {
+  case 0: settings.etrisMultiplier *= 1.25f; break;
+  case 1: settings.experienceMultiplier *= 1.2f; break;
+  case 2: settings.sealWarning += 0.2f; break;
+  case 3: settings.extraLives++; break;
+  case 4: settings.shield = shieldReady = true; break;
+  }
 }

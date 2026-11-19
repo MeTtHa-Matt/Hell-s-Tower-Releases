@@ -1,4 +1,5 @@
 #include "seals.h"
+#include "../balance.h"
 #include "../../items/functionnal/functionnal.h"
 #include "../../ui_scale.h"
 #include "raylib.h"
@@ -64,7 +65,7 @@ static float Warn(void) {
   float bonus = items->sealWarning;
   if (difficulty >= 7 && items->sealHighAid)
     bonus += 0.12f;
-  return Limit(1.15f - 0.04f * (difficulty - 1) + bonus, 0.8f, 1.32f);
+  return BalanceSealWarning(difficulty, bonus);
 }
 
 static void AddHazard(int kind, Vector2 pos, float size) {
@@ -213,7 +214,7 @@ static void UpdateHazard(Hazard *h, float k, float dt) {
     return;
 
   h->hit = true;
-  if (FunctionalBlockDamage())
+  if (FunctionalBlockDamageAtLives(lives))
     return;
   if (items->sealWard && sealWards > 0) {
     sealWards--;
@@ -263,8 +264,7 @@ static void Update(Rectangle a, float k) {
 
   spawnTimer -= dt;
   if (spawnTimer <= 0 && state == SEALS_PLAYING) {
-    float delay = 1.35f - 0.045f * (difficulty - 1) - 0.06f * sealed;
-    spawnTimer = Limit(delay, 0.9f, 1.3f) * items->sealSpawn;
+    spawnTimer = BalanceSealSpawnInterval(difficulty, sealed) * items->sealSpawn;
     for (int i = 0; i <= sealed / 2; i++)
       SpawnHazards(k);
   }
