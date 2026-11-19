@@ -165,14 +165,14 @@ static void DrawAchievementRow(int index, Rectangle box, float scale) {
   DrawRectangleRounded(box, 0.12f, 8, fill);
   DrawRectangleRoundedLinesEx(box, 0.12f, 8, scale, edge);
   int padding = GameUiPixels(12);
-  int titleSize = GameUiPixels(17);
-  int descriptionSize = GameUiPixels(12);
-  int statusSize = GameUiPixels(13);
+  int titleSize = GameUiPixels(24);
+  int descriptionSize = GameUiPixels(17);
+  int statusSize = GameUiPixels(16);
   DrawText(isUnlocked ? achievements[index].name : "???",
-           (int)box.x + padding, (int)box.y + GameUiPixels(6), titleSize,
+           (int)box.x + padding, (int)box.y + GameUiPixels(8), titleSize,
            isUnlocked ? (Color){255, 225, 145, 255} : (Color){205, 205, 210, 255});
   DrawText(isUnlocked ? achievements[index].description : "???",
-           (int)box.x + padding, (int)box.y + GameUiPixels(34),
+           (int)box.x + padding, (int)box.y + GameUiPixels(44),
            descriptionSize, (Color){170, 172, 180, 255});
   const char *status = isUnlocked ? "DÉBLOQUÉ" : "VERROUILLÉ";
   int statusX = (int)(box.x + box.width - padding -
@@ -186,11 +186,11 @@ bool AchievementsDrawScreen(void) {
   int sw = GetScreenWidth(), sh = GetScreenHeight();
   float scale = GameUiScale();
   float width = fminf(sw * 0.92f, 760 * scale);
-  float height = fminf(sh * 0.9f, 680 * scale);
+  float height = fminf(sh * 0.9f, 820 * scale);
   Rectangle panel = {(sw - width) / 2, (sh - height) / 2, width, height};
-  Rectangle list = {panel.x + 14 * scale, panel.y + 72 * scale,
-                    panel.width - 28 * scale, panel.height - 132 * scale};
-  float rowHeight = 64 * scale;
+  Rectangle list = {panel.x + 14 * scale, panel.y + 96 * scale,
+                    panel.width - 28 * scale, panel.height - 176 * scale};
+  float rowHeight = 88 * scale;
   float maxScroll =
       fmaxf(0, ACHIEVEMENT_COUNT * rowHeight - 8 * scale - list.height);
   Vector2 mouse = GetMousePosition();
@@ -205,7 +205,7 @@ bool AchievementsDrawScreen(void) {
   int titleSize = GameUiPixels(32);
   const char *title = "SUCCÈS";
   DrawText(title, (sw - MeasureText(title, titleSize)) / 2,
-           (int)panel.y + GameUiPixels(15), titleSize,
+           (int)panel.y + GameUiPixels(18), titleSize,
            (Color){245, 215, 145, 255});
 
   int count = 0;
@@ -214,7 +214,7 @@ bool AchievementsDrawScreen(void) {
   const char *progress =
       TextFormat("%d / %d débloqués", count, ACHIEVEMENT_COUNT);
   DrawText(progress, (sw - MeasureText(progress, GameUiPixels(15))) / 2,
-           (int)panel.y + GameUiPixels(51), GameUiPixels(15),
+           (int)panel.y + GameUiPixels(58), GameUiPixels(15),
            (Color){190, 188, 180, 255});
 
   BeginScissorMode((int)list.x, (int)list.y, (int)list.width,
@@ -226,16 +226,16 @@ bool AchievementsDrawScreen(void) {
   }
   EndScissorMode();
 
-  float closeWidth = fminf(210 * scale, width * 0.6f);
+  float closeWidth = fminf(280 * scale, width - 48 * scale);
   Rectangle close = {panel.x + (width - closeWidth) / 2,
-                     panel.y + height - 46 * scale, closeWidth, 32 * scale};
+                     panel.y + height - 58 * scale, closeWidth, 40 * scale};
   bool hover = CheckCollisionPointRec(mouse, close);
   DrawRectangleRounded(close, 0.18f, 8,
                        hover ? (Color){115, 86, 42, 255}
                              : (Color){65, 53, 36, 255});
   DrawRectangleRoundedLinesEx(close, 0.18f, 8, scale,
                               (Color){218, 179, 91, 255});
-  int closeSize = GameUiPixels(15);
+  int closeSize = GameUiPixels(17);
   const char *closeText = "RETOUR";
   DrawText(closeText,
            (int)(close.x + (close.width - MeasureText(closeText, closeSize)) / 2),
