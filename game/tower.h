@@ -6,11 +6,13 @@
 void Tower(void);
 void UpdateTowerMusic(void);
 void ResetTower(void);
-void LoadTowerProgress(void);
+bool LoadTowerProgress(void);
 bool SaveTowerProgress(void);
 bool DeleteTowerProgressFile(void);
 void ResetTowerProgress(void);
 bool TowerProgressNeedsSaving(void);
+bool SetTowerPlayerCharacter(int character);
+int TowerPlayerCharacter(void);
 bool TowerTutorialSeen(void);
 void MarkTowerTutorialSeen(void);
 int TowerCurrentFloor(void);

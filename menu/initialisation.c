@@ -1,5 +1,6 @@
 #include "background/background.h"
 #include "buttons/buttons.h"
+#include "character_selection.h"
 #include "../game/pause_menu/pause_menu.h"
 #include "../game/monster/monster.h"
 #include "../game/chatbox/chatbox.h"
@@ -32,6 +33,7 @@ static bool ambientMusicPaused;
 static Texture2D cursorTexture;
 static Texture2D titleTexture;
 static bool returnToMainMenu;
+static bool characterSelectionPending;
 static char sigridDialogues[MAX_SIGRID_DIALOGUES][SIGRID_TEXT_LEN];
 static char sigridFinal[SIGRID_TEXT_LEN];
 static int sigridCount, sigridFloor, sigridIndex;
@@ -183,8 +185,13 @@ static void RequestMainMenuExit(void) {
 }
 
 static void LoadSavedGame(void) {
-  LoadTowerProgress();
-  StartPlayingButton();
+  if (LoadTowerProgress()) {
+    StartPlayingButton();
+    return;
+  }
+  ResetTowerProgress();
+  StartCharacterSelection();
+  characterSelectionPending = true;
 }
 
 static void DrawCustomCursor(void) {
@@ -259,6 +266,7 @@ void Init(void) {
   ToggleFullscreen();
   SetTargetFPS(60);
   InitHomeButtons();
+  InitCharacterSelection();
 
   cursorTexture = LoadTexture("assets/cursor.png");
   if (cursorTexture.id != 0)
@@ -316,10 +324,22 @@ void LoadMenu(void) {
     BeginDrawing();
     ClearBackground(BLACK);
     UpdateAndDrawMenuBackground();
-    DrawMenuTitle(titleTexture);
-    Button("Jouer");
-    Button("Options");
-    Button("Quitter");
+    if (characterSelectionPending) {
+      if (DrawCharacterSelection()) {
+        if (SetTowerPlayerCharacter(CharacterSelectionPlayer()) &&
+            SaveTowerProgress()) {
+          characterSelectionPending = false;
+          StartPlayingButton();
+        } else {
+          CharacterSelectionSaveFailed();
+        }
+      }
+    } else {
+      DrawMenuTitle(titleTexture);
+      Button("Jouer");
+      Button("Options");
+      Button("Quitter");
+    }
 
     if (StartPlayingRequested() && !loadingToGame) {
       ClearStartPlayingRequest();
@@ -473,6 +493,7 @@ void LoadBlackScreen(void) {
 void Shutdown(void) {
   UnloadButtonSounds();
   UnloadHomeButtons();
+  UnloadCharacterSelection();
   UnloadGameButtons();
   UnloadTexture(cursorTexture);
   UnloadTexture(titleTexture);

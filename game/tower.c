@@ -22,6 +22,7 @@ typedef enum { GAME_OFF, GAME_PLAYING, GAME_WON, GAME_LOST } TowerGameState;
 
 static int currentFloor, currentDifficulty;
 static int currentGame = -1;
+static int playerCharacter;
 static bool towerStarted, tutorialSeen;
 static bool exitRequested, musicAttempted;
 static unsigned long long sigridSeen;
@@ -128,9 +129,9 @@ static void FormatSave(char *out) {
   const char *game = "";
   if (currentGame >= 0)
     game = gameNames[currentGame];
-  snprintf(out, SAVE_LEN, "%d %d %d %d %d %llu 2\n", currentFloor,
+  snprintf(out, SAVE_LEN, "%d %d %d %d %d %llu 3 %d\n", currentFloor,
            tutorialSeen, currentDifficulty, LevelsLevel(), LevelsXP(),
-           sigridSeen);
+           sigridSeen, playerCharacter);
   size_t used = strlen(out);
   snprintf(out + used, SAVE_LEN - used, "%s\n%s\n%s\n",
            opponentPath, floorMusicPath, game);
@@ -180,8 +181,9 @@ static void PrepareFloor(void) {
   }
 }
 
-void LoadTowerProgress(void) {
+bool LoadTowerProgress(void) {
   int floor = 0, seen = 0, diff = 0, level = 0, xp = 0, oldSigrid = 0, version = 0;
+  int savedCharacter = 0;
   unsigned long long savedSigrid = 0;
   int fields = 0, lo, hi;
   char opp[512] = "", mus[512] = "", game[32] = "";
@@ -206,8 +208,8 @@ void LoadTowerProgress(void) {
   if (file) {
     char header[96];
     if (fgets(header, sizeof(header), file))
-      fields = sscanf(header, "%d %d %d %d %d %llu %d", &floor, &seen, &diff,
-                      &level, &xp, &savedSigrid, &version);
+      fields = sscanf(header, "%d %d %d %d %d %llu %d %d", &floor, &seen, &diff,
+                      &level, &xp, &savedSigrid, &version, &savedCharacter);
     if (fgets(opp, 512, file) && fgets(mus, 512, file) && fgets(game, 32, file))
       complete = true;
     if (fgets(itemData, sizeof(itemData), file))
@@ -221,12 +223,16 @@ void LoadTowerProgress(void) {
   game[strcspn(game, "\r\n")] = '\0';
 
   bool known = fields >= 2 && floor > 0 && (seen == 0 || seen == 1);
+  bool characterValid =
+      version != 3 || (fields >= 8 && (savedCharacter == 1 || savedCharacter == 2));
   if (fields == 6)
     oldSigrid = (int)savedSigrid;
   LevelsLoad(fields >= 5 ? level : 0, fields >= 5 ? xp : 0);
+  playerCharacter = version == 3 && characterValid ? savedCharacter
+                                                   : 1;
   currentFloor = known ? floor : 1;
   tutorialSeen = known && seen == 1;
-  sigridSeen = fields >= 7 && version == 2 ? savedSigrid
+  sigridSeen = fields >= 7 && (version == 2 || version == 3) ? savedSigrid
                : fields == 6 && oldSigrid > 0 && oldSigrid < 64
                    ? 1ULL << oldSigrid
                    : 0;
@@ -238,19 +244,25 @@ void LoadTowerProgress(void) {
   int gameIndex = GameIndex(game);
   bool gameOk = BossIndex(currentFloor) >= 0 ? game[0] == '\0' : gameIndex >= 0;
 
-  if (known && fields >= 3 && complete && gameOk && diff >= lo && diff <= hi &&
-      FileExists(opp) && FileExists(mus)) {
+  if (known && characterValid && fields >= 3 && complete && gameOk &&
+      diff >= lo && diff <= hi && FileExists(opp) && FileExists(mus)) {
     currentDifficulty = diff;
     currentGame = gameIndex;
     strcpy(opponentPath, opp);
     strcpy(floorMusicPath, mus);
     FormatSave(savedText);
   }
+  return savedText[0] != '\0';
 }
 
 bool SaveTowerProgress(void) {
   char text[SAVE_LEN];
   char saveDirectory[SAVE_PATH_LEN], savePath[SAVE_PATH_LEN];
+
+  if (playerCharacter != 1 && playerCharacter != 2) {
+    TraceLog(LOG_ERROR, "Impossible de sauvegarder sans personnage choisi");
+    return false;
+  }
 
   PrepareFloor();
   if (!opponentPath[0] || !floorMusicPath[0]) {
@@ -297,6 +309,7 @@ void ResetTowerProgress(void) {
   currentFloor = 1;
   currentDifficulty = 0;
   currentGame = -1;
+  playerCharacter = 0;
   towerStarted = tutorialSeen = false;
   resultState = GAME_OFF;
   exitRequested = false;
@@ -312,6 +325,15 @@ bool TowerProgressNeedsSaving(void) {
   FormatSave(now);
   return strcmp(now, savedText) != 0;
 }
+
+bool SetTowerPlayerCharacter(int character) {
+  if (character != 1 && character != 2)
+    return false;
+  playerCharacter = character;
+  return true;
+}
+
+int TowerPlayerCharacter(void) { return playerCharacter; }
 
 bool TowerTutorialSeen(void) { return tutorialSeen; }
 
