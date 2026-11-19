@@ -29,11 +29,9 @@ static bool quitConfirmation, returnConfirmation, saveOk;
 static bool musicPausedForLoading;
 static bool melinaEndingRequested;
 static bool destinyReflectionRequested;
-static bool etrisTexTried;
 static float saveTime;
 static Font font;
 static Texture2D bandTex;
-static Texture2D etrisTex;
 static Music music;
 static char monsterPath[512];
 static int trainingGame, trainingDifficulty = 8;
@@ -668,29 +666,6 @@ void DrawGameButtons(bool acceptInput) {
     else if (result == UNSAVED_DIALOG_CANCEL)
       quitConfirmation = false;
   } else {
-    if (!etrisTexTried) {
-      etrisTexTried = true;
-      etrisTex = LoadTexture("assets/Etris.png");
-      if (etrisTex.id == 0)
-        TraceLog(LOG_ERROR, "Logo assets/Etris.png introuvable");
-    }
-    float scale = GameUiScale();
-    float logoSize = GameUiPixels(40);
-    int amountSize = GameUiPixels(24);
-    int amountWidth = MeasureText(TextFormat("%d", TowerEtris()), amountSize);
-    float totalWidth = logoSize + GameUiPixels(10) + amountWidth;
-    float x = GetScreenWidth() - totalWidth - GameUiPixels(28);
-    float y = GameUiPixels(20);
-    if (etrisTex.id != 0) {
-      Rectangle source = {0, 0, (float)etrisTex.width, (float)etrisTex.height};
-      Rectangle dest = {x, y, logoSize, logoSize};
-      DrawTexturePro(etrisTex, source, dest, (Vector2){0, 0}, 0, WHITE);
-    }
-    DrawText(TextFormat("%d", TowerEtris()),
-             (int)(x + logoSize + GameUiPixels(10)),
-             (int)(y + (logoSize - amountSize) / 2), amountSize,
-             (Color){245, 220, 130, 255});
-    (void)scale;
     if (ShopActive()) {
       ShopDraw();
     } else {
@@ -700,10 +675,12 @@ void DrawGameButtons(bool acceptInput) {
         ShopDraw();
       if (inventoryActive)
         inventoryActive = DrawInventory(inventoryWasActive);
-      if (!ShopActive() && !inventoryActive)
-        ItemsDrawReward();
     }
+    if (!LoadingScreenActive())
+      TowerDrawEtrisHud(true);
   }
+  if (!LoadingScreenActive() && (subscreenActive || trainingActive))
+    TowerDrawEtrisHud(false);
 }
 
 void UpdateGameButtonsMusic(void) {
@@ -762,14 +739,11 @@ void ResetGameButtons(void) {
 
 void UnloadGameButtons(void) {
   UnloadTexture(bandTex);
-  UnloadTexture(etrisTex);
   UnloadInventory();
   ItemsUnload();
   if (font.texture.id != 0 && font.texture.id != GetFontDefault().texture.id)
     UnloadFont(font);
   bandTex = (Texture2D){0};
-  etrisTex = (Texture2D){0};
-  etrisTexTried = false;
   font = (Font){0};
   ResetGameButtons();
 }

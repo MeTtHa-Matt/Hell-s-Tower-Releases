@@ -31,6 +31,7 @@ Name: "desktopicon"; Description: "Creer un raccourci sur le bureau"; GroupDescr
 
 [Files]
 Source: "{#SourceDir}\hells_tower.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\THIRD_PARTY_NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\assets\*"; DestDir: "{app}\assets"; Excludes: "video.mp4"; Flags: ignoreversion recursesubdirs createallsubdirs
 

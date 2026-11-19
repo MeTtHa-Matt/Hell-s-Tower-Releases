@@ -835,9 +835,11 @@ void LoadBlackScreen(void) {
       bool clicked = monster(image, "middle", canTalk && !GameInventoryActive() &&
                                                  !GameSaveAlertActive() &&
                                                  !GameReturnConfirmationActive() &&
-                                                 !GameTrainingSelectionActive());
+                                                 !GameTrainingSelectionActive() &&
+                                                 !GameShopActive());
       if (canTalk && !GameSaveAlertActive() &&
-          !GameReturnConfirmationActive() && !GameTrainingSelectionActive())
+          !GameReturnConfirmationActive() && !GameTrainingSelectionActive() &&
+          !GameShopActive())
         UpdateSigrid(clicked);
       if (tutorialSeen || lastDialogueDone) {
         MarkTowerTutorialSeen();

@@ -73,6 +73,33 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DAPP_VERSION="$APP_VERSION"
           cmake --build build --parallel
+          ldd build/hells_tower.exe | awk '
+            /=> \/.+\.dll/ {
+              sub(/^.*=> /, "")
+              sub(/ \(0x[0-9a-fA-F]+\)$/, "")
+              print
+            }
+            /^\/.+\.dll/ {
+              sub(/ \(0x[0-9a-fA-F]+\)$/, "")
+              print
+            }
+          ' | sort -u | while read -r dll; do
+            if [ -f "$dll" ]; then
+              case "$dll" in
+                /mingw64/*|/ucrt64/*|/clang64/*)
+                  cp "$dll" build/
+                  echo "Copied runtime DLL: $(basename "$dll")"
+                  ;;
+              esac
+            fi
+          done
+          if ! find build -maxdepth 1 -type f -iname '*curl*.dll' | grep -q .; then
+            echo "::error::libcurl runtime DLL was not found beside hells_tower.exe"
+            exit 1
+          fi
+          if ! find build -maxdepth 1 -type f -iname '*.dll' | grep -q .; then
+            echo "No runtime DLLs found for the Windows executable."
+          fi
 
       - name: Configure and build (Unix)
         if: matrix.platform != 'windows'

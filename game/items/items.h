@@ -30,9 +30,12 @@ int ItemsKnownEffectCount(void);
 int ItemsKnownEffect(int index);
 const char *ItemsEffectText(int effect);
 const char *ItemsEffectRarity(int effect);
+const char *ItemsEffectGame(int effect);
 const char *ItemsItemName(int slot);
 int ItemsRewardSlot(void);
 void ItemsDrawPreview(int slot, Rectangle box);
+void ItemsDrawKnownPreview(const char *name, Rectangle box);
+void ItemsDrawTooltip(int slot, Vector2 position);
 bool ItemsForgeCanComplete(const char *name, const int *effects,
                            int effectCount, const int *sacrifices,
                            int sacrificeCount);
@@ -40,7 +43,8 @@ bool ItemsForgeComplete(const char *name, const int *effects, int effectCount,
                         const int *sacrifices, int sacrificeCount);
 void ItemsCloseContextMenu(void);
 void ItemsDrawInventory(Rectangle equipped[5], Rectangle stored[25],
-                        Rectangle quest[QUEST_ITEM_COUNT], bool showQuestItems);
+                        Rectangle quest[QUEST_ITEM_COUNT], bool showQuestItems,
+                        Rectangle contextBox);
 void ItemsDrawReward(void);
 
 #endif

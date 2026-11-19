@@ -27,7 +27,8 @@ static ShopPage page;
 static int packSize = 1, packSlots[5], packCount;
 static int knownOffset, effectOffset, selectedEffects[MAX_FORGE_EFFECTS];
 static int selectedEffectCount, selectedItems[MAX_FORGE_ITEMS], selectedItemCount;
-static int targetEffectCount, targetEffectPrice, requiredItems, contribution;
+static int targetEffectCount, targetEffectPrice, requiredItems;
+static int itemSortMode, effectSortMode;
 static int forgeRewardSlot = -1;
 static char targetName[128], notice[160];
 static float animationTime;
@@ -41,6 +42,86 @@ static void TextFit(const char *text, Rectangle box, float size, Color color) {
     fontSize--;
   DrawText(text, (int)(box.x + (box.width - MeasureText(text, fontSize)) / 2),
            (int)(box.y + (box.height - fontSize) / 2), fontSize, color);
+}
+
+static void DrawTextWrappedFit(const char *text, Rectangle box, float size,
+                               Color color) {
+  int fontSize = (int)(size * Scale());
+  int minSize = GameUiPixels(8);
+  for (; fontSize >= minSize; fontSize--) {
+    char lines[8][384];
+    int lineCount = 0;
+    char line[384] = "";
+    const char *word = text;
+    bool fits = true;
+    while (*word) {
+      const char *end = strchr(word, ' ');
+      size_t wordLength = end ? (size_t)(end - word) : strlen(word);
+      char candidate[384];
+      snprintf(candidate, sizeof(candidate), "%s%.*s",
+               line[0] ? " " : "", (int)wordLength, word);
+      char combined[384];
+      snprintf(combined, sizeof(combined), "%s%s", line, candidate);
+      if (MeasureText(combined, fontSize) > box.width - 8 * Scale()) {
+        if (!line[0] || lineCount >= 7) {
+          fits = false;
+          break;
+        }
+        snprintf(lines[lineCount], sizeof(lines[lineCount]), "%s", line);
+        lineCount++;
+        line[0] = '\0';
+        snprintf(line, sizeof(line), "%.*s", (int)wordLength, word);
+      } else {
+        snprintf(line, sizeof(line), "%s", combined);
+      }
+      if (!end)
+        break;
+      word = end + 1;
+    }
+    if (*line && lineCount < 8) {
+      snprintf(lines[lineCount], sizeof(lines[lineCount]), "%s", line);
+      lineCount++;
+    }
+    int lineHeight = fontSize + GameUiPixels(2);
+    if (fits && lineCount > 0 && lineCount * lineHeight <= box.height) {
+      int y = (int)(box.y + (box.height - lineCount * lineHeight) / 2);
+      BeginScissorMode((int)box.x, (int)box.y, (int)box.width,
+                       (int)box.height);
+      for (int i = 0; i < lineCount; i++)
+        DrawText(lines[i],
+                 (int)(box.x + (box.width - MeasureText(lines[i], fontSize)) / 2),
+                 y + i * lineHeight, fontSize, color);
+      EndScissorMode();
+      return;
+    }
+  }
+}
+
+static int RarityRank(const char *rarity) {
+  if (strcmp(rarity, "UNIQUE") == 0) return 6;
+  if (strcmp(rarity, "MAUDIT") == 0) return 5;
+  if (strcmp(rarity, "LEGENDAIRE") == 0) return 4;
+  if (strcmp(rarity, "EPIQUE") == 0) return 3;
+  if (strcmp(rarity, "RARE") == 0) return 2;
+  return 1;
+}
+
+static void RarityCardColors(const char *rarity, Color *fill, Color *border) {
+  if (strcmp(rarity, "COMMUN") == 0) {
+    *fill = (Color){32, 42, 35, 255}; *border = (Color){110, 210, 120, 255};
+  } else if (strcmp(rarity, "RARE") == 0) {
+    *fill = (Color){30, 42, 58, 255}; *border = (Color){100, 175, 255, 255};
+  } else if (strcmp(rarity, "EPIQUE") == 0) {
+    *fill = (Color){52, 35, 61, 255}; *border = (Color){205, 125, 255, 255};
+  } else if (strcmp(rarity, "LEGENDAIRE") == 0) {
+    *fill = (Color){66, 52, 28, 255}; *border = (Color){255, 205, 70, 255};
+  } else if (strcmp(rarity, "MAUDIT") == 0) {
+    *fill = (Color){62, 31, 34, 255}; *border = (Color){255, 100, 100, 255};
+  } else if (strcmp(rarity, "UNIQUE") == 0) {
+    *fill = (Color){28, 54, 58, 255}; *border = (Color){90, 245, 240, 255};
+  } else {
+    *fill = (Color){36, 37, 42, 255}; *border = (Color){145, 124, 84, 255};
+  }
 }
 
 static bool Button(Rectangle box, const char *label, bool enabled) {
@@ -76,10 +157,6 @@ static void DrawPanel(Rectangle panel, const char *title) {
                              panel.y + GameUiPixels(14), panel.width * 0.6f,
                              GameUiPixels(42)},
           28, (Color){241, 213, 147, 255});
-  DrawText(TextFormat("%d ETRIS", TowerEtris()),
-           (int)(panel.x + panel.width - GameUiPixels(150)),
-           (int)(panel.y + GameUiPixels(28)), GameUiPixels(18),
-           (Color){239, 209, 119, 255});
 }
 
 static void DrawNotice(Rectangle panel) {
@@ -149,7 +226,6 @@ static void PrepareForge(void) {
                   (targetEffectPrice > 1200) +
                   (targetEffectPrice > 1800);
   selectedItemCount = 0;
-  contribution = 0;
   page = FORGE_CIRCLE;
 }
 
@@ -233,8 +309,12 @@ static void DrawReveal(Rectangle panel) {
   float total = packCount * cardW + (packCount - 1) * gap;
   float x = panel.x + (panel.width - total) / 2;
   float y = panel.y + panel.height * 0.25f;
+  int hoverSlot = -1;
   for (int i = 0; i < visible; i++) {
     Rectangle card = {x + i * (cardW + gap), y, cardW, cardH};
+    Rectangle preview = {card.x + card.width * 0.12f,
+                         card.y + card.height * 0.13f,
+                         card.width * 0.76f, card.height * 0.58f};
     float pulse = 1 + 0.025f * sinf(animationTime * 8 + i);
     Rectangle glow = {card.x - cardW * (pulse - 1),
                       card.y - cardH * (pulse - 1),
@@ -243,14 +323,13 @@ static void DrawReveal(Rectangle panel) {
                          (Color){65, 53, 40, 255});
     DrawRectangleRoundedLinesEx(glow, 0.09f, 8, Scale() * 3,
                                 (Color){234, 194, 111, 255});
-    ItemsDrawPreview(packSlots[i],
-                     (Rectangle){card.x + card.width * 0.12f,
-                                 card.y + card.height * 0.13f,
-                                 card.width * 0.76f, card.height * 0.58f});
+    ItemsDrawPreview(packSlots[i], preview);
     TextFit(ItemsItemName(packSlots[i]),
             (Rectangle){card.x + 3, card.y + card.height * 0.75f,
                         card.width - 6, GameUiPixels(30)},
             17, (Color){241, 213, 147, 255});
+    if (CheckCollisionPointRec(GetMousePosition(), glow))
+      hoverSlot = packSlots[i];
   }
   if (visible == packCount && elapsed > packCount * 0.7f + 0.5f &&
       Button((Rectangle){panel.x + panel.width * 0.36f,
@@ -258,6 +337,8 @@ static void DrawReveal(Rectangle panel) {
                          panel.width * 0.28f, GameUiPixels(44)},
              "CONTINUER", true))
     page = SHOP_PAGE;
+  if (hoverSlot >= 0)
+    ItemsDrawTooltip(hoverSlot, GetMousePosition());
 }
 
 static void DrawFee(Rectangle panel) {
@@ -294,29 +375,81 @@ static void DrawFee(Rectangle panel) {
 static void DrawItemChoice(Rectangle panel) {
   DrawPanel(panel, "CHOISIR UN ARTEFACT");
   int count = ItemsKnownItemCount();
-  int rows = 7;
+  int sorted[128];
+  for (int i = 0; i < count; i++)
+    sorted[i] = i;
+  for (int i = 1; i < count; i++) {
+    int current = sorted[i], j = i - 1;
+    const char *name = ItemsKnownItem(current);
+    while (j >= 0) {
+      const char *other = ItemsKnownItem(sorted[j]);
+      int cmp = strcmp(name, other);
+      if (itemSortMode == 1)
+        cmp = -cmp;
+      if (cmp >= 0)
+        break;
+      sorted[j + 1] = sorted[j];
+      j--;
+    }
+    sorted[j + 1] = current;
+  }
+  if (Button((Rectangle){panel.x + panel.width * 0.68f,
+                         panel.y + GameUiPixels(58),
+                         panel.width * 0.26f, GameUiPixels(34)},
+             itemSortMode == 0 ? "TRI : NOM A-Z" : "TRI : NOM Z-A", true)) {
+    itemSortMode = 1 - itemSortMode;
+    knownOffset = 0;
+  }
+  int columns = 3, rows = 3;
   if (count == 0)
     TextFit("Vous n'avez encore obtenu aucun artefact.",
             (Rectangle){panel.x + 20, panel.y + panel.height * 0.42f,
                         panel.width - 40, GameUiPixels(42)},
             20, RAYWHITE);
-  int rowHeight = (int)fminf(GameUiPixels(50), panel.height * 0.082f);
+  int visibleCount = columns * rows;
+  float gap = GameUiPixels(12);
+  float availableWidth = panel.width * 0.68f - gap * (columns - 1);
+  float availableHeight = panel.height * 0.58f - gap * (rows - 1);
+  float cardSize = fminf(availableWidth / columns, availableHeight / rows);
+  if (cardSize < GameUiPixels(110))
+    cardSize = GameUiPixels(110);
+  float cardW = cardSize, cardH = cardSize;
   int startY = (int)(panel.y + panel.height * 0.2f);
-  for (int i = 0; i < rows && knownOffset + i < count; i++) {
-    Rectangle row = {panel.x + panel.width * 0.16f, startY + i * rowHeight,
-                     panel.width * 0.68f, rowHeight - GameUiPixels(5)};
-    if (Button(row, ItemsKnownItem(knownOffset + i), true))
-      SelectTarget(ItemsKnownItem(knownOffset + i));
+  float startX = panel.x + (panel.width - (cardW * columns + gap * (columns - 1))) / 2;
+  for (int i = 0; i < visibleCount && knownOffset + i < count; i++) {
+    int column = i % columns, row = i / columns;
+    Rectangle card = {startX + column * (cardW + gap),
+                      startY + row * (cardH + gap), cardW, cardH};
+    bool hover = CheckCollisionPointRec(GetMousePosition(), card);
+    DrawRectangleRounded(card, 0.08f, 8,
+                         hover ? (Color){77, 60, 35, 255}
+                               : (Color){36, 37, 42, 255});
+    DrawRectangleRoundedLinesEx(card, 0.08f, 8, Scale(),
+                                hover ? (Color){255, 220, 135, 255}
+                                      : (Color){145, 124, 84, 255});
+    Rectangle preview = {card.x + card.width * 0.25f,
+                         card.y + GameUiPixels(8),
+                         card.width * 0.5f,
+                         card.height - GameUiPixels(42)};
+    const char *name = ItemsKnownItem(sorted[knownOffset + i]);
+    ItemsDrawKnownPreview(name, preview);
+    TextFit(name,
+            (Rectangle){card.x + 4, card.y + card.height - GameUiPixels(34),
+                        card.width - 8, GameUiPixels(28)},
+            14, (Color){241, 213, 147, 255});
+    if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+      SelectTarget(name);
   }
-  if (count > rows) {
+  if (count > visibleCount) {
     float wheel = GetMouseWheelMove();
     if (wheel != 0 && CheckCollisionPointRec(GetMousePosition(),
-          (Rectangle){panel.x, startY, panel.width, rows * rowHeight}))
-      knownOffset = (int)fmaxf(0, fminf(count - rows, knownOffset - wheel));
-    if (IsKeyPressed(KEY_DOWN) && knownOffset < count - rows)
-      knownOffset++;
+          (Rectangle){panel.x, startY, panel.width, rows * (cardH + gap)}))
+      knownOffset = (int)fmaxf(0, fminf(count - visibleCount,
+                                         knownOffset - (int)wheel * columns));
+    if (IsKeyPressed(KEY_DOWN) && knownOffset < count - visibleCount)
+      knownOffset += columns;
     if (IsKeyPressed(KEY_UP) && knownOffset > 0)
-      knownOffset--;
+      knownOffset -= columns;
   }
   DrawNotice(panel);
   if (Button((Rectangle){panel.x + panel.width * 0.36f,
@@ -346,39 +479,103 @@ static void ToggleEffect(int effect) {
 }
 
 static void DrawEffectChoice(Rectangle panel) {
-  DrawPanel(panel, TextFormat("EFFETS POUR %s", targetName));
-  int count = ItemsKnownEffectCount(), rows = 7;
-  int rowHeight = (int)fminf(GameUiPixels(54), panel.height * 0.082f);
+  DrawPanel(panel, TextFormat("EFFETS POUR %s  |  %d / %d",
+                              targetName, selectedEffectCount,
+                              MAX_FORGE_EFFECTS));
+  int count = ItemsKnownEffectCount(), columns = 3, rows = 3;
+  int sorted[128];
+  for (int i = 0; i < count; i++)
+    sorted[i] = ItemsKnownEffect(i);
+  for (int i = 1; i < count; i++) {
+    int current = sorted[i], j = i - 1;
+    while (j >= 0) {
+      int cmp = 0;
+      if (effectSortMode == 0)
+        cmp = RarityRank(ItemsEffectRarity(current)) -
+              RarityRank(ItemsEffectRarity(sorted[j]));
+      else if (effectSortMode == 1)
+        cmp = strcmp(ItemsEffectGame(current), ItemsEffectGame(sorted[j]));
+      else
+        cmp = strcmp(ItemsEffectText(current), ItemsEffectText(sorted[j]));
+      if (effectSortMode == 0 ? cmp <= 0 : cmp >= 0)
+        break;
+      sorted[j + 1] = sorted[j];
+      j--;
+    }
+    sorted[j + 1] = current;
+  }
+  static const char *effectSortLabels[] = {
+      "TRI : RARETE", "TRI : MINI-JEU", "TRI : EFFET"};
+  if (Button((Rectangle){panel.x + panel.width * 0.68f,
+                         panel.y + GameUiPixels(58),
+                         panel.width * 0.26f, GameUiPixels(34)},
+             effectSortLabels[effectSortMode], true)) {
+    effectSortMode = (effectSortMode + 1) % 3;
+    effectOffset = 0;
+  }
+  int visibleCount = columns * rows;
+  float gap = GameUiPixels(10);
+  float availableWidth = panel.width * 0.82f - gap * (columns - 1);
+  float availableHeight = panel.height * 0.58f - gap * (rows - 1);
+  float cardSize = fminf(availableWidth / columns, availableHeight / rows);
+  if (cardSize < GameUiPixels(130))
+    cardSize = GameUiPixels(130);
   int startY = (int)(panel.y + panel.height * 0.2f);
-  for (int i = 0; i < rows && effectOffset + i < count; i++) {
-    int effect = ItemsKnownEffect(effectOffset + i);
-    Rectangle row = {panel.x + panel.width * 0.1f, startY + i * rowHeight,
-                     panel.width * 0.8f, rowHeight - GameUiPixels(4)};
+  float startX = panel.x + (panel.width -
+                           (cardSize * columns + gap * (columns - 1))) / 2;
+  for (int i = 0; i < visibleCount && effectOffset + i < count; i++) {
+    int effect = sorted[effectOffset + i];
+    int column = i % columns, row = i / columns;
+    Rectangle card = {startX + column * (cardSize + gap),
+                      startY + row * (cardSize + gap),
+                      cardSize, cardSize};
     bool selected = EffectSelected(effect);
-    Color fill = selected ? (Color){78, 60, 33, 255}
-                          : (Color){36, 37, 42, 255};
-    DrawRectangleRounded(row, 0.08f, 6, fill);
-    DrawRectangleRoundedLinesEx(row, 0.08f, 6, Scale(),
-                                (Color){145, 124, 84, 255});
-    const char *label = TextFormat("%s  |  %s%s",
-                                   ItemsEffectRarity(effect),
-                                   ItemsEffectText(effect),
-                                   selected ? "  [CHOISI]" : "");
-    TextFit(label, (Rectangle){row.x + 6, row.y, row.width - 12, row.height},
-            15, RAYWHITE);
-    if (CheckCollisionPointRec(GetMousePosition(), row) &&
+    Color fill, border;
+    RarityCardColors(ItemsEffectRarity(effect), &fill, &border);
+    if (selected)
+      fill = (Color){78, 60, 33, 255};
+    DrawRectangleRounded(card, 0.08f, 6, fill);
+    DrawRectangleRoundedLinesEx(card, 0.08f, 6, Scale(),
+                                border);
+    const char *game = ItemsEffectGame(effect);
+    const char *gameLabel = strcmp(game, "ALL") == 0 ? "TOUS LES MINI-JEUX"
+                            : strcmp(game, "BULLET_HELL") == 0 ? "BULLET HELL"
+                            : strcmp(game, "RING") == 0 ? "RINGS"
+                            : strcmp(game, "MIRROR") == 0 ? "MIRROR"
+                            : strcmp(game, "SEALS") == 0 ? "SEALS"
+                            : game;
+    TextFit(ItemsEffectRarity(effect),
+            (Rectangle){card.x + 4, card.y + 6, card.width - 8,
+                        GameUiPixels(28)}, 16, RAYWHITE);
+    TextFit(gameLabel,
+            (Rectangle){card.x + 4, card.y + GameUiPixels(34),
+                        card.width - 8, GameUiPixels(30)}, 14,
+            (Color){180, 210, 245, 255});
+    DrawTextWrappedFit(ItemsEffectText(effect),
+                       (Rectangle){card.x + 6, card.y + GameUiPixels(68),
+                                   card.width - 12,
+                                   card.height - GameUiPixels(92)},
+                       16, RAYWHITE);
+    if (selected)
+      TextFit("[CHOISI]",
+              (Rectangle){card.x + 4, card.y + card.height - GameUiPixels(20),
+                          card.width - 8, GameUiPixels(18)}, 10,
+              (Color){255, 220, 135, 255});
+    if (CheckCollisionPointRec(GetMousePosition(), card) &&
         IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
       ToggleEffect(effect);
   }
-  if (count > rows) {
+  if (count > visibleCount) {
     float wheel = GetMouseWheelMove();
     if (wheel != 0 && CheckCollisionPointRec(GetMousePosition(),
-          (Rectangle){panel.x, startY, panel.width, rows * rowHeight}))
-      effectOffset = (int)fmaxf(0, fminf(count - rows, effectOffset - wheel));
-    if (IsKeyPressed(KEY_DOWN) && effectOffset < count - rows)
-      effectOffset++;
+          (Rectangle){panel.x, startY, panel.width,
+                      rows * (cardSize + gap)}))
+      effectOffset = (int)fmaxf(0, fminf(count - visibleCount,
+                                         effectOffset - (int)wheel * columns));
+    if (IsKeyPressed(KEY_DOWN) && effectOffset < count - visibleCount)
+      effectOffset += columns;
     if (IsKeyPressed(KEY_UP) && effectOffset > 0)
-      effectOffset--;
+      effectOffset -= columns;
   }
   if (Button((Rectangle){panel.x + panel.width * 0.12f,
                          panel.y + panel.height - GameUiPixels(64),
@@ -394,10 +591,14 @@ static void DrawEffectChoice(Rectangle panel) {
 
 static int ForgePrice(void) { return targetEffectPrice; }
 
-static void DrawForgeInventory(Rectangle panel) {
+static int DrawForgeInventory(Rectangle panel) {
   float gap = GameUiPixels(8);
-  float size = fminf(GameUiPixels(58),
-                     (panel.width * 0.46f - 6 * gap) / 5);
+  float leftWidth = panel.width * 0.48f;
+  float availableHeight = panel.height - GameUiPixels(184);
+  float size = fminf((leftWidth - GameUiPixels(48) - 4 * gap) / 5,
+                     (availableHeight - 5 * gap) / 6);
+  if (size < GameUiPixels(58))
+    size = GameUiPixels(58);
   float x = panel.x + GameUiPixels(24);
   float y = panel.y + GameUiPixels(106);
   int hoverSlot = -1;
@@ -414,19 +615,22 @@ static void DrawForgeInventory(Rectangle panel) {
                                          : (Color){110, 117, 118, 255});
     if (occupied)
       ItemsDrawPreview(i, slot);
+    if (occupied && selected) {
+      DrawRectangleRounded(slot, 0.08f, 4,
+                           (Color){255, 218, 120, 70});
+    }
     if (occupied && CheckCollisionPointRec(GetMousePosition(), slot))
       hoverSlot = i;
   }
   if (hoverSlot >= 0) {
-    TextFit(TextFormat("%s  |  CLIQUEZ POUR %s",
-                       ItemsItemName(hoverSlot),
-                       HasSelectedItem(hoverSlot) ? "RETIRER" : "AJOUTER"),
+    TextFit(ItemsItemName(hoverSlot),
             (Rectangle){x, y + 6 * (size + gap), panel.width * 0.46f,
                         GameUiPixels(28)},
             14, (Color){239, 216, 159, 255});
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
       ToggleSacrifice(hoverSlot);
   }
+  return hoverSlot;
 }
 
 static void DrawForgeCircle(Rectangle panel) {
@@ -443,7 +647,7 @@ static void DrawForgeCircle(Rectangle panel) {
               (Color){25, 27, 31, 245});
   DrawCircleLines((int)center.x, (int)center.y, radius * 0.72f,
                   (Color){224, 185, 102, 255});
-  const char *priceLabel = TextFormat("%d / %d", contribution, price);
+  const char *priceLabel = TextFormat("REQUIS : %d", price);
   int priceSize = GameUiPixels(22);
   DrawText(priceLabel, (int)(center.x - MeasureText(priceLabel, priceSize) / 2),
            (int)(center.y - GameUiPixels(30)), priceSize,
@@ -455,46 +659,11 @@ static void DrawForgeCircle(Rectangle panel) {
            (int)(center.y - GameUiPixels(2)), GameUiPixels(14),
            affordable ? RAYWHITE : (Color){242, 98, 82, 255});
 
-  Rectangle slider = {center.x - radius * 0.52f,
-                      center.y + radius * 0.2f, radius * 1.04f,
-                      GameUiPixels(14)};
-  DrawRectangleRounded(slider, 0.5f, 6, (Color){61, 58, 52, 255});
-  int maximum = TowerEtris() < price ? TowerEtris() : price;
-  float progress = maximum > 0 ? (float)contribution / maximum : 0;
-  DrawRectangleRounded((Rectangle){slider.x, slider.y, slider.width * progress,
-                                   slider.height},
-                       0.5f, 6, (Color){220, 180, 91, 255});
-  if (CheckCollisionPointRec(GetMousePosition(),
-                             (Rectangle){slider.x, slider.y - GameUiPixels(15),
-                                         slider.width, slider.height * 3})) {
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && maximum > 0) {
-      float t = (GetMouseX() - slider.x) / slider.width;
-      contribution = (int)(fmaxf(0, fminf(1, t)) * maximum);
-    }
-    float wheel = GetMouseWheelMove();
-    if (wheel != 0) {
-      int step = maximum / 100;
-      if (step < 1)
-        step = 1;
-      contribution += wheel > 0 ? step : -step;
-      if (contribution < 0)
-        contribution = 0;
-      if (contribution > maximum)
-        contribution = maximum;
-    }
-  }
-  const char *slotsText = TextFormat("ARTEFACTS : %d / %d",
-                                     selectedItemCount, requiredItems);
-  TextFit(slotsText,
-          (Rectangle){center.x - radius, center.y + radius * 0.55f,
-                      radius * 2, GameUiPixels(27)},
-          15, RAYWHITE);
-
   for (int i = 0; i < requiredItems; i++) {
     float angle = -PI / 2 + 2 * PI * i / requiredItems;
     Vector2 node = {center.x + cosf(angle) * radius * 1.35f,
                     center.y + sinf(angle) * radius * 1.35f};
-    float nodeRadius = fminf(GameUiPixels(28), radius * 0.21f);
+    float nodeRadius = fminf(GameUiPixels(46), radius * 0.31f);
     DrawCircleV(node, nodeRadius,
                 (Color){38, 39, 43, 255});
     DrawCircleLines((int)node.x, (int)node.y, nodeRadius,
@@ -505,6 +674,8 @@ static void DrawForgeCircle(Rectangle panel) {
                        (Rectangle){node.x - nodeRadius * 0.72f,
                                    node.y - nodeRadius * 0.72f,
                                    nodeRadius * 1.44f, nodeRadius * 1.44f});
+      if (CheckCollisionPointCircle(GetMousePosition(), node, nodeRadius))
+        ItemsDrawTooltip(itemSlot, GetMousePosition());
       if (CheckCollisionPointCircle(GetMousePosition(), node, nodeRadius) &&
           IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         ToggleSacrifice(itemSlot);
@@ -513,8 +684,7 @@ static void DrawForgeCircle(Rectangle panel) {
 }
 
 static void CommitForge(void) {
-  if (selectedItemCount != requiredItems || contribution < ForgePrice() ||
-      TowerEtris() < ForgePrice() ||
+  if (selectedItemCount != requiredItems || TowerEtris() < ForgePrice() ||
       !ItemsForgeCanComplete(targetName, selectedEffects,
                              targetEffectCount, selectedItems,
                              selectedItemCount))
@@ -535,15 +705,17 @@ static void CommitForge(void) {
 
 static void DrawForgeCirclePage(Rectangle panel) {
   DrawPanel(panel, "CERCLE DE FORGE");
-  DrawForgeInventory(panel);
+  int hoverSlot = DrawForgeInventory(panel);
   DrawForgeCircle(panel);
+  if (hoverSlot >= 0)
+    ItemsDrawTooltip(hoverSlot, GetMousePosition());
   if (Button((Rectangle){panel.x + panel.width * 0.55f,
                          panel.y + panel.height - GameUiPixels(62),
                          panel.width * 0.22f, GameUiPixels(42)},
              "ANNULER", true))
     page = SHOP_PAGE;
   bool ready = selectedItemCount == requiredItems &&
-               contribution >= ForgePrice() && TowerEtris() >= ForgePrice();
+               TowerEtris() >= ForgePrice();
   if (Button((Rectangle){panel.x + panel.width * 0.79f,
                          panel.y + panel.height - GameUiPixels(62),
                          panel.width * 0.17f, GameUiPixels(42)},
@@ -565,10 +737,11 @@ static void DrawForgeAnimation(Rectangle panel) {
   }
   if (animationTime < 2.2f)
     return;
+  Rectangle rewardPreview = {center.x - radius * 0.55f,
+                             center.y - radius * 0.55f,
+                             radius * 1.1f, radius * 1.1f};
   ItemsDrawPreview(forgeRewardSlot,
-                   (Rectangle){center.x - radius * 0.55f,
-                               center.y - radius * 0.55f,
-                               radius * 1.1f, radius * 1.1f});
+                   rewardPreview);
   TextFit(targetName, (Rectangle){center.x - radius, center.y + radius * 0.7f,
                                   radius * 2, GameUiPixels(34)},
           22, (Color){245, 220, 130, 255});
@@ -576,14 +749,17 @@ static void DrawForgeAnimation(Rectangle panel) {
                          panel.y + panel.height - GameUiPixels(68),
                          panel.width * 0.28f, GameUiPixels(44)},
              "CONTINUER", true)) {
-    page = SHOP_PAGE;
+    Close();
   }
+  if (CheckCollisionPointRec(GetMousePosition(), rewardPreview))
+    ItemsDrawTooltip(forgeRewardSlot, GetMousePosition());
 }
 
 void ShopOpen(void) {
   active = true;
   page = SHOP_PAGE;
   packSize = 1;
+  itemSortMode = effectSortMode = 0;
   notice[0] = '\0';
 }
 

@@ -45,15 +45,19 @@ static ItemEffect effects[EFFECT_LIMIT_COUNT];
 static char itemNames[128][ITEM_NAME_LENGTH];
 static int effectCount, itemNameCount;
 static char knownItems[128][ITEM_NAME_LENGTH];
+static Texture2D knownPreviewTextures[128];
 static int knownItemCount;
 static bool knownEffects[EFFECT_LIMIT_COUNT], collectionLoaded;
 static bool dataLoaded;
 static int rewardSlot = -1;
+static int rewardQueue[5];
+static int rewardQueueCount, rewardQueueIndex;
 static int questRewardSlot = -1;
 static float rewardTimer;
 static int contextSlot = -1;
 static int questContextSlot = -1;
 static unsigned int bossSealMask;
+static Rectangle inventoryContextBox;
 static int letterSealsUsed;
 static bool letterAwarded, letterRead, letterReaderActive, letterReachedEnd;
 static char *letterText;
@@ -539,9 +543,27 @@ static int FindEmpty(int first, int end) {
   return -1;
 }
 
+static void QueueItemReward(int slot) {
+  if (slot < 0 || slot >= ITEM_COUNT || !items[slot].name[0])
+    return;
+  if (rewardQueueCount < 5)
+    rewardQueue[rewardQueueCount++] = slot;
+  if (rewardQueueCount == 1 || rewardTimer <= 0) {
+    rewardQueueIndex = 0;
+    rewardSlot = rewardQueue[0];
+    questRewardSlot = -1;
+    rewardTimer = 7;
+  }
+}
+
 void ItemsReset(void) {
   for (int i = 0; i < ITEM_COUNT; i++)
     UnloadItem(&items[i]);
+  for (int i = 0; i < knownItemCount; i++) {
+    if (knownPreviewTextures[i].id != 0)
+      UnloadTexture(knownPreviewTextures[i]);
+    knownPreviewTextures[i] = (Texture2D){0};
+  }
   for (int i = 0; i < QUEST_ITEM_COUNT; i++) {
     if (questItems[i].texture.id != 0)
       UnloadTexture(questItems[i].texture);
@@ -553,6 +575,7 @@ void ItemsReset(void) {
   rewardSlot = -1;
   questRewardSlot = -1;
   rewardTimer = 0;
+  rewardQueueCount = rewardQueueIndex = 0;
   contextSlot = -1;
   questContextSlot = -1;
   bossSealMask = 0;
@@ -764,9 +787,7 @@ void ItemsGrantForLevelUp(void) {
       AchievementsUnlock(ACHIEVEMENT_LEGENDARY_ITEM);
       break;
     }
-  rewardSlot = slot;
-  questRewardSlot = -1;
-  rewardTimer = 7;
+  QueueItemReward(slot);
 }
 
 void ItemsApplyForGame(const char *game) {
@@ -857,9 +878,8 @@ bool ItemsGrantShopPack(int count, int slots[5]) {
   }
   for (int i = 0; i < count; i++)
     RememberItem(&items[slots[i]]);
-  rewardSlot = slots[count - 1];
-  questRewardSlot = -1;
-  rewardTimer = 7;
+  for (int i = 0; i < count; i++)
+    QueueItemReward(slots[i]);
   return true;
 }
 
@@ -902,6 +922,11 @@ const char *ItemsEffectRarity(int effect) {
   return effect >= 0 && effect < effectCount ? effects[effect].rarity : "";
 }
 
+const char *ItemsEffectGame(int effect) {
+  LoadData();
+  return effect >= 0 && effect < effectCount ? effects[effect].game : "ALL";
+}
+
 const char *ItemsItemName(int slot) {
   return slot >= 0 && slot < ITEM_COUNT ? items[slot].name : "";
 }
@@ -912,6 +937,37 @@ void ItemsDrawPreview(int slot, Rectangle box) {
   if (slot < 0 || slot >= ITEM_COUNT || !items[slot].name[0])
     return;
   DrawItem(&items[slot], box);
+}
+
+void ItemsDrawKnownPreview(const char *name, Rectangle box) {
+  if (!name || !name[0])
+    return;
+  int index = -1;
+  for (int i = 0; i < knownItemCount; i++)
+    if (strcmp(knownItems[i], name) == 0) {
+      index = i;
+      break;
+    }
+  if (index < 0)
+    return;
+  if (knownPreviewTextures[index].id == 0) {
+    knownPreviewTextures[index] =
+        LoadTexture(TextFormat("assets/items/%s.png", name));
+  }
+  Texture2D texture = knownPreviewTextures[index];
+  if (texture.id == 0)
+    return;
+  float padding = box.width * 0.08f;
+  Rectangle target = {box.x + padding, box.y + padding,
+                      box.width - padding * 2, box.height - padding * 2};
+  Rectangle source = {0, 0, (float)texture.width, (float)texture.height};
+  DrawTexturePro(texture, source, target, (Vector2){0, 0}, 0, WHITE);
+}
+
+void ItemsDrawTooltip(int slot, Vector2 position) {
+  if (slot < 0 || slot >= ITEM_COUNT || !items[slot].name[0])
+    return;
+  DrawItemTooltip(&items[slot], position);
 }
 
 static bool KnownItemName(const char *name) {
@@ -977,9 +1033,7 @@ bool ItemsForgeComplete(const char *name, const int *selectedEffects,
       break;
     }
   RememberItem(item);
-  rewardSlot = slot;
-  questRewardSlot = -1;
-  rewardTimer = 7;
+  QueueItemReward(slot);
   return true;
 }
 
@@ -1242,10 +1296,8 @@ static void DrawQuestItemContextMenu(int slot) {
 static void DrawItemContextMenu(Item *item) {
   float scale = GameUiScale();
   int margin = GameUiPixels(12);
-  int width = GetScreenWidth() - margin * 2;
-  int maxWidth = GameUiPixels(410);
-  if (width > maxWidth)
-    width = maxWidth;
+  Rectangle box = inventoryContextBox;
+  int width = (int)box.width;
   int fontSize = GameUiPixels(17);
   int contentWidth = width - margin * 2;
   int height, lines;
@@ -1263,21 +1315,19 @@ static void DrawItemContextMenu(Item *item) {
       break;
     fontSize--;
   } while (true);
-  if (height > GetScreenHeight() - margin * 2)
-    height = GetScreenHeight() - margin * 2;
-  Rectangle box = {(GetScreenWidth() - width) / 2.0f,
-                   (GetScreenHeight() - height) / 2.0f, width, height};
   int buttonHeight = GameUiPixels(30);
   int buttonGap = GameUiPixels(6);
-  Rectangle destroy = {box.x + margin, box.y + box.height - GameUiPixels(42),
-                       (box.width - 2 * margin - buttonGap) / 2, buttonHeight};
-  Rectangle close = {destroy.x + destroy.width + buttonGap, destroy.y,
-                     destroy.width, destroy.height};
+  float actionWidth = (box.width - 2 * margin - 2 * buttonGap) / 3;
+  Rectangle equip = {box.x + margin, box.y + box.height - GameUiPixels(42),
+                     actionWidth, buttonHeight};
+  Rectangle destroy = {equip.x + equip.width + buttonGap, equip.y,
+                       actionWidth, buttonHeight};
+  Rectangle close = {destroy.x + destroy.width + buttonGap, equip.y,
+                     actionWidth, buttonHeight};
 
-  DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
-                (Color){0, 0, 0, 150});
-  DrawRectangleRec(box, (Color){15, 15, 20, 250});
-  DrawRectangleLinesEx(box, 2 * scale, (Color){225, 185, 40, 255});
+  DrawRectangleRounded(box, 0.025f, 8, (Color){15, 15, 20, 250});
+  DrawRectangleRoundedLinesEx(box, 0.025f, 8, 2 * scale,
+                              (Color){225, 185, 40, 255});
   DrawText(item->name, (int)box.x + margin, (int)box.y + GameUiPixels(10),
            GameUiPixels(20),
            (Color){245, 220, 130, 255});
@@ -1298,6 +1348,9 @@ static void DrawItemContextMenu(Item *item) {
   }
   EndScissorMode();
 
+  DrawContextButton(equip,
+                    contextSlot < EQUIPPED_COUNT ? "RETIRER" : "ÉQUIPER",
+                    (Color){92, 67, 34, 255});
   DrawContextButton(destroy,
                     TextFormat("VENDRE %d ETRIS", ItemsSellValue(contextSlot)),
                     (Color){94, 72, 33, 255});
@@ -1309,7 +1362,16 @@ static void DrawItemContextMenu(Item *item) {
        !CheckCollisionPointRec(mouse, box))) {
     contextSlot = -1;
   } else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-    if (CheckCollisionPointRec(mouse, destroy))
+    if (CheckCollisionPointRec(mouse, equip)) {
+      int destination = contextSlot < EQUIPPED_COUNT
+                            ? FindEmpty(EQUIPPED_COUNT, ITEM_COUNT)
+                            : FindEmpty(0, EQUIPPED_COUNT);
+      if (destination >= 0) {
+        items[destination] = items[contextSlot];
+        items[contextSlot] = (Item){0};
+        contextSlot = destination;
+      }
+    } else if (CheckCollisionPointRec(mouse, destroy))
       ItemsSell(contextSlot);
     else if (CheckCollisionPointRec(mouse, close) ||
              !CheckCollisionPointRec(mouse, box))
@@ -1320,7 +1382,9 @@ static void DrawItemContextMenu(Item *item) {
 void ItemsDrawInventory(Rectangle equipped[EQUIPPED_COUNT],
                         Rectangle stored[STORED_COUNT],
                         Rectangle quest[QUEST_ITEM_COUNT],
-                        bool showQuestItems) {
+                        bool showQuestItems,
+                        Rectangle contextBox) {
+  inventoryContextBox = contextBox;
   if (showQuestItems && letterReaderActive) {
     DrawLetterReader();
     return;
@@ -1401,6 +1465,19 @@ void ItemsDrawReward(void) {
     return;
   }
   rewardTimer -= GetFrameTime();
+  if (rewardTimer <= 0 && rewardQueueCount > 0 &&
+      questRewardSlot < 0) {
+    rewardQueueIndex++;
+    if (rewardQueueIndex < rewardQueueCount) {
+      rewardSlot = rewardQueue[rewardQueueIndex];
+      questRewardSlot = -1;
+      rewardTimer = 7;
+    } else {
+      rewardQueueCount = rewardQueueIndex = 0;
+      rewardSlot = -1;
+      rewardTimer = 0;
+    }
+  }
   float size = GetScreenHeight() * 0.09f;
   float minSize = GameUiPixels(56), maxSize = GameUiPixels(96);
   if (size < minSize)

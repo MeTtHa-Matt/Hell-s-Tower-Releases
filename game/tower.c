@@ -15,6 +15,7 @@
 #include "raylib.h"
 #include "ui_scale.h"
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +26,9 @@
 typedef enum { GAME_OFF, GAME_PLAYING, GAME_WON, GAME_LOST } TowerGameState;
 
 static int currentFloor, currentDifficulty, etris;
+static float etrisDisplay = -1;
+static bool etrisTextureTried;
+static Texture2D etrisTexture;
 static int currentGame = -1;
 static int playerCharacter = -1;
 static bool towerStarted, tutorialSeen;
@@ -282,6 +286,7 @@ bool LoadTowerProgress(void) {
     strcpy(floorMusicPath, mus);
     FormatSave(savedText);
   }
+  etrisDisplay = (float)etris;
   return savedText[0] != '\0';
 }
 
@@ -338,6 +343,7 @@ bool DeleteTowerProgressFile(void) {
 void ResetTowerProgress(void) {
   currentFloor = 1;
   etris = 0;
+  etrisDisplay = 0;
   currentDifficulty = 0;
   currentGame = -1;
   playerCharacter = -1;
@@ -382,6 +388,51 @@ bool TowerSpendEtris(int amount) {
     return false;
   etris -= amount;
   return true;
+}
+
+void TowerDrawEtrisHud(bool alwaysVisible) {
+  bool changing = fabsf((float)etris - etrisDisplay) >= 0.5f;
+  if (!alwaysVisible && !changing) {
+    etrisDisplay = (float)etris;
+    return;
+  }
+
+  if (!etrisTextureTried) {
+    etrisTextureTried = true;
+    etrisTexture = LoadTexture("assets/Etris.png");
+    if (etrisTexture.id == 0)
+      TraceLog(LOG_ERROR, "Logo assets/Etris.png introuvable");
+  }
+
+  if (etrisDisplay < 0)
+    etrisDisplay = (float)etris;
+  else {
+    float difference = (float)etris - etrisDisplay;
+    if (fabsf(difference) < 0.5f)
+      etrisDisplay = (float)etris;
+    else
+      etrisDisplay += difference * (1 - expf(-GetFrameTime() * 8));
+  }
+
+  int shown = (int)(etrisDisplay + (etrisDisplay >= 0 ? 0.5f : -0.5f));
+  float logoSize = (float)GameUiPixels(40);
+  int amountSize = GameUiPixels(24);
+  int amountWidth = MeasureText(TextFormat("%d", shown), amountSize);
+  float totalWidth = logoSize + GameUiPixels(10) + amountWidth;
+  float x = GetScreenWidth() - totalWidth - GameUiPixels(28);
+  float y = GameUiPixels(20);
+
+  if (etrisTexture.id != 0) {
+    Rectangle source = {0, 0, (float)etrisTexture.width,
+                        (float)etrisTexture.height};
+    Rectangle destination = {x, y, logoSize, logoSize};
+    DrawTexturePro(etrisTexture, source, destination, (Vector2){0, 0}, 0,
+                   WHITE);
+  }
+  DrawText(TextFormat("%d", shown),
+           (int)(x + logoSize + GameUiPixels(10)),
+           (int)(y + (logoSize - amountSize) / 2), amountSize,
+           (Color){245, 220, 130, 255});
 }
 bool TowerSigridDialogSeen(int floor) {
   return floor > 0 && floor < 64 && (sigridSeen & (1ULL << floor));

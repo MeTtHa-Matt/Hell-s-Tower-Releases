@@ -23,6 +23,7 @@ int TowerCurrentFloor(void);
 int TowerEtris(void);
 void TowerAddEtris(long long amount);
 bool TowerSpendEtris(int amount);
+void TowerDrawEtrisHud(bool alwaysVisible);
 bool TowerTakeExitRequest(void);
 bool TowerResultActive(void);
 bool TowerSigridDialogSeen(int floor);
