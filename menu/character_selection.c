@@ -111,6 +111,11 @@ static bool DrawButton(const char *label, Rectangle box, ButtonSoundId soundId) 
   float size = box.height * 0.58f;
   float spacing = size * 0.05f;
   Vector2 textSize = MeasureTextEx(font, label, size, spacing);
+  if (textSize.x > box.width * 0.84f) {
+    size *= box.width * 0.84f / textSize.x;
+    spacing = size * 0.05f;
+    textSize = MeasureTextEx(font, label, size, spacing);
+  }
   Vector2 position = {box.x + (box.width - textSize.x) / 2,
                       box.y + (box.height - size) / 2};
   DrawTextEx(font, label, position, size, spacing,
@@ -220,16 +225,34 @@ void UnloadCharacterSelection(void) {
 
 bool DrawCharacterSelection(void) {
   int sw = GetScreenWidth(), sh = GetScreenHeight();
+  bool portraitLayout = sh > sw;
+  float shortSide = fminf((float)sw, (float)sh);
   float dt = GetFrameTime();
   float centerX = sw / 2.0f;
-  float centerY = sh * 0.46f;
-  Rectangle leftArrow = {sw * 0.055f, centerY - sh * 0.055f,
-                         sh * 0.11f, sh * 0.11f};
-  Rectangle rightArrow = {sw * 0.835f, centerY - sh * 0.055f,
-                          sh * 0.11f, sh * 0.11f};
-  Rectangle chooseButton = {sw * 0.38f, sh * 0.81f, sw * 0.24f, sh * 0.075f};
-  Rectangle confirmButton = {sw * 0.53f, sh * 0.78f, sw * 0.19f, sh * 0.075f};
-  Rectangle cancelButton = {sw * 0.75f, sh * 0.78f, sw * 0.19f, sh * 0.075f};
+  float centerY = sh * (portraitLayout ? 0.32f : 0.46f);
+  float arrowSize = fmaxf(shortSide * 0.11f, 24 * GameUiScale());
+  float arrowMargin = fmaxf(shortSide * 0.055f, sw * 0.03f);
+  float sideOffset = sw * (portraitLayout ? 0.31f : 0.27f);
+  float sideWidth = sw * (portraitLayout ? 0.22f : 0.15f);
+  float sideHeight = sh * (portraitLayout ? 0.26f : 0.35f);
+  Rectangle leftArrow = {arrowMargin, centerY - arrowSize / 2,
+                         arrowSize, arrowSize};
+  Rectangle rightArrow = {sw - arrowMargin - arrowSize,
+                          centerY - arrowSize / 2, arrowSize, arrowSize};
+  Rectangle chooseButton =
+      {sw * (portraitLayout ? 0.25f : 0.38f),
+       sh * (portraitLayout ? 0.84f : 0.81f),
+       sw * (portraitLayout ? 0.5f : 0.24f), sh * 0.075f};
+  Rectangle confirmButton =
+      {sw * (portraitLayout ? 0.06f : 0.53f),
+       sh * (portraitLayout ? 0.87f : 0.78f),
+       sw * (portraitLayout ? 0.4f : 0.19f),
+       sh * (portraitLayout ? 0.07f : 0.075f)};
+  Rectangle cancelButton =
+      {sw * (portraitLayout ? 0.54f : 0.75f),
+       sh * (portraitLayout ? 0.87f : 0.78f),
+       sw * (portraitLayout ? 0.4f : 0.19f),
+       sh * (portraitLayout ? 0.07f : 0.075f)};
 
   entryProgress = Clamp(entryProgress + dt / 0.35f, 0, 1);
   if (scrollProgress < 1) {
@@ -248,40 +271,51 @@ bool DrawCharacterSelection(void) {
                    sh * 0.045f, (Color){245, 215, 145, 255});
 
   bool inDetails = detailProgress > 0;
-  float portraitX = centerX + (sw * 0.25f - centerX) * detailProgress;
-  float portraitWidth = sw * (0.27f + 0.08f * detailProgress);
-  float portraitHeight = sh * (0.5f + 0.13f * detailProgress);
+  float portraitX = portraitLayout
+                        ? centerX
+                        : centerX + (sw * 0.25f - centerX) * detailProgress;
+  float portraitWidth = portraitLayout
+                            ? sw * (inDetails ? 0.42f : 0.43f)
+                            : sw * (0.27f + 0.08f * detailProgress);
+  float portraitHeight = portraitLayout
+                             ? sh * (inDetails ? 0.3f : 0.38f)
+                             : sh * (0.5f + 0.13f * detailProgress);
+  float portraitY =
+      portraitLayout ? sh * (0.32f - 0.05f * detailProgress) : centerY;
 
   if (!inDetails && scrollProgress < 1) {
     float progress = scrollProgress * scrollProgress * (3 - 2 * scrollProgress);
-    float travel = sw * 0.25f;
-    float sideWidth = sw * 0.15f;
-    float sideHeight = sh * 0.35f;
-    DrawPortrait(scrollFrom, centerX - scrollDirection * travel * progress,
-                 centerY, portraitWidth * (1 - 0.28f * progress),
-                 portraitHeight * (1 - 0.28f * progress), 1 - 0.35f * progress);
-    DrawPortrait(scrollTo, centerX + scrollDirection * travel * (1 - progress),
+    DrawPortrait(scrollFrom, centerX - scrollDirection * sideOffset * progress,
+                 centerY, portraitWidth + (sideWidth - portraitWidth) * progress,
+                 portraitHeight + (sideHeight - portraitHeight) * progress,
+                 1 - 0.35f * progress);
+    DrawPortrait(scrollTo, centerX + scrollDirection * sideOffset * (1 - progress),
                  centerY, sideWidth + (portraitWidth - sideWidth) * progress,
                  sideHeight + (portraitHeight - sideHeight) * progress,
                  0.65f + 0.35f * progress);
   } else {
     int adjacent = (selected + 1) % CHARACTER_COUNT;
     float sideAlpha = 0.75f * (1 - detailProgress);
-    DrawPortrait(adjacent, centerX - sw * 0.27f, centerY + sh * 0.035f,
-                 sw * 0.15f, sh * 0.35f, sideAlpha);
-    DrawPortrait(adjacent, centerX + sw * 0.27f, centerY + sh * 0.035f,
-                 sw * 0.15f, sh * 0.35f, sideAlpha);
-    DrawPortrait(selected, portraitX, centerY, portraitWidth, portraitHeight, 1);
-    DrawTextCentered(names[selected], centerX, sh * 0.715f, sh * 0.04f,
-                     (Color){245, 215, 145, 255});
+    DrawPortrait(adjacent, centerX - sideOffset,
+                 centerY + sh * (portraitLayout ? 0.02f : 0.035f),
+                 sideWidth, sideHeight, sideAlpha);
+    DrawPortrait(adjacent, centerX + sideOffset,
+                 centerY + sh * (portraitLayout ? 0.02f : 0.035f),
+                 sideWidth, sideHeight, sideAlpha);
+    DrawPortrait(selected, portraitX, portraitY, portraitWidth, portraitHeight, 1);
+    if (!inDetails)
+      DrawTextCentered(names[selected], centerX,
+                       sh * (portraitLayout ? 0.46f : 0.735f),
+                       sh * 0.04f, (Color){245, 215, 145, 255});
   }
 
   if (!inDetails) {
     if (scrollProgress >= 1) {
       int adjacent = (selected + 1) % CHARACTER_COUNT;
-      DrawTextCentered(names[adjacent], centerX - sw * 0.27f, sh * 0.69f,
+      float labelY = sh * (portraitLayout ? 0.43f : 0.69f);
+      DrawTextCentered(names[adjacent], centerX - sideOffset, labelY,
                        sh * 0.027f, (Color){200, 185, 150, 210});
-      DrawTextCentered(names[adjacent], centerX + sw * 0.27f, sh * 0.69f,
+      DrawTextCentered(names[adjacent], centerX + sideOffset, labelY,
                        sh * 0.027f, (Color){200, 185, 150, 210});
     }
 
@@ -304,17 +338,28 @@ bool DrawCharacterSelection(void) {
       DrawButton("CHOISIR", chooseButton, BUTTON_SOUND_MENU_PLAY);
     }
   } else {
-    float panelX = sw * 0.52f + sw * 0.06f * (1 - detailProgress);
+    float panelX = portraitLayout
+                       ? sw * 0.08f
+                       : sw * 0.52f + sw * 0.06f * (1 - detailProgress);
     float panelAlpha = detailProgress;
     Color textColor = (Color){245, 230, 190, (unsigned char)(255 * panelAlpha)};
-    float nameSize = sh * 0.055f;
-    DrawTextEx(font, names[selected], (Vector2){panelX, sh * 0.25f}, nameSize,
+    float nameSize = portraitLayout
+                         ? fminf(sh * 0.055f, shortSide * 0.1f)
+                         : sh * 0.055f;
+    float nameY = sh * (portraitLayout ? 0.42f : 0.25f);
+    DrawTextEx(font, names[selected], (Vector2){panelX, nameY}, nameSize,
                nameSize * 0.06f, textColor);
 
-    Rectangle storyBox = {panelX, sh * 0.35f, sw * 0.4f, sh * 0.34f};
+    Rectangle storyBox =
+        portraitLayout
+            ? (Rectangle){sw * 0.08f, sh * 0.49f, sw * 0.84f, sh * 0.35f}
+            : (Rectangle){panelX, sh * 0.35f, sw * 0.4f, sh * 0.34f};
     Color storyColor = (Color){235, 230, 215, (unsigned char)(255 * panelAlpha)};
     if (stories[selected])
-      DrawWrappedText(stories[selected], storyBox, sh * 0.027f, storyColor);
+      DrawWrappedText(stories[selected], storyBox,
+                      portraitLayout ? fminf(sh * 0.027f, shortSide * 0.04f)
+                                     : sh * 0.027f,
+                      storyColor);
 
     if (detailProgress == 1 && !confirming) {
       if (DrawButton("CONFIRMER", confirmButton, BUTTON_SOUND_CONFIRM_CONTINUE)) {
