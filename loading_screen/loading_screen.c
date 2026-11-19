@@ -5,10 +5,15 @@
 #include "raylib.h"
 #include <stddef.h>
 
-#define FADE_IN 0.2f
+#define SCENE_FADE_OUT 0.2f
+#define LOADING_FADE_IN 0.2f
 #define LOADING 1.8f
-#define FADE_OUT 0.3f
+#define LOADING_FADE_OUT 0.3f
+#define SCENE_FADE_IN 0.3f
 #define UPDATE_GATE_PROGRESS 0.75f
+#define LOADING_START (SCENE_FADE_OUT + LOADING_FADE_IN)
+#define LOADING_END (LOADING_START + LOADING)
+#define LOADING_FINISH (LOADING_END + LOADING_FADE_OUT + SCENE_FADE_IN)
 
 static Texture2D defaultBg, customBg;
 static bool active, actionDone;
@@ -19,19 +24,21 @@ static LoadingScreenAction action;
 static float timer;
 
 static float UpdateGateTime(void) {
-  return FADE_IN + LOADING * UPDATE_GATE_PROGRESS;
+  return LOADING_START + LOADING * UPDATE_GATE_PROGRESS;
 }
 
 static float GetAlpha(void) {
-  if (timer < FADE_IN)
-    return timer / FADE_IN;
-  if (timer < FADE_IN + LOADING)
+  if (timer < LOADING_START)
+    return (timer - SCENE_FADE_OUT) / LOADING_FADE_IN;
+  if (timer < LOADING_END)
     return 1;
-  return 1 - (timer - FADE_IN - LOADING) / FADE_OUT;
+  if (timer < LOADING_END + LOADING_FADE_OUT)
+    return 1 - (timer - LOADING_END) / LOADING_FADE_OUT;
+  return 0;
 }
 
 static float GetProgress(void) {
-  float t = timer - FADE_IN;
+  float t = timer - LOADING_START;
   if (t <= 0)
     return 0;
   if (t >= LOADING)
@@ -122,13 +129,13 @@ void LoadingScreenUpdate(void) {
     updateCheckActive = false;
   }
 
-  if (!actionDone && timer >= FADE_IN + LOADING) {
+  if (!actionDone && timer >= LOADING_END) {
     actionDone = true;
     if (action)
       action();
   }
 
-  if (timer >= FADE_IN + LOADING + FADE_OUT) {
+  if (timer >= LOADING_FINISH) {
     active = false;
     UnloadCustomBg();
   }
@@ -140,6 +147,20 @@ bool LoadingScreenDraw(void) {
 
   int sw = GetScreenWidth();
   int sh = GetScreenHeight();
+  if (timer < SCENE_FADE_OUT) {
+    DrawRectangle(0, 0, sw, sh,
+                  (Color){0, 0, 0,
+                          (unsigned char)(255 * timer / SCENE_FADE_OUT)});
+    return false;
+  }
+  if (timer >= LOADING_END + LOADING_FADE_OUT) {
+    float alpha =
+        1 - (timer - LOADING_END - LOADING_FADE_OUT) / SCENE_FADE_IN;
+    DrawRectangle(0, 0, sw, sh, (Color){0, 0, 0, (unsigned char)(255 * alpha)});
+    return false;
+  }
+
+  DrawRectangle(0, 0, sw, sh, BLACK);
   unsigned char a = (unsigned char)(GetAlpha() * 255);
 
   Texture2D bg = customBg.id ? customBg : defaultBg;

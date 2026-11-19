@@ -627,9 +627,9 @@ void LoadMenu(void) {
     }
 
     bool updatePopupActive = LoadingScreenUpdatePopupActive();
+    AchievementsDrawNotifications();
     if (LoadingScreenDraw())
       game_running = false;
-    AchievementsDrawNotifications();
     if (!LoadingScreenActive() || updatePopupActive)
       DrawCustomCursor();
     if (startupMenuFadePending) {
@@ -655,7 +655,6 @@ void LoadBlackScreen(void) {
   bool leave = false;
   bool quitConfirmation = false, returnConfirmation = false;
   float shadeAlpha = 0;
-  float entryFadeOpacity = 1;
 
   returnToMainMenu = false;
   ambientMusicStarted = false;
@@ -782,21 +781,13 @@ void LoadBlackScreen(void) {
       leave = true;
 
     bool updatePopupActive = LoadingScreenUpdatePopupActive();
-    if (LoadingScreenDraw())
-      game_running = false;
     if (!leave)
       AchievementsDrawNotifications();
+    if (LoadingScreenDraw())
+      game_running = false;
     if (updatePopupActive ||
         (!LoadingScreenActive() && (paused || !inGame || GameResultActive())))
       DrawCustomCursor();
-    if (entryFadeOpacity > 0 && !LoadingScreenActive()) {
-      DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
-                    (Color){0, 0, 0,
-                            (unsigned char)(255 * entryFadeOpacity)});
-      entryFadeOpacity -= GetFrameTime() / 0.8f;
-      if (entryFadeOpacity < 0)
-        entryFadeOpacity = 0;
-    }
     EndButtonSoundFrame();
     EndDrawing();
   }
