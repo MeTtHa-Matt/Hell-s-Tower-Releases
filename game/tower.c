@@ -22,7 +22,7 @@ typedef enum { GAME_OFF, GAME_PLAYING, GAME_WON, GAME_LOST } TowerGameState;
 
 static int currentFloor, currentDifficulty;
 static int currentGame = -1;
-static int playerCharacter;
+static int playerCharacter = -1;
 static bool towerStarted, tutorialSeen;
 static bool exitRequested, musicAttempted;
 static unsigned long long sigridSeen;
@@ -129,7 +129,7 @@ static void FormatSave(char *out) {
   const char *game = "";
   if (currentGame >= 0)
     game = gameNames[currentGame];
-  snprintf(out, SAVE_LEN, "%d %d %d %d %d %llu 3 %d\n", currentFloor,
+  snprintf(out, SAVE_LEN, "%d %d %d %d %d %llu 4 %d\n", currentFloor,
            tutorialSeen, currentDifficulty, LevelsLevel(), LevelsXP(),
            sigridSeen, playerCharacter);
   size_t used = strlen(out);
@@ -224,15 +224,19 @@ bool LoadTowerProgress(void) {
 
   bool known = fields >= 2 && floor > 0 && (seen == 0 || seen == 1);
   bool characterValid =
-      version != 3 || (fields >= 8 && (savedCharacter == 1 || savedCharacter == 2));
+      version == 3 ? fields >= 8 && (savedCharacter == 1 || savedCharacter == 2)
+      : version == 4 ? fields >= 8 && savedCharacter >= 0 && savedCharacter <= 2
+                     : true;
   if (fields == 6)
     oldSigrid = (int)savedSigrid;
   LevelsLoad(fields >= 5 ? level : 0, fields >= 5 ? xp : 0);
-  playerCharacter = version == 3 && characterValid ? savedCharacter
-                                                   : 1;
+  playerCharacter = characterValid && (version == 3 || version == 4)
+                        ? savedCharacter
+                        : 1;
   currentFloor = known ? floor : 1;
   tutorialSeen = known && seen == 1;
-  sigridSeen = fields >= 7 && (version == 2 || version == 3) ? savedSigrid
+  sigridSeen = fields >= 7 && (version == 2 || version == 3 || version == 4)
+                   ? savedSigrid
                : fields == 6 && oldSigrid > 0 && oldSigrid < 64
                    ? 1ULL << oldSigrid
                    : 0;
@@ -259,7 +263,7 @@ bool SaveTowerProgress(void) {
   char text[SAVE_LEN];
   char saveDirectory[SAVE_PATH_LEN], savePath[SAVE_PATH_LEN];
 
-  if (playerCharacter != 1 && playerCharacter != 2) {
+  if (playerCharacter < 0 || playerCharacter > 2) {
     TraceLog(LOG_ERROR, "Impossible de sauvegarder sans personnage choisi");
     return false;
   }
@@ -309,7 +313,7 @@ void ResetTowerProgress(void) {
   currentFloor = 1;
   currentDifficulty = 0;
   currentGame = -1;
-  playerCharacter = 0;
+  playerCharacter = -1;
   towerStarted = tutorialSeen = false;
   resultState = GAME_OFF;
   exitRequested = false;
@@ -327,7 +331,7 @@ bool TowerProgressNeedsSaving(void) {
 }
 
 bool SetTowerPlayerCharacter(int character) {
-  if (character != 1 && character != 2)
+  if (character < 0 || character > 2)
     return false;
   playerCharacter = character;
   return true;

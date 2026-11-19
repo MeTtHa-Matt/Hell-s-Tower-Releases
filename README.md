@@ -325,7 +325,7 @@ Chaque effet généré tire sa rareté séparément : **Commun 50 %**, **Rare 30
 **Épique 15 %**, **Légendaire 4 %** et **Maudit 1 %**. Un effet déjà présent sur
 l'item ne peut pas être tiré une deuxième fois.
 Le portrait
-`assets/player.png` est affiché avec le nom « Melina ».
+`assets/player0.png` est affiché avec le nom « Melina ».
 
 ### Les mini-jeux
 

@@ -10,7 +10,7 @@
 #define ROWS 5
 
 static Texture2D playerTex;
-static int playerTexCharacter;
+static int playerTexCharacter = -1;
 static float scale, originX, originY;
 
 static Rectangle Box(float x, float y, float w, float h) {
@@ -57,7 +57,7 @@ static void DrawPlayer(void) {
 
 bool DrawInventory(bool allowClose) {
   int character = TowerPlayerCharacter();
-  if (character != 1 && character != 2)
+  if (character < 0 || character > 2)
     character = 1;
   if (playerTexCharacter != character) {
     if (playerTex.id != 0)
@@ -97,7 +97,8 @@ bool DrawInventory(bool allowClose) {
   DrawPlayer();
   DrawRectangleRec(Box(170, 66, 160, 38), (Color){18, 18, 24, 240});
   DrawRectangleLinesEx(Box(170, 66, 160, 38), 3 * scale, darkGold);
-  DrawCentered(character == 1 ? "Elyssia" : "Kaelen", 250, 85, 24, textColor);
+  static const char *names[] = {"Melina", "Elyssia", "Kaelen"};
+  DrawCentered(names[character], 250, 85, 24, textColor);
 
   DrawCentered(TextFormat("LVL %d", LevelsLevel()), 245, 562, 40, textColor);
   DrawRectangleRec(Box(88, 595, 322, 33), (Color){220, 220, 30, 255});
@@ -134,5 +135,5 @@ bool DrawInventory(bool allowClose) {
 void UnloadInventory(void) {
   UnloadTexture(playerTex);
   playerTex = (Texture2D){0};
-  playerTexCharacter = 0;
+  playerTexCharacter = -1;
 }

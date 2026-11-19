@@ -7,14 +7,15 @@
 #include <stdio.h>
 #include <string.h>
 
-#define CHARACTER_COUNT 2
+#define CHARACTER_COUNT 3
 
-static const char *names[CHARACTER_COUNT] = {"Elyssia", "Kaelen"};
+static const char *names[CHARACTER_COUNT] = {"Melina", "Elyssia", "Kaelen"};
 static const char *storyPaths[CHARACTER_COUNT] = {
-    "assets/player1.txt", "assets/player2.txt"};
+    "assets/player0.txt", "assets/player1.txt", "assets/player2.txt"};
 static Texture2D portraits[CHARACTER_COUNT];
 static char *stories[CHARACTER_COUNT];
 static Texture2D buttonTexture;
+static Texture2D leftArrowTexture, rightArrowTexture;
 static Font font;
 static bool fontLoaded;
 static int selected, scrollFrom, scrollTo, scrollDirection;
@@ -127,24 +128,16 @@ static bool DrawButton(const char *label, Rectangle box, ButtonSoundId soundId) 
   return clicked;
 }
 
-static bool DrawArrow(bool right, Rectangle box, ButtonSoundId soundId) {
+static bool DrawArrow(Texture2D texture, Rectangle box, ButtonSoundId soundId) {
   bool hover = CheckCollisionPointRec(GetMousePosition(), box);
   UpdateButtonHoverSound(soundId, hover);
 
-  Vector2 center = {box.x + box.width / 2, box.y + box.height / 2};
-  Color color = hover ? (Color){255, 230, 160, 255}
-                      : (Color){225, 185, 105, 255};
-  DrawCircleV(center, box.width * 0.48f, (Color){12, 12, 18, 210});
-  DrawCircleLines((int)center.x, (int)center.y, box.width * 0.48f, color);
-  float half = box.width * 0.18f;
-  if (right) {
-    DrawTriangle((Vector2){center.x - half / 2, center.y - half},
-                 (Vector2){center.x + half / 2, center.y},
-                 (Vector2){center.x - half / 2, center.y + half}, color);
-  } else {
-    DrawTriangle((Vector2){center.x + half / 2, center.y - half},
-                 (Vector2){center.x - half / 2, center.y},
-                 (Vector2){center.x + half / 2, center.y + half}, color);
+  if (texture.id != 0) {
+    float width = box.height * texture.width / texture.height;
+    Rectangle source = {0, 0, (float)texture.width, (float)texture.height};
+    Rectangle dest = {box.x + (box.width - width) / 2, box.y, width, box.height};
+    DrawTexturePro(texture, source, dest, (Vector2){0, 0}, 0,
+                   hover ? (Color){255, 245, 210, 255} : WHITE);
   }
 
   bool clicked = hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
@@ -167,10 +160,21 @@ void InitCharacterSelection(void) {
   else
     SetTextureFilter(buttonTexture, TEXTURE_FILTER_BILINEAR);
 
+  leftArrowTexture = LoadTexture("assets/arrow_left.png");
+  rightArrowTexture = LoadTexture("assets/arrow_right.png");
+  if (leftArrowTexture.id == 0)
+    TraceLog(LOG_ERROR, "Flèche gauche introuvable");
+  else
+    SetTextureFilter(leftArrowTexture, TEXTURE_FILTER_BILINEAR);
+  if (rightArrowTexture.id == 0)
+    TraceLog(LOG_ERROR, "Flèche droite introuvable");
+  else
+    SetTextureFilter(rightArrowTexture, TEXTURE_FILTER_BILINEAR);
+
   for (int i = 0; i < CHARACTER_COUNT; i++) {
-    portraits[i] = LoadTexture(TextFormat("assets/player%d.png", i + 1));
+    portraits[i] = LoadTexture(TextFormat("assets/player%d.png", i));
     if (portraits[i].id == 0)
-      TraceLog(LOG_ERROR, "Portrait du personnage introuvable: %d", i + 1);
+      TraceLog(LOG_ERROR, "Portrait du personnage introuvable: %d", i);
     else
       SetTextureFilter(portraits[i], TEXTURE_FILTER_BILINEAR);
     stories[i] = LoadFileText(storyPaths[i]);
@@ -197,7 +201,7 @@ void StartCharacterSelection(void) {
   detailTarget = confirming = saveError = false;
 }
 
-int CharacterSelectionPlayer(void) { return selected + 1; }
+int CharacterSelectionPlayer(void) { return selected; }
 
 void CharacterSelectionSaveFailed(void) {
   confirming = false;
@@ -216,9 +220,14 @@ void UnloadCharacterSelection(void) {
   }
   if (buttonTexture.id != 0)
     UnloadTexture(buttonTexture);
+  if (leftArrowTexture.id != 0)
+    UnloadTexture(leftArrowTexture);
+  if (rightArrowTexture.id != 0)
+    UnloadTexture(rightArrowTexture);
   if (fontLoaded)
     UnloadFont(font);
   buttonTexture = (Texture2D){0};
+  leftArrowTexture = rightArrowTexture = (Texture2D){0};
   font = (Font){0};
   fontLoaded = false;
 }
@@ -232,13 +241,14 @@ bool DrawCharacterSelection(void) {
   float centerY = sh * (portraitLayout ? 0.32f : 0.46f);
   float arrowSize = fmaxf(shortSide * 0.11f, 24 * GameUiScale());
   float arrowMargin = fmaxf(shortSide * 0.055f, sw * 0.03f);
+  float arrowWidth = arrowSize * 0.65f;
   float sideOffset = sw * (portraitLayout ? 0.31f : 0.27f);
   float sideWidth = sw * (portraitLayout ? 0.22f : 0.15f);
   float sideHeight = sh * (portraitLayout ? 0.26f : 0.35f);
   Rectangle leftArrow = {arrowMargin, centerY - arrowSize / 2,
-                         arrowSize, arrowSize};
-  Rectangle rightArrow = {sw - arrowMargin - arrowSize,
-                          centerY - arrowSize / 2, arrowSize, arrowSize};
+                         arrowWidth, arrowSize};
+  Rectangle rightArrow = {sw - arrowMargin - arrowWidth,
+                          centerY - arrowSize / 2, arrowWidth, arrowSize};
   Rectangle chooseButton =
       {sw * (portraitLayout ? 0.25f : 0.38f),
        sh * (portraitLayout ? 0.84f : 0.81f),
@@ -294,12 +304,13 @@ bool DrawCharacterSelection(void) {
                  sideHeight + (portraitHeight - sideHeight) * progress,
                  0.65f + 0.35f * progress);
   } else {
-    int adjacent = (selected + 1) % CHARACTER_COUNT;
+    int leftAdjacent = (selected + CHARACTER_COUNT - 1) % CHARACTER_COUNT;
+    int rightAdjacent = (selected + 1) % CHARACTER_COUNT;
     float sideAlpha = 0.75f * (1 - detailProgress);
-    DrawPortrait(adjacent, centerX - sideOffset,
+    DrawPortrait(leftAdjacent, centerX - sideOffset,
                  centerY + sh * (portraitLayout ? 0.02f : 0.035f),
                  sideWidth, sideHeight, sideAlpha);
-    DrawPortrait(adjacent, centerX + sideOffset,
+    DrawPortrait(rightAdjacent, centerX + sideOffset,
                  centerY + sh * (portraitLayout ? 0.02f : 0.035f),
                  sideWidth, sideHeight, sideAlpha);
     DrawPortrait(selected, portraitX, portraitY, portraitWidth, portraitHeight, 1);
@@ -311,16 +322,19 @@ bool DrawCharacterSelection(void) {
 
   if (!inDetails) {
     if (scrollProgress >= 1) {
-      int adjacent = (selected + 1) % CHARACTER_COUNT;
+      int leftAdjacent = (selected + CHARACTER_COUNT - 1) % CHARACTER_COUNT;
+      int rightAdjacent = (selected + 1) % CHARACTER_COUNT;
       float labelY = sh * (portraitLayout ? 0.43f : 0.69f);
-      DrawTextCentered(names[adjacent], centerX - sideOffset, labelY,
+      DrawTextCentered(names[leftAdjacent], centerX - sideOffset, labelY,
                        sh * 0.027f, (Color){200, 185, 150, 210});
-      DrawTextCentered(names[adjacent], centerX + sideOffset, labelY,
+      DrawTextCentered(names[rightAdjacent], centerX + sideOffset, labelY,
                        sh * 0.027f, (Color){200, 185, 150, 210});
     }
 
-    bool leftClicked = DrawArrow(false, leftArrow, BUTTON_SOUND_TRAINING_CANCEL);
-    bool rightClicked = DrawArrow(true, rightArrow, BUTTON_SOUND_TRAINING_START);
+    bool leftClicked =
+        DrawArrow(leftArrowTexture, leftArrow, BUTTON_SOUND_TRAINING_CANCEL);
+    bool rightClicked =
+        DrawArrow(rightArrowTexture, rightArrow, BUTTON_SOUND_TRAINING_START);
     if (detailProgress == 0 && scrollProgress == 1) {
       if (IsKeyPressed(KEY_LEFT))
         BeginScroll(-1);

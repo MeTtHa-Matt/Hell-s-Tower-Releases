@@ -268,10 +268,14 @@ jobs:
         run: |
           test -d build/assets
           test -f build/assets/menu_background.htv
+          test -f build/assets/player0.png
+          test -f build/assets/player0.txt
           test -f build/assets/player1.png
           test -f build/assets/player1.txt
           test -f build/assets/player2.png
           test -f build/assets/player2.txt
+          test -f build/assets/arrow_left.png
+          test -f build/assets/arrow_right.png
           test -f build/THIRD_PARTY_NOTICES.txt
           case "$PLATFORM" in
             windows)
