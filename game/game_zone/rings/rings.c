@@ -13,6 +13,8 @@
 typedef struct {
   float radius;
   float gapAngle;
+  float gapWidth;
+  float speed;
   bool on;
   bool hit;
 } Ring;
@@ -22,7 +24,7 @@ static Texture2D heartTex;
 static Vector2 player;
 static bool playerReady;
 static RingsStatus state;
-static int difficulty, lives, maxLives, damageCount, ringSpawnCount;
+static int floorNumber, difficulty, lives, maxLives, damageCount, ringSpawnCount;
 static float timeLeft, spawnTimer, lastGap, invincible, idleTimer;
 static float dashTime, dashCooldown;
 static bool hazardsCleared;
@@ -35,14 +37,6 @@ static float Limit(float value, float min, float max) {
   return value;
 }
 
-static float GapWidth(void) {
-  const FunctionalSettings *items = FunctionalGet();
-  float width = BalanceRingGapDegrees(difficulty);
-  if (difficulty >= 7 && items->ringHighAid)
-    width *= 1.15f;
-  return width * items->ringGap * DEG2RAD;
-}
-
 static int RingCount(void) {
   if (difficulty <= 3)
     return GetRandomValue(6, 7);
@@ -51,8 +45,12 @@ static int RingCount(void) {
 
 static float Speed(float k) {
   const FunctionalSettings *items = FunctionalGet();
-  return BalanceRingSpeed(difficulty) * k * items->ringSpeed *
-         items->bulletSpeed;
+  float base = BalanceRingSpeed(difficulty);
+  float speedMin = BalanceRandomSpeedMin(floorNumber, difficulty, base);
+  float speedMax = BalanceRandomSpeedMax(floorNumber, difficulty, base);
+  float speed = GetRandomValue((int)(speedMin * 100),
+                               (int)(speedMax * 100)) / 100.0f;
+  return speed * k * items->ringSpeed * items->bulletSpeed;
 }
 
 static float RingSpacing(float k) {
@@ -92,6 +90,12 @@ static int SpawnWave(float startRadius, float k, int count) {
       lastGap = remainderf(lastGap + 137.507764f * DEG2RAD, 2 * PI);
       rings[i].radius = startRadius + (count - 1 - sequence) * RingSpacing(k);
       rings[i].gapAngle = lastGap;
+      float gapMin = BalanceRingGapRandomMin(floorNumber, difficulty);
+      float gapMax = BalanceRingGapRandomMax(floorNumber, difficulty);
+      rings[i].gapWidth =
+          GetRandomValue((int)(gapMin * 100), (int)(gapMax * 100)) /
+          100.0f * DEG2RAD;
+      rings[i].speed = Speed(k);
       rings[i].on = true;
       rings[i].hit = false;
     }
@@ -99,10 +103,11 @@ static int SpawnWave(float startRadius, float k, int count) {
   return spawned;
 }
 
-void RingsStart(int d) {
+void RingsStart(int floorNumberArg, int d) {
   if (heartTex.id == 0)
     heartTex = LoadTexture("assets/heart.png");
 
+  floorNumber = floorNumberArg;
   difficulty = d;
   if (difficulty < 1)
     difficulty = 1;
@@ -115,7 +120,13 @@ void RingsStart(int d) {
     lives = maxLives = 1;
   damageCount = 0;
   state = RINGS_PLAYING;
-  timeLeft = DURATION + items->duration;
+  float durationMin =
+      BalanceMiniGameDurationMin(floorNumber, difficulty, DURATION);
+  float durationMax =
+      BalanceMiniGameDurationMax(floorNumber, difficulty, DURATION);
+  timeLeft = GetRandomValue((int)(durationMin * 100),
+                            (int)(durationMax * 100)) / 100.0f +
+             items->duration;
   spawnTimer = 0;
   lastGap = GetRandomValue(0, 359) * DEG2RAD;
   ringSpawnCount = 0;
@@ -185,7 +196,7 @@ static void Update(Rectangle a, float k) {
     if (!r->on)
       continue;
 
-    r->radius -= Speed(k) * dt;
+    r->radius -= r->speed * dt;
     if (r->radius <= 0) {
       r->on = false;
       continue;
@@ -193,7 +204,10 @@ static void Update(Rectangle a, float k) {
 
     bool touchesRing = fabsf(dist - r->radius) <
                        (THICK / 2 + 8) * k * items->hitbox;
-    bool outsideGap = fabsf(remainderf(angle - r->gapAngle, 2 * PI)) > GapWidth() / 2;
+    float opening = r->gapWidth *
+                    FunctionalGet()->ringGap;
+    bool outsideGap =
+        fabsf(remainderf(angle - r->gapAngle, 2 * PI)) > opening / 2;
 
     if (!r->hit && touchesRing && outsideGap && dashTime <= 0 &&
         invincible <= 0) {
@@ -214,7 +228,6 @@ static void Update(Rectangle a, float k) {
 
 static void Draw(Rectangle a, float k) {
   Vector2 c = Center(a);
-  float halfGap = GapWidth() / 2 * RAD2DEG;
   float ui = GameUiScale();
   int hudSize = GameUiPixels(20);
 
@@ -229,6 +242,8 @@ static void Draw(Rectangle a, float k) {
       inner = 0;
     float outer = r->radius + THICK * k / 2;
     float middle = r->gapAngle * RAD2DEG;
+    float halfGap = r->gapWidth *
+                    FunctionalGet()->ringGap * RAD2DEG / 2;
     Color color = WHITE;
     if (r->hit)
       color = GRAY;

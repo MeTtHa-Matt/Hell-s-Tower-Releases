@@ -145,11 +145,10 @@ void chatbox(const char *text, const char *position) {
   if (tex.id == 0)
     return;
   if (!dialogueFontReady) {
-    int codepoints[224];
-    for (int i = 0; i < 224; i++)
-      codepoints[i] = i + 32;
-    dialogueFont =
-        LoadFontEx("assets/IMFellEnglish-Regular.ttf", 64, codepoints, 224);
+    int codepointCount = 0;
+    const int *codepoints = GameUiFontCodepoints(&codepointCount);
+    dialogueFont = LoadFontEx("assets/IMFellEnglish-Regular.ttf", 64,
+                              codepoints, codepointCount);
     dialogueFontLoaded = dialogueFont.texture.id != 0;
     dialogueFontReady = true;
     if (!dialogueFontLoaded) {

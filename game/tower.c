@@ -15,6 +15,7 @@
 #include "raylib.h"
 #include "ui_scale.h"
 #include <limits.h>
+#include <stdint.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +27,7 @@
 typedef enum { GAME_OFF, GAME_PLAYING, GAME_WON, GAME_LOST } TowerGameState;
 
 static int currentFloor, currentDifficulty, etris;
+static uint64_t towerRandomState;
 static float etrisDisplay = -1;
 static bool etrisTextureTried;
 static Texture2D etrisTexture;
@@ -159,8 +161,17 @@ static void FormatSave(char *out) {
   strncat(out, "\n", SAVE_LEN - strlen(out) - 1);
 }
 
+static uint32_t TowerRandom(void) {
+  if (towerRandomState == 0)
+    towerRandomState = (uint64_t)(GetTime() * 1000003) ^ 0x9E3779B97F4A7C15ULL;
+  towerRandomState ^= towerRandomState >> 12;
+  towerRandomState ^= towerRandomState << 25;
+  towerRandomState ^= towerRandomState >> 27;
+  return (uint32_t)((towerRandomState * 0x2545F4914F6CDD1DULL) >> 32);
+}
+
 static int PickMinigame(void) {
-  return GetRandomValue(0, 2);
+  return (int)(TowerRandom() % 3);
 }
 
 static void PickFile(const char *dir, const char *ext, char *out) {
@@ -188,8 +199,7 @@ static void PrepareFloor(void) {
     return;
   }
 
-  if (currentGame < 0)
-    currentGame = PickMinigame();
+  currentGame = PickMinigame();
   if (!FileExists(opponentPath)) {
     opponentPath[0] = '\0';
     PickFile("assets/monsters", ".png", opponentPath);
@@ -471,16 +481,16 @@ static void StartGame(void) {
   resultSelection = 0;
   switch (Game()) {
   case 0:
-    BulletHellStart(FunctionalDifficulty(currentDifficulty));
+    BulletHellStart(currentFloor, FunctionalDifficulty(currentDifficulty));
     break;
   case 1:
-    RingsStart(FunctionalDifficulty(currentDifficulty));
+    RingsStart(currentFloor, FunctionalDifficulty(currentDifficulty));
     break;
   case 3:
-    SealsStart(FunctionalDifficulty(currentDifficulty));
+    SealsStart(currentFloor, FunctionalDifficulty(currentDifficulty));
     break;
   default:
-    MirrorStart(FunctionalDifficulty(currentDifficulty));
+    MirrorStart(currentFloor, FunctionalDifficulty(currentDifficulty));
   }
 }
 
@@ -619,10 +629,19 @@ static int DrawResultMenu(TowerGameState state) {
   float x = (sw - zoneW) / 2 + (zoneW - w) / 2;
   float y = sh * 0.94f - zoneH + (zoneH - h) / 2;
   Rectangle panel = {x, y, w, h};
-  Rectangle first = {x + w * 0.09f, y + h * 0.36f, w * 0.82f, h * 0.24f};
-  Rectangle second = {x + w * 0.09f, y + h * 0.68f, w * 0.82f, h * 0.24f};
+  bool finalFloor = won && currentFloor >= 50;
+  Rectangle first = finalFloor
+                        ? (Rectangle){x + w * 0.09f, y + h * 0.52f,
+                                      w * 0.82f, h * 0.24f}
+                        : (Rectangle){x + w * 0.09f, y + h * 0.36f,
+                                      w * 0.82f, h * 0.24f};
+  Rectangle second = finalFloor
+                         ? (Rectangle){0, 0, 0, 0}
+                         : (Rectangle){x + w * 0.09f, y + h * 0.68f,
+                                       w * 0.82f, h * 0.24f};
   const char *title = won ? "VICTOIRE" : "ÉCHEC";
-  const char *firstLabel = won ? "Étage suivant" : "Recommencer";
+  const char *firstLabel =
+      won && currentFloor < 50 ? "Étage suivant" : won ? "Terminer" : "Recommencer";
   int titleSize = GameUiPixels(32), titleY = (int)(y + h * 0.09f);
 
   if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_RIGHT))
@@ -636,8 +655,13 @@ static int DrawResultMenu(TowerGameState state) {
            (Color){245, 220, 130, 255});
 
   int choice = -1;
-  if (DrawResultButton(firstLabel, first, 0))
-    choice = 0;
+  if (won && currentFloor >= 50) {
+    if (DrawResultButton(firstLabel, first, 0))
+      choice = 1;
+  } else {
+    if (DrawResultButton(firstLabel, first, 0))
+      choice = 0;
+  }
   if (DrawResultButton("Sortir de la tour", second, 1))
     choice = 1;
   if (choice < 0 && (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)))
@@ -648,6 +672,9 @@ static int DrawResultMenu(TowerGameState state) {
 static void ExitTower(void) {
   ItemsClearRewards();
   exitRequested = true;
+  towerStarted = false;
+  resultState = GAME_OFF;
+  opponentPath[0] = floorMusicPath[0] = '\0';
   StopMusic();
 }
 
@@ -703,6 +730,7 @@ void Tower(void) {
         attemptEtrisReward *= CharacterEtrisMultiplier(playerCharacter);
       TowerAddEtris((long long)(attemptEtrisReward + 0.5));
       if (after == GAME_WON) {
+        ItemsConsumeEquippedUses();
         double etrisReward = (20.0 + (double)currentFloor * 5) *
                              (0.75 + currentDifficulty * 0.25);
         if (BossIndex(currentFloor) >= 0)
@@ -740,21 +768,13 @@ void Tower(void) {
 
   int choice = DrawResultMenu(resultState);
   if (choice == 1) {
-    if (resultState == GAME_WON) {
-      currentFloor++;
-      currentDifficulty = 0;
-      currentGame = -1;
-      opponentPath[0] = floorMusicPath[0] = '\0';
-      resultState = GAME_OFF;
-      towerStarted = false;
-    }
+    resultState = GAME_OFF;
     ExitTower();
   } else if (choice == 0 && resultState == GAME_WON) {
-    currentFloor++;
-    currentDifficulty = 0;
-    currentGame = -1;
-    opponentPath[0] = floorMusicPath[0] = '\0';
-    StartFloor();
+    if (currentFloor >= 50)
+      ExitTower();
+    else
+      StartFloor();
   } else if (choice == 0 && resultState == GAME_LOST) {
     StartGame();
   }

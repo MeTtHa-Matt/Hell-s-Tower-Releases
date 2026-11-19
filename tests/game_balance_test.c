@@ -77,6 +77,14 @@ int main(void) {
           BalanceTowerAttemptEtrisReward(30, 1));
   REQUIRE(BalanceTowerAttemptEtrisReward(50, 10) >
           BalanceTowerAttemptEtrisReward(30, 10));
+  REQUIRE(BalanceMiniGameDuration(50, 10, 30) >
+          BalanceMiniGameDuration(1, 1, 30));
+  REQUIRE(BalanceMiniGameDurationMax(50, 10, 30) >
+          BalanceMiniGameDurationMin(50, 10, 30));
+  REQUIRE(BalanceRandomSpeedMax(50, 10, 145) >
+          BalanceRandomSpeedMin(50, 10, 145));
+  REQUIRE(BalanceRingGapRandomMax(50, 10) <
+          BalanceRingGapRandomMax(1, 1));
 
   FunctionalReset();
   FunctionalApplyCharacter(3);

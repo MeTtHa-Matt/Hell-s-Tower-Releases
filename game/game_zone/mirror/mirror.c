@@ -7,6 +7,7 @@
 #include <string.h>
 
 #define MAX_BULLETS 200
+#define MAX_LINES 12
 #define DURATION 30.0f
 #define TURN 0.4f
 
@@ -17,13 +18,22 @@ typedef struct {
   bool on;
 } Bullet;
 
+typedef struct {
+  Vector2 start;
+  Vector2 end;
+  float width;
+  float time;
+  bool on;
+} ThinLine;
+
 static Bullet bullets[MAX_BULLETS];
+static ThinLine thinLines[MAX_LINES];
 static Texture2D heartTex, bulletTex;
 static Vector2 player;
 static bool playerReady;
 static MirrorStatus state;
-static int difficulty, lives, maxLives, damageCount, protectedSide;
-static float timeLeft, spawnTimer, invincible, idleTimer, protectedTime;
+static int floorNumber, difficulty, lives, maxLives, damageCount, protectedSide;
+static float timeLeft, spawnTimer, lineTimer, invincible, idleTimer, protectedTime;
 static bool bulletsCleared;
 
 static float Limit(float value, float min, float max) {
@@ -122,7 +132,12 @@ static void SpawnOne(Rectangle a, float k, int side, float angle) {
       dirY /= length;
     }
 
-    float speed = BalanceMirrorSpeed(difficulty) * k;
+    float speedMin = BalanceRandomSpeedMin(floorNumber, difficulty,
+                                           BalanceMirrorSpeed(difficulty));
+    float speedMax = BalanceRandomSpeedMax(floorNumber, difficulty,
+                                           BalanceMirrorSpeed(difficulty));
+    float speed = (float)GetRandomValue((int)(speedMin * 100),
+                                        (int)(speedMax * 100)) / 100.0f * k;
     bullets[i].pos = pos;
     bullets[i].vel = (Vector2){dirX * speed, dirY * speed};
     bullets[i].side = side;
@@ -137,12 +152,13 @@ static void SpawnPair(Rectangle a, float k) {
   SpawnOne(a, k, 1, PI - angle);
 }
 
-void MirrorStart(int d) {
+void MirrorStart(int floorNumberArg, int d) {
   if (heartTex.id == 0) {
     heartTex = LoadTexture("assets/heart.png");
     bulletTex = LoadTexture("assets/projectile.png");
   }
 
+  floorNumber = floorNumberArg;
   difficulty = d;
   if (difficulty < 1)
     difficulty = 1;
@@ -155,8 +171,15 @@ void MirrorStart(int d) {
     lives = maxLives = 1;
   damageCount = 0;
   state = MIRROR_PLAYING;
-  timeLeft = DURATION + items->duration;
+  float durationMin =
+      BalanceMiniGameDurationMin(floorNumber, difficulty, DURATION);
+  float durationMax =
+      BalanceMiniGameDurationMax(floorNumber, difficulty, DURATION);
+  timeLeft = GetRandomValue((int)(durationMin * 100),
+                            (int)(durationMax * 100)) / 100.0f +
+             items->duration;
   spawnTimer = 0;
+  lineTimer = 3.5f;
   invincible = 0;
   idleTimer = 0;
   protectedTime = items->mirrorInvincible ? items->mirrorInvincibleDuration : 0;
@@ -164,6 +187,7 @@ void MirrorStart(int d) {
   bulletsCleared = false;
   playerReady = false;
   memset(bullets, 0, sizeof(bullets));
+  memset(thinLines, 0, sizeof(thinLines));
 }
 
 static void MovePlayer(Rectangle a, float k, float dt) {
@@ -241,6 +265,51 @@ static void UpdateBullet(Bullet *b, Rectangle a, float k, float dt) {
   }
 }
 
+static void SpawnThinLine(Rectangle a, float k) {
+  for (int i = 0; i < MAX_LINES; i++) {
+    if (thinLines[i].on)
+      continue;
+    int side = GetRandomValue(0, 1);
+    Rectangle half = Half(a, side);
+    bool horizontal = GetRandomValue(0, 1) == 0;
+    float y = half.y + GetRandomValue(100, 900) / 1000.0f * half.height;
+    float x = half.x + GetRandomValue(100, 900) / 1000.0f * half.width;
+    thinLines[i].start = horizontal ? (Vector2){half.x, y}
+                                    : (Vector2){x, half.y};
+    thinLines[i].end = horizontal ? (Vector2){half.x + half.width, y}
+                                  : (Vector2){x, half.y + half.height};
+    thinLines[i].width = GetRandomValue(4, 12) * k;
+    thinLines[i].time = 0;
+    thinLines[i].on = true;
+    return;
+  }
+}
+
+static void UpdateThinLines(float k, float dt) {
+  for (int i = 0; i < MAX_LINES; i++) {
+    ThinLine *line = &thinLines[i];
+    if (!line->on)
+      continue;
+    line->time += dt;
+    if (line->time > 2.2f) {
+      line->on = false;
+      continue;
+    }
+    if (line->time >= 0.75f && invincible <= 0 &&
+        NearSegment(player, line->start, line->end,
+                    line->width + 10 * k * FunctionalGet()->hitbox)) {
+      line->on = false;
+      if (!FunctionalBlockDamageAtLives(lives)) {
+        invincible = 1.5f + FunctionalGet()->invincibility;
+        damageCount++;
+        lives--;
+        if (lives <= 0)
+          state = MIRROR_LOST;
+      }
+    }
+  }
+}
+
 static void Update(Rectangle a, float k) {
   float dt = GetFrameTime();
   const FunctionalSettings *items = FunctionalGet();
@@ -270,6 +339,12 @@ static void Update(Rectangle a, float k) {
     spawnTimer = BalanceMirrorSpawnInterval(difficulty);
     SpawnPair(a, k);
   }
+  lineTimer -= dt;
+  if (lineTimer <= 0) {
+    SpawnThinLine(a, k);
+    lineTimer = GetRandomValue(35, 70) / 10.0f;
+  }
+  UpdateThinLines(k, dt);
 
   for (int i = 0; i < MAX_BULLETS; i++) {
     if (bullets[i].on)
@@ -283,6 +358,17 @@ static void Update(Rectangle a, float k) {
 static void Draw(Rectangle a, float k) {
   float ui = GameUiScale();
   int hudSize = GameUiPixels(20);
+  for (int i = 0; i < MAX_LINES; i++) {
+    if (!thinLines[i].on)
+      continue;
+    BeginScissorMode((int)a.x, (int)a.y, (int)a.width, (int)a.height);
+    Color lineColor = thinLines[i].time < 0.75f
+                          ? Fade(RED, 0.55f)
+                          : Fade(WHITE, 0.9f);
+    DrawLineEx(thinLines[i].start, thinLines[i].end,
+               thinLines[i].width, lineColor);
+    EndScissorMode();
+  }
   for (int side = 0; side < 2; side++) {
     Rectangle h = Half(a, side);
     Vector2 heart = Heart(a, side);

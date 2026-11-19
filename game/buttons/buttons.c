@@ -25,6 +25,7 @@ extern bool game_running;
 
 static bool menuRequested, subscreenActive, trainingActive, trainingSelectionActive;
 static bool inventoryActive;
+static bool sigridEndingUnlocked;
 static bool quitConfirmation, returnConfirmation, saveOk;
 static bool musicPausedForLoading;
 static bool melinaEndingRequested;
@@ -107,7 +108,10 @@ static void EnterTower(void) {
 static void ExitTower(void) { subscreenActive = false; }
 
 static void Subscreen(void) {
-  if (TowerCurrentFloor() > 50 && TowerPlayerCharacter() == 0 &&
+  if (TowerCurrentFloor() > 50 && !sigridEndingUnlocked)
+    return;
+  if (TowerCurrentFloor() > 50 &&
+      TowerPlayerCharacter() == 0 &&
       ItemsMelinaLetterRead()) {
     melinaEndingRequested = true;
   } else if (TowerCurrentFloor() > 50) {
@@ -170,16 +174,16 @@ static void StartTraining(void) {
   int difficulty = FunctionalDifficulty(trainingDifficulty);
   switch (trainingGame) {
   case 0:
-    BulletHellStart(difficulty);
+    BulletHellStart(50, difficulty);
     break;
   case 1:
-    RingsStart(difficulty);
+    RingsStart(50, difficulty);
     break;
   case 2:
-    MirrorStart(difficulty);
+    MirrorStart(50, difficulty);
     break;
   default:
-    SealsStart(difficulty);
+    SealsStart(50, difficulty);
     break;
   }
   trainingSelectionActive = false;
@@ -521,6 +525,8 @@ static void DrawButton(int i, bool acceptInput) {
   bool hover = CheckCollisionPointRec(GetMousePosition(), r);
   bool enabled = acceptInput && !inventoryActive && !ShopActive() &&
                  !LoadingScreenActive();
+  if (i == 4 && TowerCurrentFloor() > 50)
+    enabled = enabled && sigridEndingUnlocked;
   UpdateButtonHoverSound((ButtonSoundId)(BUTTON_SOUND_PEACE_SAVE + i),
                          hover && enabled);
 
@@ -535,7 +541,7 @@ static void DrawButton(int i, bool acceptInput) {
   const char *label = buttons[i].label;
   if (i == 4 && TowerCurrentFloor() > 50) {
     label = TowerPlayerCharacter() == 0 && ItemsMelinaLetterRead()
-                ? "Partager un thé avec Sigrid"
+                ? "Sortir de la tour"
                 : "Altérer le destin";
   }
   const char *text = TextToUpper(label);
@@ -629,10 +635,13 @@ void DrawGameButtons(bool acceptInput) {
   if (font.texture.id == 0) {
     bandTex = LoadTexture("assets/button.png");
     SetTextureFilter(bandTex, TEXTURE_FILTER_BILINEAR);
-    if (FileExists("assets/font.ttf"))
-      font = LoadFontEx("assets/font.ttf", 64, NULL, 0);
-    else
+    if (FileExists("assets/font.ttf")) {
+      int codepointCount = 0;
+      const int *codepoints = GameUiFontCodepoints(&codepointCount);
+      font = LoadFontEx("assets/font.ttf", 64, codepoints, codepointCount);
+    } else {
       font = GetFontDefault();
+    }
     SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
   }
 
@@ -718,6 +727,10 @@ bool GameTrainingSelectionActive(void) { return trainingSelectionActive; }
 bool GameInventoryActive(void) { return inventoryActive; }
 bool GameShopActive(void) { return ShopActive(); }
 bool GameResultActive(void) { return subscreenActive && TowerResultActive(); }
+void GameSetSigridEndingUnlocked(bool unlocked) {
+  sigridEndingUnlocked = unlocked;
+}
+bool GameSigridEndingUnlocked(void) { return sigridEndingUnlocked; }
 bool GameReturnConfirmationActive(void) {
   return returnConfirmation || quitConfirmation;
 }
@@ -733,6 +746,7 @@ void ResetGameButtons(void) {
   returnConfirmation = false;
   monsterPath[0] = '\0';
   saveTime = 0;
+  sigridEndingUnlocked = false;
   StopMusic();
   ResetTower();
 }

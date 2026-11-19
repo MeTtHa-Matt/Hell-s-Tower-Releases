@@ -30,6 +30,7 @@ bool AchievementsUnlockTitle(TitleId title);
 bool AchievementsTitleUnlocked(TitleId title);
 int AchievementsTitleCount(void);
 const char *AchievementsTitleName(int index);
+const char *AchievementsTitleDescription(int index);
 bool AchievementsTitleNotificationPending(void);
 void AchievementsDrawNotifications(void);
 void AchievementsDrawTitleNotification(void);

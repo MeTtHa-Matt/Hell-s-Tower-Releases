@@ -14,7 +14,7 @@
 #define DASH_TIME 0.22f
 #define DASH_COOLDOWN 1.2f
 
-enum { BLAST, ROW, COLUMN };
+enum { BLAST, ROW, COLUMN, CROSS };
 enum { FRONT, BACK, LEFT, RIGHT };
 
 typedef struct {
@@ -34,7 +34,7 @@ static Texture2D heartTex, sealTex, blastTex, shadowTex, sprites[4][2];
 static Vector2 player, rune, dir;
 static bool ready;
 static SealsStatus state;
-static int difficulty, lives, maxLives, damageCount, sealed, sealWards, facing;
+static int floorNumber, difficulty, lives, maxLives, damageCount, sealed, sealWards, facing;
 static float timeLeft, spawnTimer, invincible, charge, step, dashTime, dashCooldown;
 
 static float Limit(float value, float min, float max) {
@@ -78,15 +78,17 @@ static void AddHazard(int kind, Vector2 pos, float size) {
 }
 
 static void SpawnHazards(float k) {
-  int roll = GetRandomValue(0, 3);
+  int roll = GetRandomValue(0, 4);
   Vector2 pos = {player.x + Jitter(50 * k), player.y + Jitter(50 * k)};
 
   if (roll < 2)
     AddHazard(BLAST, pos, 60 * k);
   else if (roll == 2)
     AddHazard(ROW, pos, 70 * k);
-  else
+  else if (roll == 3)
     AddHazard(COLUMN, pos, 70 * k);
+  else
+    AddHazard(CROSS, pos, 90 * k);
 
   // Le sceau est pris pour cible quand on commence à le charger.
   if (charge > 0 && GetRandomValue(0, 2) == 0)
@@ -104,7 +106,7 @@ static void PlaceRune(Rectangle a, float k) {
   }
 }
 
-void SealsStart(int d) {
+void SealsStart(int floorNumberArg, int d) {
   if (heartTex.id == 0)
     heartTex = LoadTexture("assets/heart.png");
   if (sealTex.id == 0)
@@ -121,6 +123,7 @@ void SealsStart(int d) {
     }
   }
 
+  floorNumber = floorNumberArg;
   difficulty = d;
   if (difficulty < 1)
     difficulty = 1;
@@ -135,7 +138,13 @@ void SealsStart(int d) {
   sealed = 0;
   sealWards = 0;
   state = SEALS_PLAYING;
-  timeLeft = DURATION + items->duration;
+  float durationMin =
+      BalanceMiniGameDurationMin(floorNumber, difficulty, DURATION);
+  float durationMax =
+      BalanceMiniGameDurationMax(floorNumber, difficulty, DURATION);
+  timeLeft = GetRandomValue((int)(durationMin * 100),
+                            (int)(durationMax * 100)) / 100.0f +
+             items->duration;
   spawnTimer = 1.5f * items->sealSpawn;
   invincible = charge = step = dashTime = dashCooldown = 0;
   dir = (Vector2){0, 1};
@@ -197,6 +206,9 @@ static bool Touches(Hazard *h, float k) {
 
   if (h->kind == BLAST)
     return hypotf(player.x - h->pos.x, player.y - h->pos.y) < h->size + radius;
+  if (h->kind == CROSS)
+    return fabsf(player.x - h->pos.x) < h->size / 2 + radius ||
+           fabsf(player.y - h->pos.y) < h->size / 2 + radius;
   if (h->kind == ROW)
     return fabsf(player.y - h->pos.y) < h->size / 2 + radius;
   return fabsf(player.x - h->pos.x) < h->size / 2 + radius;
@@ -232,7 +244,7 @@ static void UpdateRune(Rectangle a, float k, float dt) {
   if (hypotf(player.x - rune.x, player.y - rune.y) < 45 * k)
     charge += dt * items->sealCharge;
   else
-    charge -= dt * 1.5f * items->sealChargeDecay;
+    charge -= dt * 0.35f * items->sealChargeDecay;
   charge = Limit(charge, 0, SEAL_TIME);
 
   if (charge < SEAL_TIME)
@@ -304,6 +316,13 @@ static void DrawHazard(Hazard *h, Rectangle a) {
   Rectangle band = {a.x, h->pos.y - h->size / 2, a.width, h->size};
   if (h->kind == COLUMN)
     band = (Rectangle){h->pos.x - h->size / 2, a.y, h->size, a.height};
+  if (h->kind == CROSS) {
+    DrawRectangle((int)(h->pos.x - h->size / 2), (int)a.y,
+                  (int)h->size, (int)a.height, color);
+    DrawRectangle((int)a.x, (int)(h->pos.y - h->size / 2),
+                  (int)a.width, (int)h->size, color);
+    return;
+  }
   DrawRectangleRec(band, color);
 }
 

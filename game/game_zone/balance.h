@@ -10,6 +10,15 @@ float BalanceRingSpeed(int difficulty);
 float BalanceRingSpacing(int difficulty);
 int BalanceRingCountMinimum(int difficulty);
 int BalanceTowerAttemptEtrisReward(float elapsedSeconds, int difficulty);
+float BalanceMiniGameDuration(int floor, int difficulty, float baseDuration);
+float BalanceMiniGameDurationMin(int floor, int difficulty,
+                                 float baseDuration);
+float BalanceMiniGameDurationMax(int floor, int difficulty,
+                                 float baseDuration);
+float BalanceRandomSpeedMin(int floor, int difficulty, float baseSpeed);
+float BalanceRandomSpeedMax(int floor, int difficulty, float baseSpeed);
+float BalanceRingGapRandomMin(int floor, int difficulty);
+float BalanceRingGapRandomMax(int floor, int difficulty);
 float BalanceMirrorSpeed(int difficulty);
 float BalanceMirrorSpread(int difficulty);
 float BalanceMirrorSpawnInterval(int difficulty);

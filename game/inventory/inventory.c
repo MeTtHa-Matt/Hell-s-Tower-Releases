@@ -211,12 +211,12 @@ bool DrawInventory(bool allowClose) {
                     (Color){210, 205, 190, 255});
   } else {
     int titleCount = AchievementsTitleCount();
-    if (titleCount > 5)
-      titleCount = 5;
     for (int i = 0; i < titleCount; i++)
-      DrawFitCentered(AchievementsTitleName(i), 615,
-                      playerTitleLabelY + 24 + i * 18, 350, 14,
-                      (Color){235, 220, 155, 255});
+      DrawWrappedCentered(TextFormat("%s - %s",
+                                     AchievementsTitleName(i),
+                                     AchievementsTitleDescription(i)),
+                          615, playerTitleLabelY + 24 + i * 34, 350, 12,
+                          (Color){235, 220, 155, 255});
   }
   EndScissorMode();
 

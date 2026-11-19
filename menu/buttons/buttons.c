@@ -18,7 +18,10 @@ void InitHomeButtons(void) {
   else
     SetTextureFilter(homeButtonTexture, TEXTURE_FILTER_BILINEAR);
 
-  homeButtonFont = LoadFontEx("assets/Cinzel.ttf", 64, NULL, 0);
+  int codepointCount = 0;
+  const int *codepoints = GameUiFontCodepoints(&codepointCount);
+  homeButtonFont =
+      LoadFontEx("assets/Cinzel.ttf", 64, codepoints, codepointCount);
   homeButtonFontLoaded = homeButtonFont.texture.id != 0;
   if (!homeButtonFontLoaded) {
     TraceLog(LOG_ERROR, "Police Cinzel introuvable");

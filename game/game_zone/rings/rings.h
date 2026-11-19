@@ -6,7 +6,7 @@
 typedef enum { RINGS_OFF, RINGS_PLAYING, RINGS_WON, RINGS_LOST } RingsStatus;
 
 /* Lance une partie. difficulty : 1 (facile) à 10 (très dur). */
-void RingsStart(int difficulty);
+void RingsStart(int floor, int difficulty);
 
 /* À appeler chaque frame avec la zone de jeu (callback de la zone). */
 void RingsUpdate(Rectangle zone);

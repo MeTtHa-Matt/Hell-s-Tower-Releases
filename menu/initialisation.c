@@ -16,6 +16,7 @@
 #include "update_screen.h"
 #include "title/title.h"
 #include <stddef.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,6 +53,8 @@ static bool sigridActive;
 static Texture2D creditsBackground;
 static bool creditsActive, creditsFinal, creditsFinishFailed;
 static float creditsScroll, creditsFinalTimer;
+static bool creditsFadeOut;
+static float creditsFadeProgress;
 static bool destinyReflectionActive, destinyTextFading;
 static float destinyTextProgress, destinyFadeProgress;
 
@@ -258,6 +261,8 @@ static void StartMelinaCredits(void) {
     TraceLog(LOG_ERROR, "Image de fin introuvable: assets/melina_ending.png");
   creditsScroll = 0;
   creditsFinalTimer = 0;
+  creditsFadeOut = false;
+  creditsFadeProgress = 0;
   creditsFinal = creditsFinishFailed = false;
   creditsActive = true;
   if (menuMusicLoaded) {
@@ -302,6 +307,7 @@ static void DrawMelinaCredits(void) {
   } else {
     ClearBackground(BLACK);
   }
+  DrawRectangle(0, 0, sw, sh, (Color){0, 0, 0, 160});
 
   if (creditsFinal) {
     DrawRectangle(0, 0, sw, sh, (Color){0, 0, 0, 130});
@@ -331,7 +337,19 @@ static void DrawMelinaCredits(void) {
     }
     creditsFinalTimer += GetFrameTime();
     if (creditsFinalTimer >= 4 || IsKeyPressed(KEY_ESCAPE))
-      FinishMelinaCredits();
+      creditsFadeOut = true;
+    if (creditsFadeOut) {
+      creditsFadeProgress += GetFrameTime() / 1.2f;
+      if (creditsFadeProgress < 0)
+        creditsFadeProgress = 0;
+      if (creditsFadeProgress > 1)
+        creditsFadeProgress = 1;
+      DrawRectangle(0, 0, sw, sh,
+                    (Color){0, 0, 0,
+                            (unsigned char)(255 * creditsFadeProgress)});
+      if (creditsFadeProgress >= 1)
+        FinishMelinaCredits();
+    }
     return;
   }
 
@@ -533,48 +551,36 @@ static bool DrawDestinyReflection(void) {
   return destinyTextFading && destinyFadeProgress >= 1;
 }
 
-static void DrawStartupTerms(float opacity) {
+static void DrawStartupWarning(float opacity) {
   int sw = GetScreenWidth(), sh = GetScreenHeight();
-  float scale = GameUiScale();
-  Rectangle panel = {sw * 0.08f, sh * 0.2f, sw * 0.84f, sh * 0.6f};
-  unsigned char alpha = (unsigned char)(opacity * 255);
-  DrawRectangleRounded(panel, 0.025f, 12, (Color){22, 18, 17, alpha});
-  DrawRectangleRoundedLinesEx(panel, 0.025f, 12, 2 * scale,
-                              (Color){205, 166, 96, alpha});
-
-  const char *heading = "Conditions d'utilisation";
+  const char *heading = "AVERTISSEMENT";
+  const char *text =
+      "Ce jeu est une œuvre de fiction. "
+      "Ne reproduisez jamais dans la vie réelle ses dangers, violences ou actes interdits.";
   float headingSize = GameUiPixels(42);
-  float headingSpacing = headingSize * 0.015f;
-  Vector2 headingDimensions =
-      MeasureTextEx(introFont, heading, headingSize, headingSpacing);
+  float textSize = GameUiPixels(26);
+  unsigned char alpha = (unsigned char)(opacity * 255);
+  Vector2 headingSizePx =
+      MeasureTextEx(introFont, heading, headingSize, headingSize * 0.02f);
   DrawTextEx(introFont, heading,
-             (Vector2){(sw - headingDimensions.x) / 2,
-                       panel.y + panel.height * 0.13f},
-             headingSize, headingSpacing,
+             (Vector2){(sw - headingSizePx.x) / 2, sh * 0.38f},
+             headingSize, headingSize * 0.02f,
              (Color){230, 194, 130, alpha});
-
-  Rectangle textBounds = {panel.x + panel.width * 0.1f,
-                          panel.y + panel.height * 0.3f,
-                          panel.width * 0.8f, panel.height * 0.56f};
-  DrawStartupParagraph(
-      "Ce jeu est une œuvre de fiction créée pour le divertissement. Ta "
-      "progression est sauvegardée localement sur cet appareil et peut être "
-      "perdue si les données du jeu sont supprimées. Conserve une copie de ta "
-      "sauvegarde si tu souhaites la garder.",
-      textBounds, GameUiPixels(30), opacity);
+  DrawStartupParagraph(text,
+                       (Rectangle){sw * 0.12f, sh * 0.46f,
+                                   sw * 0.76f, sh * 0.2f},
+                       textSize, opacity);
 }
 
 static bool ShowStartupSequence(void) {
   if (startupSequencePlayed)
     return true;
   if (!introFontReady) {
-    int codepoints[226];
-    for (int i = 0; i < 224; i++)
-      codepoints[i] = i + 32;
-    codepoints[224] = 0x0152;
-    codepoints[225] = 0x0153;
+    int codepointCount = 0;
+    const int *codepoints = GameUiFontCodepoints(&codepointCount);
     introFont =
-        LoadFontEx("assets/IMFellEnglish-Regular.ttf", 64, codepoints, 226);
+        LoadFontEx("assets/IMFellEnglish-Regular.ttf", 64, codepoints,
+                   codepointCount);
     introFontLoaded = introFont.texture.id != 0;
     introFontReady = true;
     if (!introFontLoaded) {
@@ -585,14 +591,14 @@ static bool ShowStartupSequence(void) {
     }
   }
 
-  static const float durations[] = {1.0f, 1.5f, 1.0f, 0.8f, 3.4f, 0.8f};
+  static const float durations[] = {1.0f, 1.5f, 1.0f};
   int phase = 0;
   float elapsed = 0;
-  while (phase < 6 && !WindowShouldClose() && game_running) {
+  while (phase < 3 && !WindowShouldClose() && game_running) {
     float opacity = 1;
-    if (phase == 0 || phase == 3)
+    if (phase == 0)
       opacity = elapsed / durations[phase];
-    else if (phase == 2 || phase == 5)
+    else if (phase == 2)
       opacity = 1 - elapsed / durations[phase];
     if (opacity < 0)
       opacity = 0;
@@ -601,10 +607,7 @@ static bool ShowStartupSequence(void) {
 
     BeginDrawing();
     ClearBackground(BLACK);
-    if (phase < 3)
-      DrawStartupTitle(opacity);
-    else
-      DrawStartupTerms(opacity);
+    DrawStartupTitle(opacity);
     EndDrawing();
 
     elapsed += GetFrameTime();
@@ -613,12 +616,28 @@ static bool ShowStartupSequence(void) {
       elapsed = 0;
     }
   }
-  startupSequencePlayed = phase == 6;
-  if (startupSequencePlayed) {
-    startupMenuFadePending = true;
-    startupMenuFadeOpacity = 1;
+
+  float warningElapsed = 0;
+  float warningDuration = 3.4f;
+  while (warningElapsed < warningDuration &&
+         !WindowShouldClose() && game_running) {
+    float opacity = 1;
+    if (warningElapsed < 0.8f)
+      opacity = warningElapsed / 0.8f;
+    else if (warningElapsed > warningDuration - 0.8f)
+      opacity = (warningDuration - warningElapsed) / 0.8f;
+    if (opacity < 0)
+      opacity = 0;
+    BeginDrawing();
+    ClearBackground(BLACK);
+    DrawStartupWarning(opacity);
+    EndDrawing();
+    warningElapsed += GetFrameTime();
   }
-  return startupSequencePlayed;
+  startupSequencePlayed = true;
+  startupMenuFadePending = true;
+  startupMenuFadeOpacity = 1;
+  return true;
 }
 
 void LoadMenu(void) {
@@ -754,8 +773,13 @@ void LoadBlackScreen(void) {
     BeginDrawing();
     ClearBackground(BLACK);
 
-    if (creditsActive && !LoadingScreenActive()) {
+    if (creditsActive) {
+      if (LoadingScreenActive()) {
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
+                      (Color){0, 0, 0, 255});
+      } else {
       DrawMelinaCredits();
+      }
     } else if (destinyReflectionActive) {
       if (!LoadingScreenActive() && DrawDestinyReflection()) {
         destinyReflectionActive = false;
@@ -788,9 +812,7 @@ void LoadBlackScreen(void) {
         paused = false;
         shadeAlpha = 0;
       } else if (result == HOME_PAUSE_RETURN_TO_MENU) {
-        if (TowerProgressNeedsSaving()) {
-          returnConfirmation = true;
-        } else if (inGame) {
+        if (inGame) {
           LoadingScreenStart(ResetGameButtons);
           paused = false;
           shadeAlpha = 0;
@@ -823,14 +845,15 @@ void LoadBlackScreen(void) {
            !IsChatboxInputConsumed());
       bool canTalk = tutorialSeen || lastDialogueDone;
       int storyTag = TowerCurrentFloor();
-      bool melinaEnding = TowerPlayerCharacter() == 0 &&
-                          ItemsMelinaLetterRead() && storyTag == 51;
-      if (melinaEnding)
+      bool melinaLetterRead = TowerPlayerCharacter() == 0 &&
+                              ItemsMelinaLetterRead();
+      if (storyTag == 51 && melinaLetterRead)
         storyTag = 52;
       LoadSigridDialogues(storyTag);
-      bool dead = TowerCurrentFloor() == 51 && !melinaEnding &&
-                  (TowerSigridDialogSeen(51) ||
-                   (sigridActive && sigridIndex == sigridCount));
+      GameSetSigridEndingUnlocked(TowerSigridDialogSeen(storyTag));
+      bool dead = storyTag == 51 &&
+                  !melinaLetterRead &&
+                  TowerSigridDialogSeen(51);
       const char *image = dead ? "assets/dead_sigrid.png" : "assets/monster1.png";
       bool clicked = monster(image, "middle", canTalk && !GameInventoryActive() &&
                                                  !GameSaveAlertActive() &&

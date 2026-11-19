@@ -6,7 +6,7 @@
 typedef enum { MIRROR_OFF, MIRROR_PLAYING, MIRROR_WON, MIRROR_LOST } MirrorStatus;
 
 /* Lance une partie. difficulty : 1 (facile) à 10 (très dur). */
-void MirrorStart(int difficulty);
+void MirrorStart(int floor, int difficulty);
 
 /* À appeler chaque frame avec la zone de jeu (callback de la zone). */
 void MirrorUpdate(Rectangle zone);

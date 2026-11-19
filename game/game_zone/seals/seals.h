@@ -10,7 +10,7 @@ typedef enum {
   SEALS_LOST
 } SealsStatus;
 
-void SealsStart(int difficulty);
+void SealsStart(int floor, int difficulty);
 void SealsUpdate(Rectangle zone);
 SealsStatus SealsState(void);
 int SealsDamageCount(void);

@@ -7,6 +7,7 @@
 #include <string.h>
 
 #define MAX_BULLETS 300
+#define MAX_LINES 12
 #define DURATION 30.0f
 #define TURN 0.4f
 
@@ -16,13 +17,22 @@ typedef struct {
   bool on;
 } Bullet;
 
+typedef struct {
+  Vector2 start;
+  Vector2 end;
+  float width;
+  float time;
+  bool on;
+} ThinLine;
+
 static Bullet bullets[MAX_BULLETS];
+static ThinLine thinLines[MAX_LINES];
 static Texture2D heartTex, bulletTex;
 static Vector2 player;
 static bool playerReady;
 static HellState state;
-static int difficulty, lives, maxLives, damageCount;
-static float timeLeft, spawnTimer, invincible, idleTimer;
+static int floorNumber, difficulty, lives, maxLives, damageCount;
+static float timeLeft, spawnTimer, lineTimer, invincible, idleTimer;
 static bool bulletsCleared;
 
 static float Limit(float value, float min, float max) {
@@ -88,7 +98,12 @@ static void Spawn(Rectangle a, float k) {
     Vector2 pos = {c.x + cosf(angle) * a.width, c.y + sinf(angle) * a.width};
 
     float spread = BalanceBulletHellSpread(difficulty) * k;
-    float speed = BalanceBulletHellSpeed(difficulty) * k;
+    float speedMin = BalanceRandomSpeedMin(floorNumber, difficulty,
+                                           BalanceBulletHellSpeed(difficulty));
+    float speedMax = BalanceRandomSpeedMax(floorNumber, difficulty,
+                                           BalanceBulletHellSpeed(difficulty));
+    float speed = (float)GetRandomValue((int)(speedMin * 100),
+                                        (int)(speedMax * 100)) / 100.0f * k;
 
     float dirX = player.x + Jitter(spread) - pos.x;
     float dirY = player.y + Jitter(spread) - pos.y;
@@ -105,12 +120,13 @@ static void Spawn(Rectangle a, float k) {
   }
 }
 
-void BulletHellStart(int d) {
+void BulletHellStart(int floorNumberArg, int d) {
   if (heartTex.id == 0) {
     heartTex = LoadTexture("assets/heart.png");
     bulletTex = LoadTexture("assets/projectile.png");
   }
 
+  floorNumber = floorNumberArg;
   difficulty = d;
   if (difficulty < 1)
     difficulty = 1;
@@ -123,13 +139,21 @@ void BulletHellStart(int d) {
     lives = maxLives = 1;
   damageCount = 0;
   state = HELL_PLAYING;
-  timeLeft = DURATION + items->duration;
+  float durationMin =
+      BalanceMiniGameDurationMin(floorNumber, difficulty, DURATION);
+  float durationMax =
+      BalanceMiniGameDurationMax(floorNumber, difficulty, DURATION);
+  timeLeft = GetRandomValue((int)(durationMin * 100),
+                            (int)(durationMax * 100)) / 100.0f +
+             items->duration;
   spawnTimer = 0;
+  lineTimer = 3.5f;
   invincible = 0;
   idleTimer = 0;
   bulletsCleared = false;
   playerReady = false;
   memset(bullets, 0, sizeof(bullets));
+  memset(thinLines, 0, sizeof(thinLines));
 }
 
 static void MovePlayer(Rectangle a, float k, float dt) {
@@ -195,6 +219,49 @@ static void UpdateBullet(Bullet *b, Rectangle a, float k, float dt) {
   }
 }
 
+static void SpawnThinLine(Rectangle a, float k) {
+  for (int i = 0; i < MAX_LINES; i++) {
+    if (thinLines[i].on)
+      continue;
+    bool horizontal = GetRandomValue(0, 1) == 0;
+    float y = a.y + GetRandomValue(100, 900) / 1000.0f * a.height;
+    float x = a.x + GetRandomValue(100, 900) / 1000.0f * a.width;
+    thinLines[i].start = horizontal ? (Vector2){a.x, y}
+                                    : (Vector2){x, a.y};
+    thinLines[i].end = horizontal ? (Vector2){a.x + a.width, y}
+                                  : (Vector2){x, a.y + a.height};
+    thinLines[i].width = GetRandomValue(4, 12) * k;
+    thinLines[i].time = 0;
+    thinLines[i].on = true;
+    return;
+  }
+}
+
+static void UpdateThinLines(float k, float dt) {
+  for (int i = 0; i < MAX_LINES; i++) {
+    ThinLine *line = &thinLines[i];
+    if (!line->on)
+      continue;
+    line->time += dt;
+    if (line->time > 2.2f) {
+      line->on = false;
+      continue;
+    }
+    if (line->time >= 0.75f && invincible <= 0 &&
+        NearSegment(player, line->start, line->end,
+                    line->width + 10 * k * FunctionalGet()->hitbox)) {
+      line->on = false;
+      if (!FunctionalBlockDamageAtLives(lives)) {
+        invincible = 1.5f + FunctionalGet()->invincibility;
+        damageCount++;
+        lives--;
+        if (lives <= 0)
+          state = HELL_LOST;
+      }
+    }
+  }
+}
+
 static void Update(Rectangle a, float k) {
   float dt = GetFrameTime();
   const FunctionalSettings *items = FunctionalGet();
@@ -223,6 +290,12 @@ static void Update(Rectangle a, float k) {
     spawnTimer = BalanceBulletHellSpawnInterval(difficulty) * items->bulletSpawn;
     Spawn(a, k);
   }
+  lineTimer -= dt;
+  if (lineTimer <= 0) {
+    SpawnThinLine(a, k);
+    lineTimer = GetRandomValue(35, 70) / 10.0f;
+  }
+  UpdateThinLines(k, dt);
 
   for (int i = 0; i < MAX_BULLETS; i++) {
     if (bullets[i].on)
@@ -237,6 +310,15 @@ static void Draw(Rectangle a, float k) {
   float ui = GameUiScale();
   int hudSize = GameUiPixels(20);
   BeginScissorMode((int)a.x, (int)a.y, (int)a.width, (int)a.height);
+  for (int i = 0; i < MAX_LINES; i++) {
+    if (!thinLines[i].on)
+      continue;
+    Color lineColor = thinLines[i].time < 0.75f
+                          ? Fade(RED, 0.55f)
+                          : Fade(WHITE, 0.9f);
+    DrawLineEx(thinLines[i].start, thinLines[i].end,
+               thinLines[i].width, lineColor);
+  }
   for (int i = 0; i < MAX_BULLETS; i++) {
     if (bullets[i].on)
       DrawBullet(&bullets[i], 24 * k * FunctionalGet()->bulletSize);

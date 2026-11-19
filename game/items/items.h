@@ -19,6 +19,7 @@ bool ItemsMelinaLetterRead(void);
 bool ItemsLetterReaderActive(void);
 void ItemsCloseLetterReader(void);
 void ItemsApplyForGame(const char *game);
+void ItemsConsumeEquippedUses(void);
 void ItemsDestroy(int slot);
 int ItemsSellValue(int slot);
 int ItemsSell(int slot);

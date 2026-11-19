@@ -45,6 +45,44 @@ int BalanceTowerAttemptEtrisReward(float elapsedSeconds, int difficulty) {
   return reward > 0 ? reward : 1;
 }
 
+float BalanceMiniGameDuration(int floor, int difficulty, float baseDuration) {
+  floor = (int)Clamp(floor, 1, 50);
+  return baseDuration + floor * 0.35f +
+         Clamp(difficulty, 1, 10) * 0.55f;
+}
+
+float BalanceMiniGameDurationMin(int floor, int difficulty,
+                                 float baseDuration) {
+  return BalanceMiniGameDuration(floor, difficulty, baseDuration) * 0.82f;
+}
+
+float BalanceMiniGameDurationMax(int floor, int difficulty,
+                                 float baseDuration) {
+  return BalanceMiniGameDuration(floor, difficulty, baseDuration) * 1.18f;
+}
+
+float BalanceRandomSpeedMin(int floor, int difficulty, float baseSpeed) {
+  float floorScale = (float)Clamp(floor, 1, 50) / 50.0f;
+  float difficultyScale = BalanceDifficultyProgress(difficulty);
+  return baseSpeed * (0.85f + floorScale * 0.35f + difficultyScale * 0.15f);
+}
+
+float BalanceRandomSpeedMax(int floor, int difficulty, float baseSpeed) {
+  float floorScale = (float)Clamp(floor, 1, 50) / 50.0f;
+  float difficultyScale = BalanceDifficultyProgress(difficulty);
+  return baseSpeed * (1.05f + floorScale * 0.55f + difficultyScale * 0.25f);
+}
+
+float BalanceRingGapRandomMin(int floor, int difficulty) {
+  float floorScale = (float)Clamp(floor, 1, 50) / 50.0f;
+  return 28.0f - 14.0f * floorScale - 8.0f * BalanceDifficultyProgress(difficulty);
+}
+
+float BalanceRingGapRandomMax(int floor, int difficulty) {
+  float floorScale = (float)Clamp(floor, 1, 50) / 50.0f;
+  return 55.0f - 18.0f * floorScale - 10.0f * BalanceDifficultyProgress(difficulty);
+}
+
 float BalanceMirrorSpeed(int difficulty) {
   return 100 + 155 * BalanceDifficultyProgress(difficulty);
 }

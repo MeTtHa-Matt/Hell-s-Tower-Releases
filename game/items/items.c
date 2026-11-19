@@ -28,6 +28,8 @@ typedef struct {
   char name[ITEM_NAME_LENGTH];
   int effects[EFFECT_LIMIT];
   int effectCount;
+  int useLimit;
+  int usesLeft;
   Texture2D texture;
 } Item;
 
@@ -61,6 +63,8 @@ static Rectangle inventoryContextBox;
 static int letterSealsUsed;
 static bool letterAwarded, letterRead, letterReaderActive, letterReachedEnd;
 static char *letterText;
+static Font letterFont;
+static bool letterFontReady;
 static float letterScroll, letterMaxScroll;
 static const char *rarityNames[DROP_RARITY_COUNT] = {
     "COMMUN", "RARE", "EPIQUE", "LEGENDAIRE", "MAUDIT", "UNIQUE",
@@ -178,6 +182,8 @@ static bool CreateRandomItem(Item *item) {
     return false;
   snprintf(item->name, sizeof(item->name), "%s",
            itemNames[GetRandomValue(0, itemNameCount - 1)]);
+  item->useLimit = GetRandomValue(4, 8);
+  item->usesLeft = item->useLimit;
   item->effectCount = GetRandomValue(1, NEW_ITEM_EFFECT_LIMIT);
   if (item->effectCount > effectCount)
     item->effectCount = effectCount;
@@ -243,9 +249,14 @@ static const char *QuestItemDescription(const QuestItem *item) {
              "l'ouvrir...";
     return "Une dernière lettre rédigée par une mère pour sa fille.";
   }
-  if (item->type == QUEST_SEAL)
-    return TextFormat("Un étrange sceau hérité de %s après l'avoir vaincu.",
-                      BossName(item->bossFloor));
+  if (item->type == QUEST_SEAL) {
+    const char *bossName = BossName(item->bossFloor);
+    static char description[256];
+    snprintf(description, sizeof(description),
+             "Un étrange sceau hérité de %s après l'avoir vaincu.",
+             bossName);
+    return description;
+  }
   return "";
 }
 
@@ -479,6 +490,7 @@ static void DrawItemTooltip(Item *item, Vector2 position) {
   int height;
   do {
     height = GameUiPixels(46);
+      height += GameUiPixels(24);
     for (int i = 0; i < item->effectCount; i++) {
       char effectText[320];
       FormatEffectText(&effects[item->effects[i]], effectText,
@@ -510,7 +522,11 @@ static void DrawItemTooltip(Item *item, Vector2 position) {
   DrawText(item->name, (int)box.x + padding, (int)box.y + GameUiPixels(8),
            GameUiPixels(19),
            (Color){245, 220, 130, 255});
-  int y = (int)box.y + GameUiPixels(34);
+  DrawText(TextFormat("Mini-jeux réussis restants : %d / %d",
+                      item->usesLeft, item->useLimit),
+           (int)box.x + padding, (int)box.y + GameUiPixels(30),
+           GameUiPixels(14), (Color){180, 210, 245, 255});
+  int y = (int)box.y + GameUiPixels(50);
   int contentHeight = (int)(box.y + box.height) - y - margin;
   if (contentHeight < 0)
     contentHeight = 0;
@@ -586,6 +602,10 @@ void ItemsReset(void) {
 
 void ItemsUnload(void) {
   ItemsReset();
+  if (letterFontReady)
+    UnloadFont(letterFont);
+  letterFont = (Font){0};
+  letterFontReady = false;
   dataLoaded = false;
   effectCount = itemNameCount = 0;
 }
@@ -619,9 +639,15 @@ void ItemsLoad(const char *data) {
     if (record[0] == 'Q' && record[1] >= '0' && record[1] <= '9') {
       char *first = strchr(record, ':');
       char *second = first ? strchr(first + 1, ':') : NULL;
+      char *third = second ? strchr(second + 1, ':') : NULL;
+      char *fourth = third ? strchr(third + 1, ':') : NULL;
       if (first && second) {
         *first++ = '\0';
         *second++ = '\0';
+        if (third)
+          *third++ = '\0';
+        if (fourth)
+          *fourth++ = '\0';
         int slot = atoi(record + 1);
         int type = atoi(first);
         int floor = atoi(second);
@@ -641,12 +667,37 @@ void ItemsLoad(const char *data) {
     if (first && second) {
       *first++ = '\0';
       *second++ = '\0';
+      char *useLeft = NULL;
+      char *useLimit = NULL;
+      char *effectEnd = second;
+      char *firstUseSeparator = strchr(effectEnd, ':');
+      if (firstUseSeparator) {
+        *firstUseSeparator++ = '\0';
+        useLeft = firstUseSeparator;
+        char *secondUseSeparator = strchr(useLeft, ':');
+        if (secondUseSeparator) {
+          *secondUseSeparator++ = '\0';
+          useLimit = secondUseSeparator;
+        }
+      }
       int slot = atoi(record);
       if (slot >= 0 && slot < ITEM_COUNT && first[0] &&
           strlen(first) < ITEM_NAME_LENGTH && !strchr(first, '/') &&
           !strchr(first, '\\') && effectCount > 0) {
         Item *item = &items[slot];
         snprintf(item->name, sizeof(item->name), "%s", first);
+        int savedLimit = useLimit ? atoi(useLimit) : 0;
+        int savedUses = useLeft ? atoi(useLeft) : 0;
+        item->useLimit =
+            savedLimit >= 4 && savedLimit <= 8 ? savedLimit
+                                                : GetRandomValue(4, 8);
+        item->usesLeft =
+            savedUses >= 1 && savedUses <= item->useLimit ? savedUses
+                                                          : item->useLimit;
+        if (item->useLimit < 1)
+          item->useLimit = 4;
+        if (item->usesLeft < 1)
+          item->usesLeft = item->useLimit;
         char path[ITEM_NAME_LENGTH + 32];
         snprintf(path, sizeof(path), "assets/items/%s.png", item->name);
         if (FileExists(path)) {
@@ -700,6 +751,11 @@ void ItemsSave(char *data, size_t size) {
         return;
       used += (size_t)written;
     }
+    written = snprintf(data + used, size - used, ":%d:%d",
+                       items[i].usesLeft, items[i].useLimit);
+    if (written < 0 || (size_t)written >= size - used)
+      return;
+    used += (size_t)written;
   }
   for (int i = 0; i < QUEST_ITEM_COUNT; i++) {
     if (questItems[i].type == QUEST_EMPTY)
@@ -809,6 +865,7 @@ void ItemsApplyForGame(const char *game) {
         applied[effectIndex] = true;
       }
     }
+
   }
 }
 
@@ -822,6 +879,17 @@ void ItemsDestroy(int slot) {
   }
   if (contextSlot == slot)
     contextSlot = -1;
+}
+
+void ItemsConsumeEquippedUses(void) {
+  for (int i = 0; i < EQUIPPED_COUNT; i++) {
+    if (!items[i].name[0])
+      continue;
+    if (items[i].useLimit > 0)
+      items[i].usesLeft--;
+    if (items[i].usesLeft <= 0)
+      ItemsDestroy(i);
+  }
 }
 
 int ItemsSellValue(int slot) {
@@ -1023,6 +1091,8 @@ bool ItemsForgeComplete(const char *name, const int *selectedEffects,
     return false;
   Item *item = &items[slot];
   snprintf(item->name, sizeof(item->name), "%s", name);
+  item->useLimit = GetRandomValue(4, 8);
+  item->usesLeft = item->useLimit;
   item->effectCount = selectedEffectCount;
   memcpy(item->effects, selectedEffects,
          (size_t)selectedEffectCount * sizeof(selectedEffects[0]));
@@ -1123,7 +1193,16 @@ static void OpenLetterReader(void) {
 
 static float DrawLetterText(const char *text, Rectangle box, float size,
                             float scroll) {
-  Font textFont = GetFontDefault();
+  if (!letterFontReady) {
+    int codepointCount = 0;
+    const int *codepoints = GameUiFontCodepoints(&codepointCount);
+    letterFont =
+        LoadFontEx("assets/NotoSerif-Light.ttf", 64, codepoints, codepointCount);
+    letterFontReady = letterFont.texture.id != 0;
+    if (!letterFontReady)
+      letterFont = GetFontDefault();
+  }
+  Font textFont = letterFont;
   float spacing = GameUiScale();
   float lineHeight = size * 1.55f;
   float startY = box.y - scroll;
@@ -1193,7 +1272,7 @@ static void DrawLetterReader(void) {
   Rectangle panel = {(sw - panelW) / 2, (sh - panelH) / 2, panelW, panelH};
   Rectangle textBox = {panel.x + panelW * 0.09f, panel.y + panelH * 0.17f,
                        panelW * 0.82f, panelH * 0.65f};
-  float size = fmaxf(14 * scale, fminf(sh * 0.028f, 25 * scale));
+  float size = fmaxf(22 * scale, fminf(sh * 0.038f, 34 * scale));
   float closeH = fmaxf(34 * scale, panelH * 0.07f);
   Rectangle close = {panel.x + panelW * 0.32f,
                      panel.y + panelH * 0.87f, panelW * 0.36f, closeH};
@@ -1334,7 +1413,11 @@ static void DrawItemContextMenu(Item *item) {
   DrawText(TextFormat("Valeur de vente : %d Etris", ItemsSellValue(contextSlot)),
            (int)box.x + margin, (int)box.y + GameUiPixels(36),
            GameUiPixels(14), (Color){222, 196, 128, 255});
-  int y = (int)box.y + GameUiPixels(56);
+  DrawText(TextFormat("Mini-jeux réussis restants : %d / %d",
+                      item->usesLeft, item->useLimit),
+           (int)box.x + margin, (int)box.y + GameUiPixels(52),
+           GameUiPixels(14), (Color){180, 210, 245, 255});
+  int y = (int)box.y + GameUiPixels(72);
   int contentHeight = (int)destroy.y - y - GameUiPixels(6);
   if (contentHeight < 0)
     contentHeight = 0;

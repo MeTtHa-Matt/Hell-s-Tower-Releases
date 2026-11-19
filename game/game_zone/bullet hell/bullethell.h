@@ -5,7 +5,7 @@
 
 typedef enum { HELL_OFF, HELL_PLAYING, HELL_WON, HELL_LOST } HellState;
 
-void BulletHellStart(int difficulty); /* difficulté de 1 à 10 */
+void BulletHellStart(int floor, int difficulty);
 void BulletHellUpdate(Rectangle zone); /* logique + affichage, chaque frame */
 HellState BulletHellState(void);
 int BulletHellDamageCount(void);

@@ -176,6 +176,13 @@ const char *AchievementsTitleName(int index) {
   return "";
 }
 
+const char *AchievementsTitleDescription(int index) {
+  for (int i = 0; i < TITLE_COUNT; i++)
+    if (titleUnlocked[i] && index-- == 0)
+      return titles[i].description;
+  return "";
+}
+
 bool AchievementsTitleNotificationPending(void) {
   return titleCount > 0 || activeTitle >= 0;
 }

@@ -239,10 +239,9 @@ void InitCharacterSelection(void) {
       TraceLog(LOG_ERROR, "Histoire du personnage introuvable: %s", storyPaths[i]);
   }
 
-  int codepoints[224];
-  for (int i = 0; i < 224; i++)
-    codepoints[i] = i + 32;
-  font = LoadFontEx("assets/Cinzel.ttf", 64, codepoints, 224);
+  int codepointCount = 0;
+  const int *codepoints = GameUiFontCodepoints(&codepointCount);
+  font = LoadFontEx("assets/Cinzel.ttf", 64, codepoints, codepointCount);
   fontLoaded = font.texture.id != 0;
   if (!fontLoaded) {
     TraceLog(LOG_ERROR, "Police Cinzel introuvable");
@@ -250,7 +249,8 @@ void InitCharacterSelection(void) {
   } else {
     SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
   }
-  storyFont = LoadFontEx("assets/NotoSerif-Light.ttf", 64, codepoints, 224);
+  storyFont =
+      LoadFontEx("assets/NotoSerif-Light.ttf", 64, codepoints, codepointCount);
   storyFontLoaded = storyFont.texture.id != 0;
   if (!storyFontLoaded) {
     TraceLog(LOG_ERROR, "Police des histoires introuvable");
@@ -442,8 +442,8 @@ bool DrawCharacterSelection(void) {
 
     float detailsX = portraitLayout ? sw * 0.08f : panelX;
     float detailsWidth = portraitLayout ? sw * 0.84f : sw * 0.4f;
-    float detailsLabelSize = sh * 0.021f;
-    float detailsTextSize = sh * 0.018f;
+    float detailsLabelSize = sh * (portraitLayout ? 0.028f : 0.030f);
+    float detailsTextSize = sh * (portraitLayout ? 0.023f : 0.024f);
     float skillLabelY = sh * (portraitLayout ? 0.47f : 0.32f);
     float skillTextY = sh * (portraitLayout ? 0.5f : 0.35f);
     float titleLabelY = sh * (portraitLayout ? 0.565f : 0.42f);
@@ -452,7 +452,7 @@ bool DrawCharacterSelection(void) {
                detailsLabelSize, detailsLabelSize * 0.05f, textColor);
     Rectangle skillBox = {detailsX, skillTextY, detailsWidth,
                           sh * (portraitLayout ? 0.055f : 0.06f)};
-    DrawWrappedText(TextFormat("%s — %s", CharacterSkillName(selected),
+    DrawWrappedText(TextFormat("%s - %s", CharacterSkillName(selected),
                                CharacterSkillDescription(selected)),
                     skillBox, detailsTextSize, textColor, 0);
     DrawTextEx(font, "TITRE DU PERSONNAGE",
@@ -460,24 +460,15 @@ bool DrawCharacterSelection(void) {
                detailsLabelSize, detailsLabelSize * 0.05f, textColor);
     Rectangle titleBox = {detailsX, titleTextY, detailsWidth,
                           sh * (portraitLayout ? 0.055f : 0.06f)};
-    DrawWrappedText(TextFormat("%s — %s", CharacterTitleName(selected),
+    DrawWrappedText(TextFormat("%s - %s", CharacterTitleName(selected),
                                CharacterTitleDescription(selected)),
                     titleBox, detailsTextSize, textColor, 0);
-    DrawTextEx(font, "TITRES DU JOUEUR",
-               (Vector2){detailsX, sh * (portraitLayout ? 0.65f : 0.515f)},
-               detailsLabelSize, detailsLabelSize * 0.05f, textColor);
-    char playerTitles[512];
-    CharacterPlayerTitlesText(playerTitles, sizeof(playerTitles));
-    Rectangle playerTitlesBox =
-        {detailsX, sh * (portraitLayout ? 0.68f : 0.54f), detailsWidth,
-         sh * 0.06f};
-    DrawWrappedText(playerTitles, playerTitlesBox, sh * 0.013f, textColor, 0);
     Rectangle storyBox =
         portraitLayout
-            ? (Rectangle){sw * 0.08f, sh * 0.75f, sw * 0.84f, sh * 0.09f}
-            : (Rectangle){panelX, sh * 0.61f, sw * 0.4f, sh * 0.14f};
+            ? (Rectangle){sw * 0.08f, sh * 0.67f, sw * 0.84f, sh * 0.17f}
+            : (Rectangle){panelX, sh * 0.54f, sw * 0.4f, sh * 0.21f};
     float storySize =
-        portraitLayout ? fminf(sh * 0.022f, shortSide * 0.032f) : sh * 0.022f;
+        portraitLayout ? fminf(sh * 0.032f, shortSide * 0.045f) : sh * 0.032f;
     Rectangle storyTextBox = storyBox;
     storyTextBox.width -= 14 * GameUiScale();
     Color storyColor = (Color){235, 230, 215, (unsigned char)(255 * panelAlpha)};
