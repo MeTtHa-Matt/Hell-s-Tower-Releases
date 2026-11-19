@@ -999,8 +999,9 @@ static void DrawItemContextMenu(Item *item) {
 
 void ItemsDrawInventory(Rectangle equipped[EQUIPPED_COUNT],
                         Rectangle stored[STORED_COUNT],
-                        Rectangle quest[QUEST_ITEM_COUNT]) {
-  if (letterReaderActive) {
+                        Rectangle quest[QUEST_ITEM_COUNT],
+                        bool showQuestItems) {
+  if (showQuestItems && letterReaderActive) {
     DrawLetterReader();
     return;
   }
@@ -1019,13 +1020,14 @@ void ItemsDrawInventory(Rectangle equipped[EQUIPPED_COUNT],
     if (items[i].name[0] && CheckCollisionPointRec(mouse, *slots[i]))
       hovered = i;
   }
-  for (int i = 0; i < QUEST_ITEM_COUNT; i++) {
-    if (questItems[i].type != QUEST_EMPTY)
-      DrawQuestItem(&questItems[i], quest[i]);
-    if (questItems[i].type != QUEST_EMPTY &&
-        CheckCollisionPointRec(mouse, quest[i]))
-      hoveredQuest = i;
-  }
+  if (showQuestItems)
+    for (int i = 0; i < QUEST_ITEM_COUNT; i++) {
+      if (questItems[i].type != QUEST_EMPTY)
+        DrawQuestItem(&questItems[i], quest[i]);
+      if (questItems[i].type != QUEST_EMPTY &&
+          CheckCollisionPointRec(mouse, quest[i]))
+        hoveredQuest = i;
+    }
 
   if (contextSlot >= 0) {
     if (contextSlot < ITEM_COUNT && items[contextSlot].name[0])
@@ -1035,7 +1037,7 @@ void ItemsDrawInventory(Rectangle equipped[EQUIPPED_COUNT],
     return;
   }
   if (questContextSlot >= 0) {
-    if (questContextSlot < QUEST_ITEM_COUNT &&
+    if (showQuestItems && questContextSlot < QUEST_ITEM_COUNT &&
         questItems[questContextSlot].type != QUEST_EMPTY)
       DrawQuestItemContextMenu(questContextSlot);
     else

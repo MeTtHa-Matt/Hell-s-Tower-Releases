@@ -22,7 +22,7 @@ void ItemsApplyForGame(const char *game);
 void ItemsDestroy(int slot);
 void ItemsCloseContextMenu(void);
 void ItemsDrawInventory(Rectangle equipped[5], Rectangle stored[25],
-                        Rectangle quest[QUEST_ITEM_COUNT]);
+                        Rectangle quest[QUEST_ITEM_COUNT], bool showQuestItems);
 void ItemsDrawReward(void);
 
 #endif

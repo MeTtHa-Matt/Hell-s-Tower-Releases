@@ -7,7 +7,7 @@
 #define SLOT 88
 #define PITCH 98
 #define STORED_SLOT 70
-#define STORED_PITCH 74
+#define STORED_PITCH 82
 #define QUEST_SLOT 58
 #define QUEST_GAP 8
 #define COLUMNS 5
@@ -122,26 +122,16 @@ bool DrawInventory(bool allowClose) {
 
   Rectangle equipped[COLUMNS];
   Rectangle stored[COLUMNS * ROWS];
-  Rectangle quest[QUEST_ITEM_COUNT];
-  DrawCentered("OBJETS DE QUETE", 721, 685, 22, textColor);
-  float questWidth = QUEST_SLOT * QUEST_ITEM_COUNT +
-                     QUEST_GAP * (QUEST_ITEM_COUNT - 1);
-  float questX = 481 + (480 - questWidth) / 2;
-  for (int i = 0; i < QUEST_ITEM_COUNT; i++) {
-    Rectangle slot = Box(questX + i * (QUEST_SLOT + QUEST_GAP), 701,
-                         QUEST_SLOT, QUEST_SLOT);
-    quest[i] = slot;
-    DrawSlot(slot, (Color){33, 30, 25, 255}, (Color){170, 130, 65, 255});
-  }
-
-  DrawCentered("EQUIPES", 721, 172, 20, textColor);
+  Rectangle quest[QUEST_ITEM_COUNT] = {0};
+  bool showQuestItems = character == 0;
+  DrawCentered("EQUIPES", 721, 80, 20, textColor);
   for (int i = 0; i < COLUMNS; i++) {
-    Rectangle slot = Box(481 + i * PITCH, 190, SLOT, SLOT);
+    Rectangle slot = Box(481 + i * PITCH, 100, SLOT, SLOT);
     equipped[i] = slot;
     DrawSlot(slot, BLACK, (Color){150, 150, 150, 255});
   }
 
-  DrawCentered("SAC", 721, 291, 20, textColor);
+  DrawCentered("SAC", 721, 205, 20, textColor);
   float storedWidth = COLUMNS * STORED_SLOT +
                       (COLUMNS - 1) * (STORED_PITCH - STORED_SLOT);
   float storedX = 481 + (480 - storedWidth) / 2;
@@ -149,13 +139,26 @@ bool DrawInventory(bool allowClose) {
     for (int col = 0; col < COLUMNS; col++) {
       int index = row * COLUMNS + col;
       Rectangle slot = Box(storedX + col * STORED_PITCH,
-                           307 + row * STORED_PITCH, STORED_SLOT, STORED_SLOT);
+                           223 + row * STORED_PITCH, STORED_SLOT, STORED_SLOT);
       stored[index] = slot;
       DrawSlot(slot, (Color){38, 48, 48, 255}, (Color){110, 115, 115, 255});
     }
   }
 
-  ItemsDrawInventory(equipped, stored, quest);
+  if (showQuestItems) {
+    DrawCentered("OBJETS DE QUETE", 721, 646, 22, textColor);
+    float questWidth = QUEST_SLOT * QUEST_ITEM_COUNT +
+                       QUEST_GAP * (QUEST_ITEM_COUNT - 1);
+    float questX = 481 + (480 - questWidth) / 2;
+    for (int i = 0; i < QUEST_ITEM_COUNT; i++) {
+      Rectangle slot = Box(questX + i * (QUEST_SLOT + QUEST_GAP), 666,
+                           QUEST_SLOT, QUEST_SLOT);
+      quest[i] = slot;
+      DrawSlot(slot, (Color){33, 30, 25, 255}, (Color){170, 130, 65, 255});
+    }
+  }
+
+  ItemsDrawInventory(equipped, stored, quest, showQuestItems);
 
   return true;
 }
