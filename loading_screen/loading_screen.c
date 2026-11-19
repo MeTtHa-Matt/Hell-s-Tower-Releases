@@ -12,6 +12,7 @@
 
 static Texture2D defaultBg, customBg;
 static bool active, actionDone;
+static bool showProgress = true;
 static bool updateCheckActive;
 static bool updateRequired;
 static LoadingScreenAction action;
@@ -54,6 +55,7 @@ void LoadingScreenStart(LoadingScreenAction onComplete) {
   UnloadCustomBg();
   active = true;
   actionDone = false;
+  showProgress = true;
   updateCheckActive = false;
   updateRequired = false;
   action = onComplete;
@@ -75,6 +77,18 @@ void LoadingScreenStartWithBackground(LoadingScreenAction onComplete,
     return;
   LoadingScreenStart(onComplete);
   customBg = LoadTexture(backgroundPath);
+}
+
+void LoadingScreenStartWithBackgroundNoProgress(
+    LoadingScreenAction onComplete, const char *backgroundPath) {
+  if (active)
+    return;
+  LoadingScreenStart(onComplete);
+  showProgress = false;
+  customBg = LoadTexture(backgroundPath);
+  if (customBg.id == 0)
+    TraceLog(LOG_ERROR, "Image d'ecran de chargement introuvable: %s",
+             backgroundPath);
 }
 
 void LoadingScreenUpdate(void) {
@@ -145,6 +159,9 @@ bool LoadingScreenDraw(void) {
   } else {
     DrawRectangle(0, 0, sw, sh, (Color){0, 0, 0, a});
   }
+
+  if (!showProgress)
+    return false;
 
   float w = sw * 0.42f;
   float h = sh * 0.025f;

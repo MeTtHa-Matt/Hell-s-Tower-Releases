@@ -24,6 +24,7 @@ static bool menuRequested, subscreenActive, trainingActive, trainingSelectionAct
 static bool inventoryActive;
 static bool quitConfirmation, returnConfirmation, saveOk;
 static bool musicPausedForLoading;
+static bool melinaEndingRequested;
 static float saveTime;
 static Font font;
 static Texture2D bandTex;
@@ -98,10 +99,14 @@ static void EnterTower(void) {
 static void ExitTower(void) { subscreenActive = false; }
 
 static void Subscreen(void) {
-  if (TowerCurrentFloor() > 50)
+  if (TowerCurrentFloor() > 50 && TowerPlayerCharacter() == 0 &&
+      ItemsMelinaLetterRead()) {
+    melinaEndingRequested = true;
+  } else if (TowerCurrentFloor() > 50) {
     LoadingScreenStartWithBackground(NewGame, "assets/ending.png");
-  else
+  } else {
     LoadingScreenStartWithBackground(EnterTower, "assets/tower.png");
+  }
 }
 
 static void ReturnToMenu(void) {
@@ -512,11 +517,18 @@ static void DrawButton(int i, bool acceptInput) {
   }
 
   const char *label = buttons[i].label;
-  if (i == 4 && TowerCurrentFloor() > 50)
-    label = "Altérer le destin";
+  if (i == 4 && TowerCurrentFloor() > 50) {
+    label = TowerPlayerCharacter() == 0 && ItemsMelinaLetterRead()
+                ? "Partager un thé avec Sigrid"
+                : "Altérer le destin";
+  }
   const char *text = TextToUpper(label);
   float fontSize = h * 0.33f;
   Vector2 size = MeasureTextEx(font, text, fontSize, 2);
+  if (size.x > w * 0.9f) {
+    fontSize *= w * 0.9f / size.x;
+    size = MeasureTextEx(font, text, fontSize, 2);
+  }
   Vector2 pos = {(int)(cx - size.x / 2), (int)(cy - size.y / 2)};
 
   Color textColor = {205, 200, 190, 255};
@@ -543,6 +555,20 @@ void UpdateGameSaveAlert(void) {
 }
 
 bool GameSaveAlertActive(void) { return saveTime > 0; }
+
+bool GameMelinaEndingRequested(void) {
+  bool requested = melinaEndingRequested;
+  melinaEndingRequested = false;
+  return requested;
+}
+
+bool GameFinishMelinaEnding(void) {
+  if (!DeleteTowerProgressFile())
+    return false;
+  ResetTowerProgress();
+  ReturnToMenu();
+  return true;
+}
 
 void DrawGameSaveAlert(void) {
   if (!GameSaveAlertActive())
@@ -601,6 +627,7 @@ void DrawGameButtons(bool acceptInput) {
     UnsavedDialogResult result = DrawUnsavedSessionDialog();
     if (result == UNSAVED_DIALOG_CONTINUE) {
       returnConfirmation = false;
+      melinaEndingRequested = false;
       LoadingScreenStart(ReturnToMenu);
     } else if (result == UNSAVED_DIALOG_CANCEL) {
       returnConfirmation = false;

@@ -6,6 +6,10 @@
 
 #define SLOT 88
 #define PITCH 98
+#define STORED_SLOT 70
+#define STORED_PITCH 82
+#define QUEST_SLOT 58
+#define QUEST_GAP 8
 #define COLUMNS 5
 #define ROWS 5
 
@@ -78,9 +82,14 @@ bool DrawInventory(bool allowClose) {
   originY = (sh - 733 * scale) / 2 - 42 * scale;
 
   Rectangle panel = Box(18, 42, 987, 733);
-  if (allowClose && (IsKeyPressed(KEY_ESCAPE) ||
-      (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
-       !CheckCollisionPointRec(GetMousePosition(), panel)))) {
+  if (allowClose &&
+      (IsKeyPressed(KEY_ESCAPE) ||
+       (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+        !CheckCollisionPointRec(GetMousePosition(), panel)))) {
+    if (ItemsLetterReaderActive()) {
+      ItemsCloseLetterReader();
+      return true;
+    }
     ItemsCloseContextMenu();
     return false;
   }
@@ -113,22 +122,40 @@ bool DrawInventory(bool allowClose) {
 
   Rectangle equipped[COLUMNS];
   Rectangle stored[COLUMNS * ROWS];
+  Rectangle quest[QUEST_ITEM_COUNT];
+  DrawCentered("OBJETS DE QUETE", 721, 80, 22, textColor);
+  float questWidth = QUEST_SLOT * QUEST_ITEM_COUNT +
+                     QUEST_GAP * (QUEST_ITEM_COUNT - 1);
+  float questX = 481 + (480 - questWidth) / 2;
+  for (int i = 0; i < QUEST_ITEM_COUNT; i++) {
+    Rectangle slot = Box(questX + i * (QUEST_SLOT + QUEST_GAP), 101,
+                         QUEST_SLOT, QUEST_SLOT);
+    quest[i] = slot;
+    DrawSlot(slot, (Color){33, 30, 25, 255}, (Color){170, 130, 65, 255});
+  }
+
+  DrawCentered("EQUIPES", 721, 172, 20, textColor);
   for (int i = 0; i < COLUMNS; i++) {
-    Rectangle slot = Box(481 + i * PITCH, 97, SLOT, SLOT);
+    Rectangle slot = Box(481 + i * PITCH, 190, SLOT, SLOT);
     equipped[i] = slot;
     DrawSlot(slot, BLACK, (Color){150, 150, 150, 255});
   }
 
+  DrawCentered("SAC", 721, 291, 20, textColor);
+  float storedWidth = COLUMNS * STORED_SLOT +
+                      (COLUMNS - 1) * (STORED_PITCH - STORED_SLOT);
+  float storedX = 481 + (480 - storedWidth) / 2;
   for (int row = 0; row < ROWS; row++) {
     for (int col = 0; col < COLUMNS; col++) {
       int index = row * COLUMNS + col;
-      Rectangle slot = Box(481 + col * PITCH, 225 + row * 96, SLOT, SLOT);
+      Rectangle slot = Box(storedX + col * STORED_PITCH,
+                           309 + row * STORED_PITCH, STORED_SLOT, STORED_SLOT);
       stored[index] = slot;
       DrawSlot(slot, (Color){38, 48, 48, 255}, (Color){110, 115, 115, 255});
     }
   }
 
-  ItemsDrawInventory(equipped, stored);
+  ItemsDrawInventory(equipped, stored, quest);
 
   return true;
 }

@@ -109,6 +109,8 @@ assets/                     images, musiques, textes et médias
   items/                    icônes des objets
   monsters/                 portraits des monstres
   musics/                   musiques du jeu
+  story/                    dialogues de Sigrid par personnage et étage
+  tuto/                     dialogues de tutoriel par personnage
   items_effects.txt         effets des objets et mini-jeux concernés
 ```
 
@@ -117,9 +119,11 @@ assets/                     images, musiques, textes et médias
 - À la racine : `button.png`, `button_move.mp3`, `button_click.mp3`, `cursor.png`,
   `dialoguebox1.png`, `heart.png`, `logo.png` (icône de l'application),
   `loading_screen.png`, `monster1.png`, `button_monster1.png`, `dead_sigrid.png`,
-  `button_dead_sigrid.png`, `player.png`, `projectile.png`, `tower.png`,
+  `button_dead_sigrid.png`, `player0.png` à `player5.png`, `projectile.png`,
+  `tower.png`, `letter.png`, `seal.png`, `open_letter.png`, `open_letter.txt`,
+  `melina_ending.png`,
   `menu_background.htv` (fond animé), `video.mp4` (source du fond),
-  `monster_dialogues.txt`, `sigrid.txt`.
+  `monster_dialogues.txt`.
 - `bosses/` : `Agarès, Démon de la Vengeance.png`,
   `Béhémot, Démon de l'Arrogance.png`, `Dame Marika, Celle qui Régna.png`,
   `Malénia, Lame Consort.png`, `Séléna, Déesse Déchue.png`.
@@ -315,10 +319,11 @@ DrawGameZone(BulletHellUpdate, BulletHellDamageCount, "assets/monsters/gobelin.p
 
 Le niveau et l'expérience affichés viennent du module `levels/`. Chaque niveau
 gagné attribue un item si la zone de stockage n'est pas pleine. Les items sont
-affichés sous les cinq emplacements équipés; un clic droit les déplace vers le
-premier emplacement libre de l'autre zone avec le clic gauche. Le clic droit
-ouvre ses effets et le bouton **Jeter l'artefact** le détruit. Les items équipés
-ne sont plus consommés après une partie; leurs effets compatibles sont réappliqués
+affichés sous les cinq emplacements équipés; un clic gauche les déplace vers le
+premier emplacement libre de l'autre zone. Le clic droit ouvre leurs effets et
+le bouton **Jeter l'artefact** les détruit. Les items de quête occupent six cases
+séparées. Les items équipés ne sont plus consommés après une partie; leurs
+effets compatibles sont réappliqués
 au prochain lancement sans cumuler plusieurs fois le même effet. Les changements
 d'inventaire sont conservés dans la sauvegarde en cliquant sur **Sauvegarder**.
 Chaque effet généré tire sa rareté séparément : **Commun 50 %**, **Rare 30 %**,
@@ -392,34 +397,40 @@ Règles de la tour :
 Format du fichier `save.txt` dans le dossier de données utilisateur :
 
 ```
-<étage> <tuto_vu> <difficulté> <niveau> <xp> <masque_dialogues_sigrid> 2
+<étage> <tuto_vu> <difficulté> <niveau> <xp> <masque_dialogues_sigrid> 5 <personnage>
 <chemin de l'image du monstre>
 <chemin de la musique>
 <mini-jeu : bullethell, rings, mirror, ou vide pour un boss>
 <items équipés et stockés (ligne facultative pour les anciennes sauvegardes)>
 ```
 
-### Dialogues de Sigrid (`assets/sigrid.txt`)
+### Dialogues de Sigrid
 
-Chaque ligne décrit un étage. Quand le joueur clique sur Sigrid dans la zone de
-paix à cet étage, les dialogues s'affichent dans l'ordre. Un clic ou **Espace**
-révèle le texte complet, puis passe au suivant. Après la première lecture, les
-clics suivants affichent uniquement `PHRASE_FIN`. Les étages déjà lus sont
-conservés dans le fichier de sauvegarde utilisateur. Les dialogues ne remplacent pas le tutoriel initial.
-
-Chaque ligne du fichier suit ce format :
+Le tutoriel initial est lu depuis `assets/tuto/sigrid_tuto_<personnage>.txt`
+(14 lignes). Les dialogues de chaque étage viennent de
+`assets/story/story_<personnage>.txt`; les noms de personnage sont `melina`,
+`elyssia`, `kaelen`, `gorran`, `ysolde` et `thaddeus`. Chaque ligne suit ce format :
 
 ```
 NB_DE_DIALOGUES;DIALOGUE1&DIALOGUE2&...;ETAGE;PHRASE_FIN
 ```
 
-`NB_DE_DIALOGUES` compte aussi `PHRASE_FIN`; il faut donc une entrée de moins
-dans la liste des `DIALOGUE`. `&` et `;` servent de séparateurs et ne peuvent
-pas apparaître dans les textes. Les étages lus sont gardés en mémoire et ne
-sont écrits dans le fichier de sauvegarde utilisateur qu'en cliquant sur **Sauvegarder**. À partir de
-l'étage 51, **Monter la tour**
-devient **Altérer le destin** : le jeu passe par l'écran de chargement, remet
-la progression à zéro et revient au menu principal.
+`NB_DE_DIALOGUES` compte le champ final; `&` et `;` servent de séparateurs et
+ne peuvent pas apparaître dans les textes. Le champ final `...` termine la
+conversation sans réplique supplémentaire. Les tags déjà lus sont conservés
+dans la sauvegarde, écrite en cliquant sur **Sauvegarder**.
+
+Avec Melina, la victoire à l'étage 5 donne une lettre et chaque boss vaincu
+donne un sceau. Un clic droit sur un sceau permet de l'utiliser sur la lettre;
+après cinq sceaux, elle peut être lue depuis son menu contextuel. La lecture
+n'est validée qu'après avoir atteint la fin et fermé la lettre. À l'étage 51,
+Sigrid utilise alors le tag 52, survit et le bouton devient **Partager un thé
+avec Sigrid**. Cette fin affiche les crédits sur `melina_ending.png`; **Espace**
+maintenu les accélère et **Échap** les termine. La sauvegarde est ensuite
+supprimée et le jeu revient au menu principal.
+
+À l'étage 51, les autres parties conservent **Altérer le destin** : le jeu passe
+par l'écran de chargement, remet la progression à zéro et revient au menu.
 
 ### Niveaux et expérience (`levels/levels.h`)
 

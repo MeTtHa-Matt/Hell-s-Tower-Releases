@@ -7,6 +7,7 @@
 #include "../game/buttons/buttons.h"
 #include "../game/buttons/button_sounds.h"
 #include "../game/tower.h"
+#include "../game/items/items.h"
 #include "../game/ui_scale.h"
 #include "../loading_screen/loading_screen.h"
 #include "../updater.h"
@@ -19,10 +20,12 @@
 #include <string.h>
 
 #define TITLE "Hell's Tower"
-#define DIALOGUE_COUNT 14
+#define TUTORIAL_DIALOGUE_COUNT 14
 #define MAX_SIGRID_DIALOGUES 63
 #define SIGRID_TEXT_LEN 512
 
+static const char *characterFiles[] = {
+    "melina", "elyssia", "kaelen", "gorran", "ysolde", "thaddeus"};
 static Music menuMusic;
 static Music ambientMusic;
 static bool menuMusicLoaded;
@@ -34,69 +37,77 @@ static Texture2D cursorTexture;
 static Texture2D titleTexture;
 static bool returnToMainMenu;
 static bool characterSelectionPending;
+static char tutorialDialogues[TUTORIAL_DIALOGUE_COUNT][SIGRID_TEXT_LEN];
+static int tutorialCount, tutorialCharacter = -1;
 static char sigridDialogues[MAX_SIGRID_DIALOGUES][SIGRID_TEXT_LEN];
 static char sigridFinal[SIGRID_TEXT_LEN];
 static int sigridCount, sigridFloor, sigridIndex;
-static int sigridLoadedFloor = -1;
+static int sigridLoadedFloor = -1, sigridLoadedCharacter = -1;
 static bool sigridActive;
+static Texture2D creditsBackground;
+static bool creditsActive, creditsFinal, creditsFinishFailed;
+static float creditsScroll, creditsFinalTimer;
 
-static const char *dialogues[DIALOGUE_COUNT] = {
-    "Halte la, voyageur... Ne porte pas la main a ton arme. Je suis un monstre, "
-    "il est vrai, mais je ne suis pas ne de la pierre maudite de cet edifice. "
-    "Bienvenue au pied du monolithe.",
-    "Etrange... En posant les yeux sur toi, j'ai eu l'impression fugace de "
-    "t'avoir deja attendu ici, il y a tres longtemps. Bah, les siecles "
-    "jouent des tours a ma vieille memoire.",
-    "On me nomme Sigrid. Jadis, j'etais un mage-guide... bien que mes sortileges "
-    "n'aient jamais su produire plus que de la cendre et de la fumee. J'ai "
-    "perdu celui que je devais proteger, alors j'attends ici, a eclairer la "
-    "route de ceux qui osent defier les cieux.",
-    "Tu foules le Sanctuaire du Seuil. Ici, les lames se taisent et le sang "
-    "ne coule pas. Reprends ton souffle. Tant que tu resteras dans l'ombre de "
-    "cette arche, je veillerai sur ton repos.",
-    "Avant de gravir la premiere marche, accorde-moi un instant. Les ames "
-    "pressees n'ecoutent jamais les avertissements d'un paria... et leurs os "
-    "finissent par paver les etages.",
-    "Cette tour n'a ete erigee par aucune main mortelle. Elle a jailli des "
-    "entrailles de la terre la nuit meme ou notre royaume s'est effondre dans "
-    "les flammes. Depuis, elle appelle les ambitieux et les desesperes.",
-    "Telle est sa sorcellerie : meme si la mort te fauche dans les hauteurs, "
-    "ton ame boit l'echo de tes propres luttes. Ceux que la tour juge dignes "
-    "renaissent de leurs cendres, plus affutes a chaque chute.",
-    "Cinquante etages. Cinquante supplices. Et tous les dix paliers, un "
-    "Gardien te barrera la route. Ne les prends pas pour de simples betes : "
-    "ce sont des ames enchainees a un regret qu'elles n'ont jamais su abjurer.",
-    "Au dixieme palier regne Behemot, le Demon de l'Arrogance. Il s'imagine "
-    "que ces murs lui appartiennent. Brise son illusion. Je l'ai connu sous "
-    "le soleil d'autrefois... avant que l'orgueil ne devore son visage.",
-    "Plus haut encore, Selena, l'Astre Dechu, pleure un firmament qui ne lui "
-    "repond plus. Et au trentieme seuil, Agares, le Fleau de la Vengeance, "
-    "rumine une haine que les siecles n'ont pas su eteindre.",
-    "Puis vient Dame Marika, la Souveraine des Cendres. Meme dans le silence "
-    "de ces pierres, son nom suffit a faire ployer le genou des plus braves.",
-    "Tout au sommet veille une derniere sentinelle. Je tairai son nom pour "
-    "l'heure : certains fardeaux sont trop lourds pour un premier pas. Mais "
-    "les anciens murmuraient que celui qui la terrassera se verra accorder un "
-    "voeu par la tour. Un unique miracle.",
-    "Mon jeune maitre a franchi ces portes bien avant toi, dans la nuit des "
-    "temps. J'ai perdu sa trace dans le dedale des marches. J'ignore s'il "
-    "respire encore... Je t'en conjure, grimpeur : si tu vas la-haut, cherche-le.",
-    "Assez parle. Verifie ton paquetage, affermis ta prise, et affronte "
-    "l'ascension lorsque ton coeur sera pret. Reviens me voir apres chaque "
-    "epreuve : le Sanctuaire t'est ouvert, et ma memoire t'appartient.",
-};
+static bool LoadTutorialDialogues(void) {
+  int character = TowerPlayerCharacter();
+  if (tutorialCharacter == character)
+    return tutorialCount == TUTORIAL_DIALOGUE_COUNT;
+  tutorialCharacter = character;
+  tutorialCount = 0;
+  if (character < 0 || character >= (int)(sizeof(characterFiles) /
+                                           sizeof(characterFiles[0]))) {
+    TraceLog(LOG_ERROR, "Personnage invalide pour le tutoriel: %d", character);
+    return false;
+  }
+  char path[128], line[SIGRID_TEXT_LEN];
+  snprintf(path, sizeof(path), "assets/tuto/sigrid_tuto_%s.txt",
+           characterFiles[character]);
+  FILE *file = fopen(path, "r");
+  if (!file) {
+    TraceLog(LOG_ERROR, "Fichier de tutoriel introuvable: %s", path);
+    return false;
+  }
+  while (fgets(line, sizeof(line), file)) {
+    line[strcspn(line, "\r\n")] = '\0';
+    if (!line[0])
+      continue;
+    if (tutorialCount == TUTORIAL_DIALOGUE_COUNT) {
+      TraceLog(LOG_ERROR, "Trop de dialogues dans %s", path);
+      tutorialCount = 0;
+      break;
+    }
+    snprintf(tutorialDialogues[tutorialCount++], SIGRID_TEXT_LEN, "%s", line);
+  }
+  fclose(file);
+  if (tutorialCount != TUTORIAL_DIALOGUE_COUNT) {
+    TraceLog(LOG_ERROR, "Format invalide dans %s: %d dialogues", path,
+             tutorialCount);
+    tutorialCount = 0;
+  }
+  return tutorialCount == TUTORIAL_DIALOGUE_COUNT;
+}
 
 static void LoadSigridDialogues(int floor) {
   char line[32768];
-  if (sigridLoadedFloor == floor)
+  int character = TowerPlayerCharacter();
+  if (sigridLoadedFloor == floor && sigridLoadedCharacter == character)
     return;
   sigridLoadedFloor = floor;
+  sigridLoadedCharacter = character;
   sigridFloor = floor;
   sigridCount = 0;
   sigridFinal[0] = '\0';
-  FILE *file = fopen("assets/sigrid.txt", "r");
+  if (character < 0 || character >= (int)(sizeof(characterFiles) /
+                                           sizeof(characterFiles[0]))) {
+    TraceLog(LOG_ERROR, "Personnage invalide pour les dialogues de Sigrid");
+    return;
+  }
+  char path[128];
+  snprintf(path, sizeof(path), "assets/story/story_%s.txt",
+           characterFiles[character]);
+  FILE *file = fopen(path, "r");
   if (!file) {
-    TraceLog(LOG_WARNING, "Fichier assets/sigrid.txt introuvable");
+    TraceLog(LOG_ERROR, "Fichier de dialogues introuvable: %s", path);
     return;
   }
 
@@ -140,18 +151,23 @@ static void LoadSigridDialogues(int floor) {
     }
     snprintf(sigridFinal, sizeof(sigridFinal), "%s", floorEnd + 1);
     sigridFinal[strcspn(sigridFinal, "\r\n")] = '\0';
-    if (sigridCount != total - 1 || !sigridFinal[0]) {
+    if (strcmp(sigridFinal, "...") == 0)
+      sigridFinal[0] = '\0';
+    if (sigridCount != total - 1 ||
+        (!sigridCount && !sigridFinal[0])) {
       sigridCount = 0;
       sigridFinal[0] = '\0';
-      TraceLog(LOG_WARNING, "Format invalide dans assets/sigrid.txt, etage %d", floor);
+      TraceLog(LOG_ERROR, "Format invalide dans %s, etage %d", path, floor);
     }
     break;
   }
   fclose(file);
+  if (!sigridCount && !sigridFinal[0])
+    TraceLog(LOG_WARNING, "Aucun dialogue dans %s pour le tag %d", path, floor);
 }
 
 static void UpdateSigrid(bool clicked) {
-  if (clicked && sigridFinal[0] && !sigridActive) {
+  if (clicked && (sigridCount || sigridFinal[0]) && !sigridActive) {
     sigridActive = true;
     sigridIndex = TowerSigridDialogSeen(sigridFloor) ? sigridCount : 0;
     ResetChatbox();
@@ -160,17 +176,19 @@ static void UpdateSigrid(bool clicked) {
   if (!sigridActive)
     return;
 
-  const char *text = sigridIndex < sigridCount
-                         ? sigridDialogues[sigridIndex]
-                         : sigridFinal;
-  chatbox(text, "low");
-  if (!IsChatboxFinished(text) || IsChatboxInputConsumed())
-    return;
-
   if (sigridIndex < sigridCount) {
+    const char *text = sigridDialogues[sigridIndex];
+    chatbox(text, "low");
+    if (!IsChatboxFinished(text) || IsChatboxInputConsumed())
+      return;
     sigridIndex++;
     ResetChatbox();
     return;
+  }
+  if (sigridFinal[0]) {
+    chatbox(sigridFinal, "low");
+    if (!IsChatboxFinished(sigridFinal) || IsChatboxInputConsumed())
+      return;
   }
 
   sigridActive = false;
@@ -224,6 +242,109 @@ static void UpdateAmbientMusic(bool active) {
   } else if (ambientMusicStarted && !ambientMusicPaused) {
     PauseMusicStream(ambientMusic);
     ambientMusicPaused = true;
+  }
+}
+
+static void StartMelinaCredits(void) {
+  creditsBackground = LoadTexture("assets/melina_ending.png");
+  if (creditsBackground.id == 0)
+    TraceLog(LOG_ERROR, "Image de fin introuvable: assets/melina_ending.png");
+  creditsScroll = 0;
+  creditsFinalTimer = 0;
+  creditsFinal = creditsFinishFailed = false;
+  creditsActive = true;
+  if (menuMusicLoaded) {
+    PlayMusicStream(menuMusic);
+    menuMusicPaused = false;
+  }
+}
+
+static void FinishMelinaCredits(void) {
+  if (!GameFinishMelinaEnding()) {
+    creditsFinishFailed = true;
+    return;
+  }
+  creditsActive = false;
+  if (creditsBackground.id != 0)
+    UnloadTexture(creditsBackground);
+  creditsBackground = (Texture2D){0};
+  if (menuMusicLoaded)
+    StopMusicStream(menuMusic);
+  menuMusicPaused = false;
+}
+
+static void DrawMelinaCredits(void) {
+  int sw = GetScreenWidth(), sh = GetScreenHeight();
+  float scale = GameUiScale();
+  if (creditsBackground.id != 0) {
+    float screenAspect = (float)sw / sh;
+    float imageAspect =
+        (float)creditsBackground.width / creditsBackground.height;
+    Rectangle source = {0, 0, (float)creditsBackground.width,
+                        (float)creditsBackground.height};
+    if (imageAspect > screenAspect) {
+      source.width = creditsBackground.height * screenAspect;
+      source.x = (creditsBackground.width - source.width) / 2;
+    } else {
+      source.height = creditsBackground.width / screenAspect;
+      source.y = (creditsBackground.height - source.height) / 2;
+    }
+    DrawTexturePro(creditsBackground, source,
+                   (Rectangle){0, 0, (float)sw, (float)sh},
+                   (Vector2){0, 0}, 0, WHITE);
+  } else {
+    ClearBackground(BLACK);
+  }
+
+  if (creditsFinal) {
+    DrawRectangle(0, 0, sw, sh, (Color){0, 0, 0, 130});
+    const char *lines[] = {
+        "Tu n'as pas réécrit le passé,",
+        "mais tu as offert un lendemain.",
+        "Merci à toi, grimpeuse."};
+    int size = GameUiPixels(42);
+    float maxWidth = sw * 0.86f;
+    for (int i = 0; i < 3; i++)
+      if (MeasureText(lines[i], size) > maxWidth)
+        size = (int)(size * maxWidth / MeasureText(lines[i], size));
+    int lineHeight = (int)(size * 1.45f);
+    int startY = (sh - lineHeight * 3) / 2;
+    for (int i = 0; i < 3; i++)
+      DrawText(lines[i], (sw - MeasureText(lines[i], size)) / 2,
+               startY + i * lineHeight, size, (Color){255, 239, 195, 255});
+    if (creditsFinishFailed) {
+      const char *error = "Impossible de supprimer la sauvegarde. Réessayez.";
+      int errorSize = GameUiPixels(18);
+      DrawText(error, (sw - MeasureText(error, errorSize)) / 2,
+               sh * 0.88f, errorSize, RAYWHITE);
+      if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) ||
+          IsKeyPressed(KEY_ESCAPE))
+        FinishMelinaCredits();
+      return;
+    }
+    creditsFinalTimer += GetFrameTime();
+    if (creditsFinalTimer >= 4 || IsKeyPressed(KEY_ESCAPE))
+      FinishMelinaCredits();
+    return;
+  }
+
+  if (IsKeyPressed(KEY_ESCAPE)) {
+    creditsFinal = true;
+    creditsFinalTimer = 0;
+    return;
+  }
+  const char *lines[] = {"HELL'S TOWER", "Merci d'avoir joué."};
+  float lineHeight = GameUiPixels(42);
+  creditsScroll += GetFrameTime() * (IsKeyDown(KEY_SPACE) ? 180 : 36) * scale;
+  for (int i = 0; i < 2; i++) {
+    int size = GameUiPixels(i == 0 ? 34 : 24);
+    float y = sh + lineHeight * i - creditsScroll;
+    DrawText(lines[i], (sw - MeasureText(lines[i], size)) / 2, (int)y, size,
+             (Color){245, 225, 180, 255});
+  }
+  if (creditsScroll > sh + lineHeight * 2) {
+    creditsFinal = true;
+    creditsFinalTimer = 0;
   }
 }
 
@@ -380,7 +501,8 @@ void LoadBlackScreen(void) {
     LoadingScreenUpdate();
 
     if (IsKeyPressed(KEY_ESCAPE) && !GameInventoryActive() &&
-        !quitConfirmation && !returnConfirmation && !LoadingScreenActive()) {
+        !quitConfirmation && !returnConfirmation && !LoadingScreenActive() &&
+        !creditsActive) {
       paused = !paused;
       shadeAlpha = 0;
     }
@@ -388,13 +510,17 @@ void LoadBlackScreen(void) {
     UpdateGameButtonsMusic();
 
     bool inGame = GameSubscreenActive() || GameTrainingActive();
-    UpdateAmbientMusic(!paused && !inGame);
+    UpdateAmbientMusic(!paused && !inGame && !creditsActive);
+    if (creditsActive && menuMusicLoaded && !LoadingScreenActive())
+      UpdateMusicStream(menuMusic);
 
     BeginButtonSoundFrame();
     BeginDrawing();
     ClearBackground(BLACK);
 
-    if (paused && (quitConfirmation || returnConfirmation)) {
+    if (creditsActive && !LoadingScreenActive()) {
+      DrawMelinaCredits();
+    } else if (paused && (quitConfirmation || returnConfirmation)) {
       UnsavedDialogResult result = DrawUnsavedSessionDialog();
       if (result == UNSAVED_DIALOG_CONTINUE) {
         if (quitConfirmation) {
@@ -443,16 +569,23 @@ void LoadBlackScreen(void) {
     } else {
       UpdateGameSaveAlert();
       bool tutorialSeen = TowerTutorialSeen();
-      if (!tutorialSeen) {
-        for (int i = 0; i < DIALOGUE_COUNT; i++)
-          chatbox(dialogues[i], "low");
-      }
+      bool tutorialAvailable = LoadTutorialDialogues();
+      if (!tutorialSeen && tutorialAvailable)
+        for (int i = 0; i < tutorialCount; i++)
+          chatbox(tutorialDialogues[i], "low");
 
-      bool lastDialogueDone = IsChatboxFinished(dialogues[DIALOGUE_COUNT - 1]) &&
-                              !IsChatboxInputConsumed();
+      bool lastDialogueDone =
+          !tutorialAvailable ||
+          (IsChatboxFinished(tutorialDialogues[tutorialCount - 1]) &&
+           !IsChatboxInputConsumed());
       bool canTalk = tutorialSeen || lastDialogueDone;
-      LoadSigridDialogues(TowerCurrentFloor());
-      bool dead = TowerCurrentFloor() == 51 &&
+      int storyTag = TowerCurrentFloor();
+      bool melinaEnding = TowerPlayerCharacter() == 0 &&
+                          ItemsMelinaLetterRead() && storyTag == 51;
+      if (melinaEnding)
+        storyTag = 52;
+      LoadSigridDialogues(storyTag);
+      bool dead = TowerCurrentFloor() == 51 && !melinaEnding &&
                   (TowerSigridDialogSeen(51) ||
                    (sigridActive && sigridIndex == sigridCount));
       const char *image = dead ? "assets/dead_sigrid.png" : "assets/monster1.png";
@@ -469,6 +602,10 @@ void LoadBlackScreen(void) {
       }
       DrawGameSaveAlert();
     }
+
+    if (GameMelinaEndingRequested())
+      LoadingScreenStartWithBackgroundNoProgress(
+          StartMelinaCredits, "assets/melina_ending.png");
 
     if (!paused && GameReturnToMenuRequested())
       leave = true;
@@ -487,6 +624,13 @@ void LoadBlackScreen(void) {
 
   if (ambientMusicStarted)
     StopMusicStream(ambientMusic);
+  if (creditsBackground.id != 0)
+    UnloadTexture(creditsBackground);
+  creditsBackground = (Texture2D){0};
+  if (creditsActive && menuMusicLoaded)
+    StopMusicStream(menuMusic);
+  creditsActive = false;
+  menuMusicPaused = false;
   ResetGameButtons();
 }
 
@@ -497,6 +641,8 @@ void Shutdown(void) {
   UnloadGameButtons();
   UnloadTexture(cursorTexture);
   UnloadTexture(titleTexture);
+  if (creditsBackground.id != 0)
+    UnloadTexture(creditsBackground);
   ShowCursor();
   UnloadChatbox();
   UnloadMonster();

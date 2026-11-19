@@ -282,6 +282,15 @@ jobs:
           test -f build/assets/player5.txt
           test -f build/assets/arrow_left.png
           test -f build/assets/arrow_right.png
+          test -f build/assets/letter.png
+          test -f build/assets/seal.png
+          test -f build/assets/open_letter.png
+          test -f build/assets/open_letter.txt
+          test -f build/assets/melina_ending.png
+          for character in melina elyssia kaelen gorran ysolde thaddeus; do
+            test -f "build/assets/tuto/sigrid_tuto_${character}.txt"
+            test -f "build/assets/story/story_${character}.txt"
+          done
           test -f build/assets/NotoSerif-Light.ttf
           test -f build/assets/NotoSerif-OFL.txt
           test -f build/THIRD_PARTY_NOTICES.txt

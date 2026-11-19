@@ -15,6 +15,8 @@ bool GameInventoryActive(void);
 bool GameResultActive(void);
 bool GameReturnConfirmationActive(void);
 bool GameSaveAlertActive(void);
+bool GameMelinaEndingRequested(void);
+bool GameFinishMelinaEnding(void);
 void UpdateGameSaveAlert(void);
 void DrawGameSaveAlert(void);
 

@@ -129,7 +129,7 @@ static void FormatSave(char *out) {
   const char *game = "";
   if (currentGame >= 0)
     game = gameNames[currentGame];
-  snprintf(out, SAVE_LEN, "%d %d %d %d %d %llu 4 %d\n", currentFloor,
+  snprintf(out, SAVE_LEN, "%d %d %d %d %d %llu 5 %d\n", currentFloor,
            tutorialSeen, currentDifficulty, LevelsLevel(), LevelsXP(),
            sigridSeen, playerCharacter);
   size_t used = strlen(out);
@@ -225,17 +225,23 @@ bool LoadTowerProgress(void) {
   bool known = fields >= 2 && floor > 0 && (seen == 0 || seen == 1);
   bool characterValid =
       version == 3 ? fields >= 8 && (savedCharacter == 1 || savedCharacter == 2)
-      : version == 4 ? fields >= 8 && savedCharacter >= 0 && savedCharacter <= 5
+      : version == 4 || version == 5
+          ? fields >= 8 && savedCharacter >= 0 && savedCharacter <= 5
                      : true;
   if (fields == 6)
     oldSigrid = (int)savedSigrid;
   LevelsLoad(fields >= 5 ? level : 0, fields >= 5 ? xp : 0);
-  playerCharacter = characterValid && (version == 3 || version == 4)
+  playerCharacter = characterValid &&
+                            (version == 3 || version == 4 || version == 5)
                         ? savedCharacter
                         : 1;
   currentFloor = known ? floor : 1;
+  if (known && characterValid && playerCharacter == 0)
+    ItemsMigrateQuestRewards(currentFloor);
   tutorialSeen = known && seen == 1;
-  sigridSeen = fields >= 7 && (version == 2 || version == 3 || version == 4)
+  sigridSeen =
+      fields >= 7 &&
+              (version == 2 || version == 3 || version == 4 || version == 5)
                    ? savedSigrid
                : fields == 6 && oldSigrid > 0 && oldSigrid < 64
                    ? 1ULL << oldSigrid
@@ -595,6 +601,12 @@ void Tower(void) {
       LevelsAddXP(gainedXP);
       for (int i = oldLevel; i < LevelsLevel(); i++)
         ItemsGrantForLevelUp();
+      if (after == GAME_WON && playerCharacter == 0) {
+        if (currentFloor == 5)
+          ItemsGrantQuestLetter();
+        if (BossIndex(currentFloor) >= 0)
+          ItemsGrantBossSeal(currentFloor);
+      }
       LevelsShowReward(oldLevel, oldXP, gainedXP);
       gameRewarded = true;
     }

@@ -10,6 +10,8 @@ void LoadingScreenStart(LoadingScreenAction action);
 void LoadingScreenStartWithUpdateCheck(LoadingScreenAction action);
 void LoadingScreenStartWithBackground(LoadingScreenAction action,
                                      const char *backgroundPath);
+void LoadingScreenStartWithBackgroundNoProgress(LoadingScreenAction action,
+                                                const char *backgroundPath);
 void LoadingScreenUpdate(void);
 bool LoadingScreenDraw(void);
 bool LoadingScreenActive(void);
