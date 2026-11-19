@@ -19,8 +19,9 @@ static Texture2D leftArrowTexture, rightArrowTexture;
 static Font font;
 static bool fontLoaded;
 static int selected, scrollFrom, scrollTo, scrollDirection;
+static Vector2 dragStart;
 static float entryProgress, scrollProgress = 1, detailProgress, confirmProgress;
-static bool detailTarget, confirming, saveError;
+static bool detailTarget, confirming, saveError, dragging, dragMoved;
 
 static float Clamp(float value, float min, float max) {
   return value < min ? min : value > max ? max : value;
@@ -81,17 +82,27 @@ static void DrawWrappedText(const char *text, Rectangle box, float size,
     DrawTextEx(font, line, (Vector2){box.x, y}, size, spacing, color);
 }
 
+static Rectangle PortraitBounds(int index, float centerX, float centerY,
+                                float maxWidth, float maxHeight) {
+  Texture2D texture = portraits[index];
+  if (texture.id == 0)
+    return (Rectangle){0};
+
+  float scale = fminf(maxWidth / texture.width, maxHeight / texture.height);
+  float width = texture.width * scale;
+  float height = texture.height * scale;
+  return (Rectangle){centerX - width / 2, centerY - height / 2, width, height};
+}
+
 static void DrawPortrait(int index, float centerX, float centerY, float maxWidth,
                          float maxHeight, float alpha) {
   Texture2D texture = portraits[index];
   if (texture.id == 0)
     return;
 
-  float scale = fminf(maxWidth / texture.width, maxHeight / texture.height);
-  float width = texture.width * scale;
-  float height = texture.height * scale;
   Rectangle source = {0, 0, (float)texture.width, (float)texture.height};
-  Rectangle dest = {centerX - width / 2, centerY - height / 2, width, height};
+  Rectangle dest =
+      PortraitBounds(index, centerX, centerY, maxWidth, maxHeight);
   Color tint = WHITE;
   tint.a = (unsigned char)(255 * Clamp(alpha, 0, 1));
   DrawTexturePro(texture, source, dest, (Vector2){0, 0}, 0, tint);
@@ -153,6 +164,42 @@ static void BeginScroll(int direction) {
   scrollProgress = 0;
 }
 
+static void UpdateCarouselMouse(bool enabled, Rectangle area, Rectangle leftArrow,
+                                Rectangle rightArrow, Rectangle leftPortrait,
+                                Rectangle rightPortrait, float threshold) {
+  Vector2 mouse = GetMousePosition();
+  bool released = IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+  if (!dragging && enabled && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+      CheckCollisionPointRec(mouse, area) &&
+      !CheckCollisionPointRec(mouse, leftArrow) &&
+      !CheckCollisionPointRec(mouse, rightArrow)) {
+    dragging = true;
+    dragMoved = false;
+    dragStart = mouse;
+  }
+
+  if (dragging && (IsMouseButtonDown(MOUSE_BUTTON_LEFT) || released)) {
+    float delta = mouse.x - dragStart.x;
+    if (fabsf(delta) >= threshold) {
+      dragMoved = true;
+      if (enabled) {
+        BeginScroll(delta < 0 ? 1 : -1);
+        dragStart.x = mouse.x;
+      }
+    }
+  }
+
+  if (!released || !dragging)
+    return;
+  if (enabled && !dragMoved) {
+    if (CheckCollisionPointRec(dragStart, leftPortrait))
+      BeginScroll(-1);
+    else if (CheckCollisionPointRec(dragStart, rightPortrait))
+      BeginScroll(1);
+  }
+  dragging = false;
+}
+
 void InitCharacterSelection(void) {
   buttonTexture = LoadTexture("assets/menu_button.png");
   if (buttonTexture.id == 0)
@@ -199,6 +246,7 @@ void StartCharacterSelection(void) {
   selected = scrollFrom = scrollTo = 0;
   scrollProgress = entryProgress = detailProgress = confirmProgress = 0;
   detailTarget = confirming = saveError = false;
+  dragging = dragMoved = false;
 }
 
 int CharacterSelectionPlayer(void) { return selected; }
@@ -292,6 +340,17 @@ bool DrawCharacterSelection(void) {
                              : sh * (0.5f + 0.13f * detailProgress);
   float portraitY =
       portraitLayout ? sh * (0.32f - 0.05f * detailProgress) : centerY;
+  int leftAdjacent = (selected + CHARACTER_COUNT - 1) % CHARACTER_COUNT;
+  int rightAdjacent = (selected + 1) % CHARACTER_COUNT;
+  float sideY = centerY + sh * (portraitLayout ? 0.02f : 0.035f);
+  Rectangle leftPortrait =
+      PortraitBounds(leftAdjacent, centerX - sideOffset, sideY, sideWidth,
+                     sideHeight);
+  Rectangle rightPortrait =
+      PortraitBounds(rightAdjacent, centerX + sideOffset, sideY, sideWidth,
+                     sideHeight);
+  Rectangle carouselArea = {arrowMargin, centerY - portraitHeight / 2,
+                            sw - arrowMargin * 2, portraitHeight};
 
   if (!inDetails && scrollProgress < 1) {
     float progress = scrollProgress * scrollProgress * (3 - 2 * scrollProgress);
@@ -304,15 +363,11 @@ bool DrawCharacterSelection(void) {
                  sideHeight + (portraitHeight - sideHeight) * progress,
                  0.65f + 0.35f * progress);
   } else {
-    int leftAdjacent = (selected + CHARACTER_COUNT - 1) % CHARACTER_COUNT;
-    int rightAdjacent = (selected + 1) % CHARACTER_COUNT;
     float sideAlpha = 0.75f * (1 - detailProgress);
-    DrawPortrait(leftAdjacent, centerX - sideOffset,
-                 centerY + sh * (portraitLayout ? 0.02f : 0.035f),
-                 sideWidth, sideHeight, sideAlpha);
-    DrawPortrait(rightAdjacent, centerX + sideOffset,
-                 centerY + sh * (portraitLayout ? 0.02f : 0.035f),
-                 sideWidth, sideHeight, sideAlpha);
+    DrawPortrait(leftAdjacent, centerX - sideOffset, sideY, sideWidth, sideHeight,
+                 sideAlpha);
+    DrawPortrait(rightAdjacent, centerX + sideOffset, sideY, sideWidth,
+                 sideHeight, sideAlpha);
     DrawPortrait(selected, portraitX, portraitY, portraitWidth, portraitHeight, 1);
     if (!inDetails)
       DrawTextCentered(names[selected], centerX,
@@ -322,8 +377,6 @@ bool DrawCharacterSelection(void) {
 
   if (!inDetails) {
     if (scrollProgress >= 1) {
-      int leftAdjacent = (selected + CHARACTER_COUNT - 1) % CHARACTER_COUNT;
-      int rightAdjacent = (selected + 1) % CHARACTER_COUNT;
       float labelY = sh * (portraitLayout ? 0.43f : 0.69f);
       DrawTextCentered(names[leftAdjacent], centerX - sideOffset, labelY,
                        sh * 0.027f, (Color){200, 185, 150, 210});
@@ -390,6 +443,12 @@ bool DrawCharacterSelection(void) {
       DrawButton("ANNULER", cancelButton, BUTTON_SOUND_CONFIRM_CANCEL);
     }
   }
+
+  UpdateCarouselMouse(!detailTarget && detailProgress == 0 &&
+                          scrollProgress == 1 && !confirming,
+                      carouselArea, leftArrow, rightArrow, leftPortrait,
+                      rightPortrait,
+                      fmaxf(shortSide * 0.08f, 24 * GameUiScale()));
 
   if (saveError)
     DrawTextCentered("Échec de l'enregistrement. Réessayez.", centerX,
