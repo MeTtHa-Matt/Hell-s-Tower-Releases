@@ -9,6 +9,7 @@
 #include "../items/items.h"
 #include "../achievements/achievements.h"
 #include "../pause_menu/pause_menu.h"
+#include "../shop/shop.h"
 #include "../tower.h"
 #include "../ui_scale.h"
 #include "../../loading_screen/loading_screen.h"
@@ -26,9 +27,11 @@ static bool inventoryActive;
 static bool quitConfirmation, returnConfirmation, saveOk;
 static bool musicPausedForLoading;
 static bool melinaEndingRequested;
+static bool etrisTexTried;
 static float saveTime;
 static Font font;
 static Texture2D bandTex;
+static Texture2D etrisTex;
 static Music music;
 static char monsterPath[512];
 static int trainingGame, trainingDifficulty = 8;
@@ -89,6 +92,8 @@ static void Save(void) {
 }
 
 static void OpenInventory(void) { inventoryActive = true; }
+static void OpenShop(void) { ShopOpen(); }
+static void OpenForge(void) { ShopOpenForge(); }
 static void NewGame(void);
 
 static void EnterTower(void) {
@@ -478,13 +483,15 @@ static bool TrainingFinished(void) {
   }
 }
 
-static Button buttons[6] = {
+static Button buttons[8] = {
     {"Sauvegarder", Save, 0.045f},
     {"Menu principal", Menu, 0.0f},
     {"Quitter", Quit, 0.09f},
     {"Combat d'entrainement", Training, 0.045f},
     {"Monter la tour", Subscreen, 0.0f},
     {"Inventaire", OpenInventory, 0.09f},
+    {"Boutique", OpenShop, 0.045f},
+    {"Forger des items", OpenForge, 0.0f},
 };
 
 static void DrawButton(int i, bool acceptInput) {
@@ -495,18 +502,20 @@ static void DrawButton(int i, bool acceptInput) {
   float offset = sw * buttons[i].inward;
 
   Rectangle r;
-  if (i < 3)
+  if (i < 4)
     r.x = sw * 0.02f + offset;
   else
     r.x = sw - w - sw * 0.02f - offset;
-  r.y = (sh - h) / 2 + (i % 3 - 1) * h * 1.5f;
+  int row = i < 4 ? i : i - 4;
+  r.y = sh / 2 + (row - 1.5f) * h * 1.3f;
   r.width = w;
   r.height = h;
 
   float cx = r.x + w / 2;
   float cy = r.y + h / 2;
   bool hover = CheckCollisionPointRec(GetMousePosition(), r);
-  bool enabled = acceptInput && !inventoryActive && !LoadingScreenActive();
+  bool enabled = acceptInput && !inventoryActive && !ShopActive() &&
+                 !LoadingScreenActive();
   UpdateButtonHoverSound((ButtonSoundId)(BUTTON_SOUND_PEACE_SAVE + i),
                          hover && enabled);
 
@@ -643,11 +652,41 @@ void DrawGameButtons(bool acceptInput) {
     else if (result == UNSAVED_DIALOG_CANCEL)
       quitConfirmation = false;
   } else {
-    for (int i = 0; i < 6; i++)
-      DrawButton(i, acceptInput);
-
-    if (inventoryActive)
-      inventoryActive = DrawInventory(inventoryWasActive);
+    if (!etrisTexTried) {
+      etrisTexTried = true;
+      etrisTex = LoadTexture("assets/Etris.png");
+      if (etrisTex.id == 0)
+        TraceLog(LOG_ERROR, "Logo assets/Etris.png introuvable");
+    }
+    float scale = GameUiScale();
+    float logoSize = GameUiPixels(40);
+    int amountSize = GameUiPixels(24);
+    int amountWidth = MeasureText(TextFormat("%d", TowerEtris()), amountSize);
+    float totalWidth = logoSize + GameUiPixels(10) + amountWidth;
+    float x = GetScreenWidth() - totalWidth - GameUiPixels(28);
+    float y = GameUiPixels(20);
+    if (etrisTex.id != 0) {
+      Rectangle source = {0, 0, (float)etrisTex.width, (float)etrisTex.height};
+      Rectangle dest = {x, y, logoSize, logoSize};
+      DrawTexturePro(etrisTex, source, dest, (Vector2){0, 0}, 0, WHITE);
+    }
+    DrawText(TextFormat("%d", TowerEtris()),
+             (int)(x + logoSize + GameUiPixels(10)),
+             (int)(y + (logoSize - amountSize) / 2), amountSize,
+             (Color){245, 220, 130, 255});
+    (void)scale;
+    if (ShopActive()) {
+      ShopDraw();
+    } else {
+      for (int i = 0; i < 8; i++)
+        DrawButton(i, acceptInput);
+      if (ShopActive())
+        ShopDraw();
+      if (inventoryActive)
+        inventoryActive = DrawInventory(inventoryWasActive);
+      if (!ShopActive() && !inventoryActive)
+        ItemsDrawReward();
+    }
   }
 }
 
@@ -684,6 +723,7 @@ bool GameTrainingActive(void) {
 bool GameTrainingSelectionActive(void) { return trainingSelectionActive; }
 
 bool GameInventoryActive(void) { return inventoryActive; }
+bool GameShopActive(void) { return ShopActive(); }
 bool GameResultActive(void) { return subscreenActive && TowerResultActive(); }
 bool GameReturnConfirmationActive(void) {
   return returnConfirmation || quitConfirmation;
@@ -705,11 +745,14 @@ void ResetGameButtons(void) {
 
 void UnloadGameButtons(void) {
   UnloadTexture(bandTex);
+  UnloadTexture(etrisTex);
   UnloadInventory();
   ItemsUnload();
   if (font.texture.id != 0 && font.texture.id != GetFontDefault().texture.id)
     UnloadFont(font);
   bandTex = (Texture2D){0};
+  etrisTex = (Texture2D){0};
+  etrisTexTried = false;
   font = (Font){0};
   ResetGameButtons();
 }

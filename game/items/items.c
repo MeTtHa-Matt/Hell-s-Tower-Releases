@@ -1,6 +1,7 @@
 #include "items.h"
 #include "../achievements/achievements.h"
 #include "functionnal/functionnal.h"
+#include "../tower.h"
 #include "../ui_scale.h"
 #include "raylib.h"
 #include <math.h>
@@ -47,6 +48,9 @@ static QuestItem questItems[QUEST_ITEM_COUNT];
 static ItemEffect effects[EFFECT_LIMIT_COUNT];
 static char itemNames[128][ITEM_NAME_LENGTH];
 static int effectCount, itemNameCount;
+static char knownItems[128][ITEM_NAME_LENGTH];
+static int knownItemCount;
+static bool knownEffects[EFFECT_LIMIT_COUNT], collectionLoaded;
 static bool dataLoaded;
 static int rewardSlot = -1;
 static int questRewardSlot = -1;
@@ -64,6 +68,144 @@ static const RarityChance rarityChances[] = {
 };
 
 static void CloseLetterReader(void);
+static int PickEffectForItem(const Item *item, int selectedCount);
+static void UnloadItem(Item *item);
+
+static bool CollectionPath(char *directory, size_t directorySize,
+                           char *path, size_t pathSize) {
+  if (!TowerBuildDataFilePath("collection.txt", directory, directorySize,
+                              path, pathSize)) {
+    TraceLog(LOG_ERROR, "Impossible de trouver le dossier de collection");
+    return false;
+  }
+  if (!DirectoryExists(directory) && MakeDirectory(directory) != 0 &&
+      !DirectoryExists(directory)) {
+    TraceLog(LOG_ERROR, "Impossible de creer le dossier de collection");
+    return false;
+  }
+  return true;
+}
+
+static void SaveCollection(void) {
+  char directory[2048], path[2048], data[8192] = "";
+  size_t used = 0;
+  if (!CollectionPath(directory, sizeof(directory), path, sizeof(path)))
+    return;
+  for (int i = 0; i < knownItemCount; i++) {
+    int written = snprintf(data + used, sizeof(data) - used, "I:%s\n",
+                           knownItems[i]);
+    if (written < 0 || (size_t)written >= sizeof(data) - used) {
+      TraceLog(LOG_ERROR, "Collection d'artefacts trop volumineuse");
+      return;
+    }
+    used += (size_t)written;
+  }
+  for (int i = 0; i < effectCount; i++)
+    if (knownEffects[i]) {
+      int written = snprintf(data + used, sizeof(data) - used, "E:%d\n", i);
+      if (written < 0 || (size_t)written >= sizeof(data) - used) {
+        TraceLog(LOG_ERROR, "Collection d'effets trop volumineuse");
+        return;
+      }
+      used += (size_t)written;
+    }
+  if (!SaveFileText(path, data))
+    TraceLog(LOG_ERROR, "Impossible d'ecrire la collection: %s", path);
+}
+
+static void LoadCollection(void) {
+  if (collectionLoaded)
+    return;
+  collectionLoaded = true;
+  char directory[2048], path[2048];
+  if (!TowerBuildDataFilePath("collection.txt", directory, sizeof(directory),
+                              path, sizeof(path))) {
+    TraceLog(LOG_ERROR, "Impossible de trouver le dossier de collection");
+    return;
+  }
+  if (!FileExists(path))
+    return;
+  FILE *file = fopen(path, "r");
+  if (!file) {
+    TraceLog(LOG_ERROR, "Impossible de lire la collection: %s", path);
+    return;
+  }
+  char line[ITEM_NAME_LENGTH + 16];
+  while (fgets(line, sizeof(line), file)) {
+    line[strcspn(line, "\r\n")] = '\0';
+    if (strncmp(line, "I:", 2) == 0 && line[2] &&
+        strlen(line + 2) < ITEM_NAME_LENGTH &&
+        !strchr(line + 2, '/') && !strchr(line + 2, '\\') &&
+        FileExists(TextFormat("assets/items/%s.png", line + 2))) {
+      bool found = false;
+      for (int i = 0; i < knownItemCount; i++)
+        found |= strcmp(knownItems[i], line + 2) == 0;
+      if (!found && knownItemCount < 128)
+        snprintf(knownItems[knownItemCount++], ITEM_NAME_LENGTH, "%s",
+                 line + 2);
+    } else if (strncmp(line, "E:", 2) == 0) {
+      int index = atoi(line + 2);
+      if (index >= 0 && index < EFFECT_LIMIT_COUNT)
+        knownEffects[index] = true;
+    }
+  }
+  fclose(file);
+}
+
+static void RememberItem(const Item *item) {
+  if (!item || !item->name[0])
+    return;
+  LoadCollection();
+  bool changed = false, found = false;
+  for (int i = 0; i < knownItemCount; i++)
+    found |= strcmp(knownItems[i], item->name) == 0;
+  if (!found && knownItemCount < 128) {
+    snprintf(knownItems[knownItemCount++], ITEM_NAME_LENGTH, "%s", item->name);
+    changed = true;
+  }
+  for (int i = 0; i < item->effectCount; i++) {
+    int index = item->effects[i];
+    if (index >= 0 && index < effectCount && !knownEffects[index]) {
+      knownEffects[index] = true;
+      changed = true;
+    }
+  }
+  if (changed)
+    SaveCollection();
+}
+
+static bool CreateRandomItem(Item *item) {
+  if (itemNameCount == 0 || effectCount == 0)
+    return false;
+  snprintf(item->name, sizeof(item->name), "%s",
+           itemNames[GetRandomValue(0, itemNameCount - 1)]);
+  item->effectCount = GetRandomValue(1, NEW_ITEM_EFFECT_LIMIT);
+  if (item->effectCount > effectCount)
+    item->effectCount = effectCount;
+  for (int i = 0; i < item->effectCount; i++) {
+    int effect = PickEffectForItem(item, i);
+    if (effect < 0) {
+      UnloadItem(item);
+      return false;
+    }
+    item->effects[i] = effect;
+  }
+  return true;
+}
+
+static int RaritySellValue(const char *rarity) {
+  if (strcmp(rarity, "COMMUN") == 0)
+    return 20;
+  if (strcmp(rarity, "RARE") == 0)
+    return 40;
+  if (strcmp(rarity, "EPIQUE") == 0)
+    return 75;
+  if (strcmp(rarity, "LEGENDAIRE") == 0)
+    return 150;
+  if (strcmp(rarity, "MAUDIT") == 0)
+    return 10;
+  return 0;
+}
 
 static const char *BossName(int floor) {
   switch (floor) {
@@ -430,6 +572,7 @@ void ItemsUnload(void) {
 void ItemsLoad(const char *data) {
   ItemsReset();
   LoadData();
+  LoadCollection();
   if (!data || !data[0])
     return;
 
@@ -498,6 +641,8 @@ void ItemsLoad(const char *data) {
           }
           if (item->effectCount == 0)
             UnloadItem(item);
+          else
+            RememberItem(item);
         } else {
           UnloadItem(item);
         }
@@ -600,6 +745,7 @@ bool ItemsMelinaLetterRead(void) {
 
 void ItemsGrantForLevelUp(void) {
   LoadData();
+  LoadCollection();
   int slot = FindEmpty(EQUIPPED_COUNT, ITEM_COUNT);
   if (slot < 0) {
     TraceLog(LOG_WARNING, "Inventaire plein : item de niveau non attribue");
@@ -607,25 +753,13 @@ void ItemsGrantForLevelUp(void) {
     rewardTimer = 0;
     return;
   }
-  if (itemNameCount == 0 || effectCount == 0)
-    return;
-
   Item *item = &items[slot];
-  snprintf(item->name, sizeof(item->name), "%s",
-           itemNames[GetRandomValue(0, itemNameCount - 1)]);
-  item->effectCount = GetRandomValue(1, NEW_ITEM_EFFECT_LIMIT);
-  if (item->effectCount > effectCount)
-    item->effectCount = effectCount;
-  for (int i = 0; i < item->effectCount; i++) {
-    int effect = PickEffectForItem(item, i);
-    if (effect < 0) {
-      UnloadItem(item);
-      rewardSlot = -1;
-      rewardTimer = 0;
-      return;
-    }
-    item->effects[i] = effect;
+  if (!CreateRandomItem(item)) {
+    rewardSlot = -1;
+    rewardTimer = 0;
+    return;
   }
+  RememberItem(item);
   for (int i = 0; i < item->effectCount; i++)
     if (strcmp(effects[item->effects[i]].rarity, "LEGENDAIRE") == 0) {
       AchievementsUnlock(ACHIEVEMENT_LEGENDARY_ITEM);
@@ -670,6 +804,185 @@ void ItemsDestroy(int slot) {
     contextSlot = -1;
 }
 
+int ItemsSellValue(int slot) {
+  if (slot < 0 || slot >= ITEM_COUNT || !items[slot].name[0])
+    return 0;
+  LoadData();
+  int value = 0;
+  for (int i = 0; i < items[slot].effectCount; i++) {
+    int effect = items[slot].effects[i];
+    if (effect >= 0 && effect < effectCount)
+      value += RaritySellValue(effects[effect].rarity);
+  }
+  return value * (100 + 20 * (items[slot].effectCount - 1)) / 100;
+}
+
+int ItemsSell(int slot) {
+  int value = ItemsSellValue(slot);
+  if (value <= 0)
+    return 0;
+  ItemsDestroy(slot);
+  TowerAddEtris(value);
+  return value;
+}
+
+bool ItemsCanStore(int count) {
+  if (count < 1 || count > 5)
+    return false;
+  int empty = 0;
+  for (int i = EQUIPPED_COUNT; i < ITEM_COUNT; i++)
+    empty += !items[i].name[0];
+  return empty >= count;
+}
+
+bool ItemsGrantShopPack(int count, int slots[5]) {
+  if (!slots || !ItemsCanStore(count))
+    return false;
+  LoadData();
+  LoadCollection();
+  int created = 0;
+  for (int i = 0; i < ITEM_COUNT && created < count; i++) {
+    if (i < EQUIPPED_COUNT || items[i].name[0])
+      continue;
+    if (!CreateRandomItem(&items[i])) {
+      for (int j = 0; j < created; j++)
+        UnloadItem(&items[slots[j]]);
+      return false;
+    }
+    slots[created++] = i;
+  }
+  if (created != count) {
+    for (int i = 0; i < created; i++)
+      UnloadItem(&items[slots[i]]);
+    return false;
+  }
+  for (int i = 0; i < count; i++)
+    RememberItem(&items[slots[i]]);
+  rewardSlot = slots[count - 1];
+  questRewardSlot = -1;
+  rewardTimer = 7;
+  return true;
+}
+
+int ItemsKnownItemCount(void) {
+  LoadData();
+  LoadCollection();
+  return knownItemCount;
+}
+
+const char *ItemsKnownItem(int index) {
+  LoadCollection();
+  return index >= 0 && index < knownItemCount ? knownItems[index] : "";
+}
+
+int ItemsKnownEffectCount(void) {
+  LoadData();
+  LoadCollection();
+  int count = 0;
+  for (int i = 0; i < effectCount; i++)
+    count += knownEffects[i];
+  return count;
+}
+
+int ItemsKnownEffect(int index) {
+  LoadData();
+  LoadCollection();
+  for (int i = 0; i < effectCount; i++)
+    if (knownEffects[i] && index-- == 0)
+      return i;
+  return -1;
+}
+
+const char *ItemsEffectText(int effect) {
+  LoadData();
+  return effect >= 0 && effect < effectCount ? effects[effect].text : "";
+}
+
+const char *ItemsEffectRarity(int effect) {
+  LoadData();
+  return effect >= 0 && effect < effectCount ? effects[effect].rarity : "";
+}
+
+const char *ItemsItemName(int slot) {
+  return slot >= 0 && slot < ITEM_COUNT ? items[slot].name : "";
+}
+
+int ItemsRewardSlot(void) { return rewardSlot; }
+
+void ItemsDrawPreview(int slot, Rectangle box) {
+  if (slot < 0 || slot >= ITEM_COUNT || !items[slot].name[0])
+    return;
+  DrawItem(&items[slot], box);
+}
+
+static bool KnownItemName(const char *name) {
+  for (int i = 0; name && i < knownItemCount; i++)
+    if (strcmp(knownItems[i], name) == 0)
+      return true;
+  return false;
+}
+
+bool ItemsForgeCanComplete(const char *name, const int *selectedEffects,
+                           int selectedEffectCount, const int *sacrifices,
+                           int sacrificeCount) {
+  LoadData();
+  LoadCollection();
+  if (!name || !KnownItemName(name) || !selectedEffects ||
+      selectedEffectCount < 1 || selectedEffectCount > EFFECT_LIMIT ||
+      !sacrifices || sacrificeCount < 1 || sacrificeCount > 6)
+    return false;
+  for (int i = 0; i < selectedEffectCount; i++) {
+    int effect = selectedEffects[i];
+    if (effect < 0 || effect >= effectCount || !knownEffects[effect])
+      return false;
+    for (int j = 0; j < i; j++)
+      if (selectedEffects[j] == effect)
+        return false;
+  }
+  for (int i = 0; i < sacrificeCount; i++) {
+    int slot = sacrifices[i];
+    if (slot < 0 || slot >= ITEM_COUNT || !items[slot].name[0])
+      return false;
+    for (int j = 0; j < i; j++)
+      if (sacrifices[j] == slot)
+        return false;
+  }
+  int freeStorage = 0;
+  for (int i = EQUIPPED_COUNT; i < ITEM_COUNT; i++)
+    freeStorage += !items[i].name[0];
+  for (int i = 0; i < sacrificeCount; i++)
+    freeStorage += sacrifices[i] >= EQUIPPED_COUNT;
+  return freeStorage > 0;
+}
+
+bool ItemsForgeComplete(const char *name, const int *selectedEffects,
+                        int selectedEffectCount, const int *sacrifices,
+                        int sacrificeCount) {
+  if (!ItemsForgeCanComplete(name, selectedEffects, selectedEffectCount,
+                             sacrifices, sacrificeCount))
+    return false;
+  for (int i = 0; i < sacrificeCount; i++)
+    UnloadItem(&items[sacrifices[i]]);
+  int slot = FindEmpty(EQUIPPED_COUNT, ITEM_COUNT);
+  if (slot < 0)
+    return false;
+  Item *item = &items[slot];
+  snprintf(item->name, sizeof(item->name), "%s", name);
+  item->effectCount = selectedEffectCount;
+  memcpy(item->effects, selectedEffects,
+         (size_t)selectedEffectCount * sizeof(selectedEffects[0]));
+  for (int i = 0; i < selectedEffectCount; i++)
+    if (strcmp(effects[selectedEffects[i]].rarity, "LEGENDAIRE") == 0) {
+      AchievementsUnlock(ACHIEVEMENT_LEGENDARY_ITEM);
+      break;
+    }
+  RememberItem(item);
+  rewardSlot = slot;
+  questRewardSlot = -1;
+  rewardTimer = 7;
+  return true;
+}
+
 void ItemsCloseContextMenu(void) {
   contextSlot = -1;
   questContextSlot = -1;
@@ -687,6 +1000,8 @@ static void DrawContextButton(Rectangle box, const char *label, Color fill) {
   DrawRectangleRec(box, fill);
   DrawRectangleLinesEx(box, 2 * scale, RAYWHITE);
   int size = GameUiPixels(14);
+  while (size > GameUiPixels(9) && MeasureText(label, size) > box.width - 12 * scale)
+    size--;
   DrawText(label, (int)(box.x + (box.width - MeasureText(label, size)) / 2),
            (int)(box.y + (box.height - size) / 2), size, RAYWHITE);
 }
@@ -942,7 +1257,7 @@ static void DrawItemContextMenu(Item *item) {
                        sizeof(effectText));
       lines += EffectLineCount(effectText, contentWidth, fontSize);
     }
-    height = GameUiPixels(106) + lines * (fontSize + GameUiPixels(3));
+    height = GameUiPixels(132) + lines * (fontSize + GameUiPixels(3));
     if (height <= GetScreenHeight() - margin * 2 ||
         fontSize <= GameUiPixels(10))
       break;
@@ -966,7 +1281,10 @@ static void DrawItemContextMenu(Item *item) {
   DrawText(item->name, (int)box.x + margin, (int)box.y + GameUiPixels(10),
            GameUiPixels(20),
            (Color){245, 220, 130, 255});
-  int y = (int)box.y + GameUiPixels(40);
+  DrawText(TextFormat("Valeur de vente : %d Etris", ItemsSellValue(contextSlot)),
+           (int)box.x + margin, (int)box.y + GameUiPixels(36),
+           GameUiPixels(14), (Color){222, 196, 128, 255});
+  int y = (int)box.y + GameUiPixels(56);
   int contentHeight = (int)destroy.y - y - GameUiPixels(6);
   if (contentHeight < 0)
     contentHeight = 0;
@@ -980,7 +1298,9 @@ static void DrawItemContextMenu(Item *item) {
   }
   EndScissorMode();
 
-  DrawContextButton(destroy, "JETER L'ARTEFACT", (Color){120, 35, 35, 255});
+  DrawContextButton(destroy,
+                    TextFormat("VENDRE %d ETRIS", ItemsSellValue(contextSlot)),
+                    (Color){94, 72, 33, 255});
   DrawContextButton(close, "FERMER", (Color){45, 50, 58, 255});
 
   Vector2 mouse = GetMousePosition();
@@ -990,7 +1310,7 @@ static void DrawItemContextMenu(Item *item) {
     contextSlot = -1;
   } else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
     if (CheckCollisionPointRec(mouse, destroy))
-      ItemsDestroy(contextSlot);
+      ItemsSell(contextSlot);
     else if (CheckCollisionPointRec(mouse, close) ||
              !CheckCollisionPointRec(mouse, box))
       contextSlot = -1;

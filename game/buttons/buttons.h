@@ -12,6 +12,7 @@ bool GameSubscreenActive(void);
 bool GameTrainingActive(void);
 bool GameTrainingSelectionActive(void);
 bool GameInventoryActive(void);
+bool GameShopActive(void);
 bool GameResultActive(void);
 bool GameReturnConfirmationActive(void);
 bool GameSaveAlertActive(void);

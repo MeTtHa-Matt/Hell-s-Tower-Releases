@@ -12,6 +12,7 @@
 #include "levels/levels.h"
 #include "raylib.h"
 #include "ui_scale.h"
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,7 +22,7 @@
 
 typedef enum { GAME_OFF, GAME_PLAYING, GAME_WON, GAME_LOST } TowerGameState;
 
-static int currentFloor, currentDifficulty;
+static int currentFloor, currentDifficulty, etris;
 static int currentGame = -1;
 static int playerCharacter = -1;
 static bool towerStarted, tutorialSeen;
@@ -141,9 +142,9 @@ static void FormatSave(char *out) {
   const char *game = "";
   if (currentGame >= 0)
     game = gameNames[currentGame];
-  snprintf(out, SAVE_LEN, "%d %d %d %d %d %llu 5 %d\n", currentFloor,
+  snprintf(out, SAVE_LEN, "%d %d %d %d %d %llu 6 %d %d\n", currentFloor,
            tutorialSeen, currentDifficulty, LevelsLevel(), LevelsXP(),
-           sigridSeen, playerCharacter);
+           sigridSeen, playerCharacter, etris);
   size_t used = strlen(out);
   snprintf(out + used, SAVE_LEN - used, "%s\n%s\n%s\n",
            opponentPath, floorMusicPath, game);
@@ -195,13 +196,14 @@ static void PrepareFloor(void) {
 
 bool LoadTowerProgress(void) {
   int floor = 0, seen = 0, diff = 0, level = 0, xp = 0, oldSigrid = 0, version = 0;
-  int savedCharacter = 0;
+  int savedCharacter = 0, savedEtris = 0;
   unsigned long long savedSigrid = 0;
   int fields = 0, lo, hi;
   char opp[512] = "", mus[512] = "", game[32] = "";
   char itemData[SAVE_LEN] = "";
   char saveDirectory[SAVE_PATH_LEN], savePath[SAVE_PATH_LEN];
   bool complete = false;
+  etris = 0;
 
   FILE *file = NULL;
   bool savePathsFound = BuildSavePaths(saveDirectory, sizeof(saveDirectory),
@@ -220,8 +222,9 @@ bool LoadTowerProgress(void) {
   if (file) {
     char header[96];
     if (fgets(header, sizeof(header), file))
-      fields = sscanf(header, "%d %d %d %d %d %llu %d %d", &floor, &seen, &diff,
-                      &level, &xp, &savedSigrid, &version, &savedCharacter);
+      fields = sscanf(header, "%d %d %d %d %d %llu %d %d %d", &floor, &seen,
+                      &diff, &level, &xp, &savedSigrid, &version,
+                      &savedCharacter, &savedEtris);
     if (fgets(opp, 512, file) && fgets(mus, 512, file) && fgets(game, 32, file))
       complete = true;
     if (fgets(itemData, sizeof(itemData), file))
@@ -237,14 +240,15 @@ bool LoadTowerProgress(void) {
   bool known = fields >= 2 && floor > 0 && (seen == 0 || seen == 1);
   bool characterValid =
       version == 3 ? fields >= 8 && (savedCharacter == 1 || savedCharacter == 2)
-      : version == 4 || version == 5
+      : version == 4 || version == 5 || version == 6
           ? fields >= 8 && savedCharacter >= 0 && savedCharacter <= 5
                      : true;
   if (fields == 6)
     oldSigrid = (int)savedSigrid;
   LevelsLoad(fields >= 5 ? level : 0, fields >= 5 ? xp : 0);
   playerCharacter = characterValid &&
-                            (version == 3 || version == 4 || version == 5)
+                            (version == 3 || version == 4 || version == 5 ||
+                             version == 6)
                         ? savedCharacter
                         : 1;
   currentFloor = known ? floor : 1;
@@ -253,7 +257,8 @@ bool LoadTowerProgress(void) {
   tutorialSeen = known && seen == 1;
   sigridSeen =
       fields >= 7 &&
-              (version == 2 || version == 3 || version == 4 || version == 5)
+              (version == 2 || version == 3 || version == 4 || version == 5 ||
+               version == 6)
                    ? savedSigrid
                : fields == 6 && oldSigrid > 0 && oldSigrid < 64
                    ? 1ULL << oldSigrid
@@ -268,6 +273,7 @@ bool LoadTowerProgress(void) {
 
   if (known && characterValid && fields >= 3 && complete && gameOk &&
       diff >= lo && diff <= hi && FileExists(opp) && FileExists(mus)) {
+    etris = version == 6 && fields >= 9 && savedEtris > 0 ? savedEtris : 0;
     currentDifficulty = diff;
     currentGame = gameIndex;
     strcpy(opponentPath, opp);
@@ -329,6 +335,7 @@ bool DeleteTowerProgressFile(void) {
 
 void ResetTowerProgress(void) {
   currentFloor = 1;
+  etris = 0;
   currentDifficulty = 0;
   currentGame = -1;
   playerCharacter = -1;
@@ -361,6 +368,19 @@ bool TowerTutorialSeen(void) { return tutorialSeen; }
 
 void MarkTowerTutorialSeen(void) { tutorialSeen = true; }
 int TowerCurrentFloor(void) { return currentFloor; }
+int TowerEtris(void) { return etris; }
+void TowerAddEtris(long long amount) {
+  if (amount > 0)
+    etris = amount > (long long)INT_MAX - etris
+                ? INT_MAX
+                : etris + (int)amount;
+}
+bool TowerSpendEtris(int amount) {
+  if (amount < 0 || etris < amount)
+    return false;
+  etris -= amount;
+  return true;
+}
 bool TowerSigridDialogSeen(int floor) {
   return floor > 0 && floor < 64 && (sigridSeen & (1ULL << floor));
 }
@@ -611,8 +631,17 @@ void Tower(void) {
                       currentDifficulty * multiplier;
       int gainedXP = reward > 2147483647 ? 2147483647 : (int)reward;
       LevelsAddXP(gainedXP);
-      for (int i = oldLevel; i < LevelsLevel(); i++)
+      for (int i = oldLevel; i < LevelsLevel(); i++) {
         ItemsGrantForLevelUp();
+        TowerAddEtris(25LL + ((long long)i + 1) * 20);
+      }
+      if (after == GAME_WON) {
+        double etrisReward = (20.0 + (double)currentFloor * 5) *
+                             (0.75 + currentDifficulty * 0.25);
+        if (BossIndex(currentFloor) >= 0)
+          etrisReward *= 4;
+        TowerAddEtris((long long)etrisReward);
+      }
       if (after == GAME_WON && BossIndex(currentFloor) >= 0)
         AchievementsUnlock((AchievementId)(ACHIEVEMENT_FLOOR_10 +
                                            BossIndex(currentFloor)));

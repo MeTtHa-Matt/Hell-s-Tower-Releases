@@ -669,6 +669,7 @@ void LoadBlackScreen(void) {
     LoadingScreenUpdate();
 
     if (IsKeyPressed(KEY_ESCAPE) && !GameInventoryActive() &&
+        !GameShopActive() &&
         !quitConfirmation && !returnConfirmation && !LoadingScreenActive() &&
         !creditsActive) {
       paused = !paused;

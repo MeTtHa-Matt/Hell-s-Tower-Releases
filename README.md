@@ -73,7 +73,7 @@ Après la compilation, installez le jeu sans `sudo` :
 
 Le script copie le jeu et ses ressources dans `~/.local/opt/hells-tower` et crée le raccourci **Hell's Tower** dans le menu des applications (`$XDG_DATA_HOME/applications`, ou `~/.local/share/applications` par défaut). Il suit le standard XDG et ne dépend pas d'un gestionnaire de paquets ; il fonctionne sur les distributions Linux avec un environnement de bureau compatible, dès lors que les dépendances de compilation du projet y sont installées. Relancez le script après une nouvelle compilation pour mettre à jour l'installation.
 
-Les sauvegardes sont stockées dans le dossier utilisateur de chaque système : `%LOCALAPPDATA%/HellsTower` sous Windows, `~/Library/Application Support/Hells Tower` sous macOS, ou `$XDG_DATA_HOME/hells-tower` (par défaut `~/.local/share/hells-tower`) sous Linux. Une ancienne sauvegarde `save.txt` dans le répertoire du jeu est encore chargée et supprimée lors d'une réinitialisation. Les succès sont enregistrés dans `succes.txt`, au même endroit. Ce fichier est uniquement lu et complété : il n'est jamais réécrit ni supprimé lors d'une nouvelle partie.
+Les sauvegardes sont stockées dans le dossier utilisateur de chaque système : `%LOCALAPPDATA%/HellsTower` sous Windows, `~/Library/Application Support/Hells Tower` sous macOS, ou `$XDG_DATA_HOME/hells-tower` (par défaut `~/.local/share/hells-tower`) sous Linux. Une ancienne sauvegarde `save.txt` dans le répertoire du jeu est encore chargée et supprimée lors d'une réinitialisation. Les succès sont enregistrés dans `succes.txt`, au même endroit. Ce fichier est uniquement lu et complété : il n'est jamais réécrit ni supprimé lors d'une nouvelle partie. `collection.txt` mémorise les artefacts et effets déjà obtenus pour la forge.
 
 ---
 
@@ -96,6 +96,7 @@ game/
   levels/                   niveaux, expérience et notification de niveau
   inventory/                interface de l'inventaire
   buttons/                  boutons de la zone de paix + entraînement
+  shop/                     boutique, monnaie Etris et forge d'artefacts
   chatbox/                  boîte de dialogue qui s'écrit lettre par lettre
   monster/                  monstre qui flotte dans la zone de paix
   pause_menu/               menu pause et fenêtre "session non sauvegardée"
@@ -119,6 +120,7 @@ assets/                     images, musiques, textes et médias
 
 - À la racine : `button.png`, `button_move.mp3`, `button_click.mp3`, `cursor.png`,
   `dialoguebox1.png`, `heart.png`, `logo.png` (icône de l'application),
+  `Etris.png` (logo de la monnaie),
   `loading_screen.png`, `monster1.png`, `button_monster1.png`, `dead_sigrid.png`,
   `button_dead_sigrid.png`, `player0.png` à `player5.png`, `projectile.png`,
   `tower.png`, `letter.png`, `seal.png`, `open_letter.png`, `open_letter.txt`,
@@ -322,11 +324,17 @@ Le niveau et l'expérience affichés viennent du module `levels/`. Chaque niveau
 gagné attribue un item si la zone de stockage n'est pas pleine. Les items sont
 affichés sous les cinq emplacements équipés; un clic gauche les déplace vers le
 premier emplacement libre de l'autre zone. Le clic droit ouvre leurs effets et
-le bouton **Jeter l'artefact** les détruit. Les items de quête occupent six cases
-séparées. Les items équipés ne sont plus consommés après une partie; leurs
+permet de vendre un artefact contre des Etris selon ses effets et leurs raretés.
+Les items de quête occupent six cases séparées. Les items équipés ne sont plus consommés après une partie; leurs
 effets compatibles sont réappliqués
 au prochain lancement sans cumuler plusieurs fois le même effet. Les changements
 d'inventaire sont conservés dans la sauvegarde en cliquant sur **Sauvegarder**.
+La boutique vend des packs aléatoires de 1 à 3 artefacts à prix croissant. La
+forge conserve dans `collection.txt` les artefacts et effets déjà obtenus, même
+entre les parties; elle permet de choisir une recette, puis de payer en Etris
+un coût croissant selon le nombre et la rareté des effets et de sacrifier 2 à 6
+artefacts de l'inventaire. Son droit d'entrée coûte 100 Etris et n'est pas
+remboursé en cas d'annulation.
 Chaque effet généré tire sa rareté séparément : **Commun 50 %**, **Rare 30 %**,
 **Épique 15 %**, **Légendaire 4 %** et **Maudit 1 %**. Un effet déjà présent sur
 l'item ne peut pas être tiré une deuxième fois.
@@ -394,11 +402,12 @@ Règles de la tour :
 - les gains et la progression restent en mémoire jusqu'au clic sur **Sauvegarder**
 - la sauvegarde est chargée pendant l'écran de chargement lancé par **Jouer** au menu principal; les autres écrans de chargement ne la relisent pas
 - le joueur commence au niveau 0 avec 0 XP; le niveau suivant demande 100 XP, puis le seuil augmente de 1,5 fois par niveau
+- une victoire rapporte `(20 + 5 × étage) × (0,75 + 0,25 × difficulté)` Etris, multipliés par 4 sur un étage de boss; un niveau gagné rapporte `25 + 20 × nouveau niveau` Etris
 
 Format du fichier `save.txt` dans le dossier de données utilisateur :
 
 ```
-<étage> <tuto_vu> <difficulté> <niveau> <xp> <masque_dialogues_sigrid> 5 <personnage>
+<étage> <tuto_vu> <difficulté> <niveau> <xp> <masque_dialogues_sigrid> 6 <personnage> <Etris>
 <chemin de l'image du monstre>
 <chemin de la musique>
 <mini-jeu : bullethell, rings, mirror, ou vide pour un boss>

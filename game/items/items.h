@@ -20,6 +20,24 @@ bool ItemsLetterReaderActive(void);
 void ItemsCloseLetterReader(void);
 void ItemsApplyForGame(const char *game);
 void ItemsDestroy(int slot);
+int ItemsSellValue(int slot);
+int ItemsSell(int slot);
+bool ItemsCanStore(int count);
+bool ItemsGrantShopPack(int count, int slots[5]);
+int ItemsKnownItemCount(void);
+const char *ItemsKnownItem(int index);
+int ItemsKnownEffectCount(void);
+int ItemsKnownEffect(int index);
+const char *ItemsEffectText(int effect);
+const char *ItemsEffectRarity(int effect);
+const char *ItemsItemName(int slot);
+int ItemsRewardSlot(void);
+void ItemsDrawPreview(int slot, Rectangle box);
+bool ItemsForgeCanComplete(const char *name, const int *effects,
+                           int effectCount, const int *sacrifices,
+                           int sacrificeCount);
+bool ItemsForgeComplete(const char *name, const int *effects, int effectCount,
+                        const int *sacrifices, int sacrificeCount);
 void ItemsCloseContextMenu(void);
 void ItemsDrawInventory(Rectangle equipped[5], Rectangle stored[25],
                         Rectangle quest[QUEST_ITEM_COUNT], bool showQuestItems);
