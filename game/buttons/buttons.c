@@ -28,6 +28,7 @@ static bool inventoryActive;
 static bool quitConfirmation, returnConfirmation, saveOk;
 static bool musicPausedForLoading;
 static bool melinaEndingRequested;
+static bool destinyReflectionRequested;
 static bool etrisTexTried;
 static float saveTime;
 static Font font;
@@ -95,7 +96,7 @@ static void Save(void) {
 static void OpenInventory(void) { inventoryActive = true; }
 static void OpenShop(void) { ShopOpen(); }
 static void OpenForge(void) { ShopOpenForge(); }
-static void NewGame(void);
+static void PrepareDestinyEnding(void);
 
 static void EnterTower(void) {
   trainingActive = false;
@@ -110,7 +111,7 @@ static void Subscreen(void) {
       ItemsMelinaLetterRead()) {
     melinaEndingRequested = true;
   } else if (TowerCurrentFloor() > 50) {
-    LoadingScreenStartWithBackground(NewGame, "assets/ending.png");
+    LoadingScreenStartWithBackground(PrepareDestinyEnding, "assets/ending.png");
   } else {
     LoadingScreenStartWithBackground(EnterTower, "assets/tower.png");
   }
@@ -122,13 +123,13 @@ static void ReturnToMenu(void) {
   trainingActive = false;
 }
 
-static void NewGame(void) {
+static void PrepareDestinyEnding(void) {
   if (!DeleteTowerProgressFile())
     return;
   AchievementsUnlock(ACHIEVEMENT_COMPLETE_GAME);
   AchievementsUnlockTitle(TITLE_CHANGED_FATE);
   ResetTowerProgress();
-  ReturnToMenu();
+  destinyReflectionRequested = true;
 }
 
 static void Menu(void) {
@@ -576,6 +577,14 @@ bool GameMelinaEndingRequested(void) {
   return requested;
 }
 
+bool GameDestinyReflectionRequested(void) {
+  bool requested = destinyReflectionRequested;
+  destinyReflectionRequested = false;
+  return requested;
+}
+
+void GameFinishDestinyReflection(void) { ReturnToMenu(); }
+
 bool GameFinishMelinaEnding(void) {
   if (!DeleteTowerProgressFile())
     return false;
@@ -735,6 +744,7 @@ bool GameReturnConfirmationActive(void) {
 
 void ResetGameButtons(void) {
   menuRequested = false;
+  destinyReflectionRequested = false;
   subscreenActive = false;
   trainingActive = false;
   trainingSelectionActive = false;

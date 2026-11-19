@@ -52,6 +52,8 @@ static bool sigridActive;
 static Texture2D creditsBackground;
 static bool creditsActive, creditsFinal, creditsFinishFailed;
 static float creditsScroll, creditsFinalTimer;
+static bool destinyReflectionActive, destinyTextFading;
+static float destinyTextProgress, destinyFadeProgress;
 
 static bool LoadTutorialDialogues(void) {
   int character = TowerPlayerCharacter();
@@ -444,19 +446,19 @@ static void DrawStartupTitle(float opacity) {
 
 static void DrawStartupParagraph(const char *text, Rectangle bounds,
                                  float size, float opacity) {
-  char copy[768], lines[8][256] = {{0}};
+  char copy[768], lines[16][256] = {{0}};
   snprintf(copy, sizeof(copy), "%s", text);
   float spacing = size * 0.015f;
   int row = 0;
   char *word = strtok(copy, " ");
-  while (word && row < 8) {
+  while (word && row < 16) {
     char candidate[256];
     snprintf(candidate, sizeof(candidate), "%s%s%s", lines[row],
              lines[row][0] ? " " : "", word);
     if (lines[row][0] &&
         MeasureTextEx(introFont, candidate, size, spacing).x > bounds.width) {
       row++;
-      if (row == 8)
+      if (row == 16)
         break;
       snprintf(lines[row], sizeof(lines[row]), "%s", word);
     } else {
@@ -475,6 +477,60 @@ static void DrawStartupParagraph(const char *text, Rectangle bounds,
                size, spacing, color);
     y += lineHeight;
   }
+}
+
+static bool DrawDestinyReflection(void) {
+  static const char text[] =
+      "La roue s'est arrêtée, mais le monde n'a rien oublié. Les cendres "
+      "gardent encore la forme de ce qui fut. Tu as choisi de reprendre le "
+      "fil à son commencement, comme si le temps pouvait rendre ce qu'il a "
+      "pris. Pourtant, les morts ne reviennent pas quand on remonte les "
+      "aiguilles, et effacer une douleur n'est pas la guérir. La tour ne "
+      "nomme pas cela une fin heureuse. Le destin peut se briser, se "
+      "retarder, se défier... mais jamais se réécrire sans que le fil se "
+      "souvienne de chaque coupure.";
+  int length = GetCodepointCount(text);
+  bool pressed = IsMouseButtonPressed(MOUSE_BUTTON_LEFT) ||
+                 IsKeyPressed(KEY_SPACE);
+  if (!destinyTextFading) {
+    destinyTextProgress += GetFrameTime() * 58;
+    if (destinyTextProgress > length)
+      destinyTextProgress = (float)length;
+    if (pressed) {
+      if (destinyTextProgress < length)
+        destinyTextProgress = (float)length;
+      else
+        destinyTextFading = true;
+    }
+  } else {
+    destinyFadeProgress += GetFrameTime() / 0.9f;
+  }
+
+  int visible = (int)destinyTextProgress;
+  int byteCount = 0;
+  for (int i = 0; i < visible; i++) {
+    int codepointSize;
+    GetCodepoint(text + byteCount, &codepointSize);
+    byteCount += codepointSize;
+  }
+  char shown[sizeof(text)];
+  memcpy(shown, text, byteCount);
+  shown[byteCount] = '\0';
+  int sw = GetScreenWidth(), sh = GetScreenHeight();
+  float opacity = destinyTextFading ? 1 - destinyFadeProgress : 1;
+  if (opacity < 0)
+    opacity = 0;
+  Rectangle bounds = {sw * 0.12f, sh * 0.2f, sw * 0.76f, sh * 0.6f};
+  DrawStartupParagraph(shown, bounds, GameUiPixels(32), opacity);
+  if (visible == length && !destinyTextFading) {
+    const char *hint = "CLIQUEZ OU APPUYEZ SUR ESPACE";
+    int size = GameUiPixels(17);
+    Vector2 dimensions = MeasureTextEx(introFont, hint, size, size * 0.02f);
+    DrawTextEx(introFont, hint,
+               (Vector2){(sw - dimensions.x) / 2, sh * 0.88f}, size,
+               size * 0.02f, (Color){205, 184, 137, 255});
+  }
+  return destinyTextFading && destinyFadeProgress >= 1;
 }
 
 static void DrawStartupTerms(float opacity) {
@@ -660,6 +716,9 @@ void LoadBlackScreen(void) {
   float shadeAlpha = 0;
 
   returnToMainMenu = false;
+  destinyReflectionActive = false;
+  destinyTextFading = false;
+  destinyTextProgress = destinyFadeProgress = 0;
   ambientMusicStarted = false;
   ambientMusicPaused = false;
 
@@ -670,11 +729,16 @@ void LoadBlackScreen(void) {
 
   while (!WindowShouldClose() && game_running && !leave) {
     LoadingScreenUpdate();
+    if (GameDestinyReflectionRequested()) {
+      destinyReflectionActive = true;
+      destinyTextFading = false;
+      destinyTextProgress = destinyFadeProgress = 0;
+    }
 
     if (IsKeyPressed(KEY_ESCAPE) && !GameInventoryActive() &&
         !GameShopActive() &&
         !quitConfirmation && !returnConfirmation && !LoadingScreenActive() &&
-        !creditsActive) {
+        !creditsActive && !destinyReflectionActive) {
       paused = !paused;
       shadeAlpha = 0;
     }
@@ -692,6 +756,13 @@ void LoadBlackScreen(void) {
 
     if (creditsActive && !LoadingScreenActive()) {
       DrawMelinaCredits();
+    } else if (destinyReflectionActive) {
+      if (!LoadingScreenActive() && DrawDestinyReflection()) {
+        destinyReflectionActive = false;
+        startupMenuFadePending = true;
+        startupMenuFadeOpacity = 1;
+        GameFinishDestinyReflection();
+      }
     } else if (paused && (quitConfirmation || returnConfirmation)) {
       UnsavedDialogResult result = DrawUnsavedSessionDialog();
       if (result == UNSAVED_DIALOG_CONTINUE) {
@@ -778,14 +849,13 @@ void LoadBlackScreen(void) {
     if (GameMelinaEndingRequested())
       LoadingScreenStartWithBackgroundNoProgress(
           StartMelinaCredits, "assets/melina_ending.png");
-
     if (!paused && GameReturnToMenuRequested())
       leave = true;
     if (returnToMainMenu)
       leave = true;
 
     bool updatePopupActive = LoadingScreenUpdatePopupActive();
-    if (!leave)
+    if (!leave && !destinyReflectionActive)
       AchievementsDrawNotifications();
     if (LoadingScreenDraw())
       game_running = false;

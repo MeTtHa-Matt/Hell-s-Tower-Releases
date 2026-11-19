@@ -17,6 +17,8 @@ bool GameResultActive(void);
 bool GameReturnConfirmationActive(void);
 bool GameSaveAlertActive(void);
 bool GameMelinaEndingRequested(void);
+bool GameDestinyReflectionRequested(void);
+void GameFinishDestinyReflection(void);
 bool GameFinishMelinaEnding(void);
 void UpdateGameSaveAlert(void);
 void DrawGameSaveAlert(void);
