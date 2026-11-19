@@ -291,6 +291,8 @@ jobs:
             test -f "build/assets/tuto/sigrid_tuto_${character}.txt"
             test -f "build/assets/story/story_${character}.txt"
           done
+          test -f build/assets/IMFellEnglish-Regular.ttf
+          test -f build/assets/IMFellEnglish-OFL.txt
           test -f build/assets/NotoSerif-Light.ttf
           test -f build/assets/NotoSerif-OFL.txt
           test -f build/THIRD_PARTY_NOTICES.txt

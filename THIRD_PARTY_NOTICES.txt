@@ -10,3 +10,8 @@ This software incorporates components from the projects listed below.
    Copyright 2020 The Cinzel Project Authors
    Licensed under the SIL Open Font License, Version 1.1.
    The full license is included in assets/Cinzel-OFL.txt.
+
+3. IM Fell English (https://github.com/google/fonts/tree/main/ofl/imfellenglish)
+   Copyright (c) 2010, Igino Marini
+   Licensed under the SIL Open Font License, Version 1.1.
+   The full license is included in assets/IMFellEnglish-OFL.txt.

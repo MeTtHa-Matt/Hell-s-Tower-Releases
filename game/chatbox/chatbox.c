@@ -145,11 +145,15 @@ void chatbox(const char *text, const char *position) {
   if (tex.id == 0)
     return;
   if (!dialogueFontReady) {
-    dialogueFont = LoadFontEx("assets/Cinzel.ttf", 64, NULL, 0);
+    int codepoints[224];
+    for (int i = 0; i < 224; i++)
+      codepoints[i] = i + 32;
+    dialogueFont =
+        LoadFontEx("assets/IMFellEnglish-Regular.ttf", 64, codepoints, 224);
     dialogueFontLoaded = dialogueFont.texture.id != 0;
     dialogueFontReady = true;
     if (!dialogueFontLoaded) {
-      TraceLog(LOG_ERROR, "Police Cinzel introuvable");
+      TraceLog(LOG_ERROR, "Police IM Fell English introuvable");
       dialogueFont = GetFontDefault();
     } else {
       SetTextureFilter(dialogueFont.texture, TEXTURE_FILTER_BILINEAR);
@@ -178,9 +182,9 @@ void chatbox(const char *text, const char *position) {
   float x = (GetScreenWidth() - w) / 2;
   float margin = GameUiPixels(20);
   float y = high ? margin : GetScreenHeight() - h - margin;
-  float fontSize = GameUiPixels(40);
+  float fontSize = GameUiPixels(36);
   float spacing = fontSize * 0.01f;
-  int lineHeight = GameUiPixels(52);
+  int lineHeight = GameUiPixels(47);
   Rectangle source = {0, 0, (float)tex.width, (float)tex.height};
   Rectangle dest = {x, y, w, h};
 
