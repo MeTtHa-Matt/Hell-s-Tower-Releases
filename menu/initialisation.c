@@ -38,6 +38,8 @@ static Texture2D cursorTexture;
 static Texture2D titleTexture;
 static Font introFont;
 static bool introFontLoaded, introFontReady, startupSequencePlayed;
+static bool startupMenuFadePending;
+static float startupMenuFadeOpacity;
 static bool returnToMainMenu;
 static bool characterSelectionPending;
 static char tutorialDialogues[TUTORIAL_DIALOGUE_COUNT][SIGRID_TEXT_LEN];
@@ -556,6 +558,10 @@ static bool ShowStartupSequence(void) {
     }
   }
   startupSequencePlayed = phase == 6;
+  if (startupSequencePlayed) {
+    startupMenuFadePending = true;
+    startupMenuFadeOpacity = 1;
+  }
   return startupSequencePlayed;
 }
 
@@ -626,6 +632,15 @@ void LoadMenu(void) {
     AchievementsDrawNotifications();
     if (!LoadingScreenActive() || updatePopupActive)
       DrawCustomCursor();
+    if (startupMenuFadePending) {
+      if (!LoadingScreenActive())
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
+                      (Color){0, 0, 0,
+                              (unsigned char)(255 * startupMenuFadeOpacity)});
+      startupMenuFadeOpacity -= GetFrameTime() / 0.8f;
+      if (startupMenuFadeOpacity <= 0)
+        startupMenuFadePending = false;
+    }
     EndButtonSoundFrame();
     EndDrawing();
   }
@@ -640,6 +655,7 @@ void LoadBlackScreen(void) {
   bool leave = false;
   bool quitConfirmation = false, returnConfirmation = false;
   float shadeAlpha = 0;
+  float entryFadeOpacity = 1;
 
   returnToMainMenu = false;
   ambientMusicStarted = false;
@@ -773,6 +789,14 @@ void LoadBlackScreen(void) {
     if (updatePopupActive ||
         (!LoadingScreenActive() && (paused || !inGame || GameResultActive())))
       DrawCustomCursor();
+    if (entryFadeOpacity > 0 && !LoadingScreenActive()) {
+      DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
+                    (Color){0, 0, 0,
+                            (unsigned char)(255 * entryFadeOpacity)});
+      entryFadeOpacity -= GetFrameTime() / 0.8f;
+      if (entryFadeOpacity < 0)
+        entryFadeOpacity = 0;
+    }
     EndButtonSoundFrame();
     EndDrawing();
   }
