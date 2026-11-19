@@ -5,6 +5,7 @@
 #include "game_zone/mirror/mirror.h"
 #include "game_zone/rings/rings.h"
 #include "game_zone/seals/seals.h"
+#include "game_zone/balance.h"
 #include "game_zone/zone.h"
 #include "achievements/achievements.h"
 #include "characters/characters.h"
@@ -642,6 +643,12 @@ void Tower(void) {
           ItemsGrantForLevelUp();
         TowerAddEtris(25LL + ((long long)i + 1) * 20);
       }
+      double attemptEtrisReward =
+          BalanceTowerAttemptEtrisReward(gameTime, currentDifficulty) *
+          FunctionalGet()->etrisMultiplier;
+      if (after == GAME_WON)
+        attemptEtrisReward *= CharacterEtrisMultiplier(playerCharacter);
+      TowerAddEtris((long long)(attemptEtrisReward + 0.5));
       if (after == GAME_WON) {
         double etrisReward = (20.0 + (double)currentFloor * 5) *
                              (0.75 + currentDifficulty * 0.25);

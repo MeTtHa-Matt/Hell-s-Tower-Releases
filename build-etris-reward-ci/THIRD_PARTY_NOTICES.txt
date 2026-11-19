@@ -1,0 +1,17 @@
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+
+This software incorporates components from the projects listed below.
+
+1. raylib (https://www.raylib.com/)
+   Copyright (c) 2013-2026 Ramon Santamaria (@raysan5)
+   Licensed under the zlib/libpng license.
+
+2. Cinzel (https://github.com/google/fonts/tree/main/ofl/cinzel)
+   Copyright 2020 The Cinzel Project Authors
+   Licensed under the SIL Open Font License, Version 1.1.
+   The full license is included in assets/Cinzel-OFL.txt.
+
+3. IM Fell English (https://github.com/google/fonts/tree/main/ofl/imfellenglish)
+   Copyright (c) 2010, Igino Marini
+   Licensed under the SIL Open Font License, Version 1.1.
+   The full license is included in assets/IMFellEnglish-OFL.txt.

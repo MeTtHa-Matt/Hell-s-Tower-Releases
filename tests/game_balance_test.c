@@ -68,6 +68,16 @@ int main(void) {
             BalanceSealSpawnInterval(difficulty, 4));
   }
 
+  REQUIRE(BalanceTowerAttemptEtrisReward(0, 10) == 0);
+  REQUIRE(BalanceTowerAttemptEtrisReward(1, 1) == 1);
+  REQUIRE(BalanceTowerAttemptEtrisReward(30, 1) == 4);
+  REQUIRE(BalanceTowerAttemptEtrisReward(30, 10) == 15);
+  REQUIRE(BalanceTowerAttemptEtrisReward(50, 10) == 25);
+  REQUIRE(BalanceTowerAttemptEtrisReward(30, 10) >
+          BalanceTowerAttemptEtrisReward(30, 1));
+  REQUIRE(BalanceTowerAttemptEtrisReward(50, 10) >
+          BalanceTowerAttemptEtrisReward(30, 10));
+
   FunctionalReset();
   FunctionalApplyCharacter(3);
   REQUIRE(FunctionalGet()->lastStand);

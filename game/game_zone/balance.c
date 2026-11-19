@@ -37,6 +37,14 @@ int BalanceRingCountMinimum(int difficulty) {
   return difficulty <= 3 ? 6 : 7 + (difficulty - 4) / 3;
 }
 
+int BalanceTowerAttemptEtrisReward(float elapsedSeconds, int difficulty) {
+  if (elapsedSeconds <= 0)
+    return 0;
+  int reward =
+      (int)(elapsedSeconds * (0.1f + 0.04f * Clamp(difficulty, 1, 10)) + 0.5f);
+  return reward > 0 ? reward : 1;
+}
+
 float BalanceMirrorSpeed(int difficulty) {
   return 100 + 155 * BalanceDifficultyProgress(difficulty);
 }
