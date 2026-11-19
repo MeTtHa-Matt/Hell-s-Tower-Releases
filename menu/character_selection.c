@@ -16,11 +16,12 @@ static Texture2D portraits[CHARACTER_COUNT];
 static char *stories[CHARACTER_COUNT];
 static Texture2D buttonTexture;
 static Texture2D leftArrowTexture, rightArrowTexture;
-static Font font;
+static Font font, storyFont;
 static bool fontLoaded;
 static int selected, scrollFrom, scrollTo, scrollDirection;
 static Vector2 dragStart;
 static float entryProgress, scrollProgress = 1, detailProgress, confirmProgress;
+static float storyScroll[CHARACTER_COUNT], storyMaxScroll[CHARACTER_COUNT];
 static bool detailTarget, confirming, saveError, dragging, dragMoved;
 
 static float Clamp(float value, float min, float max) {
@@ -35,18 +36,20 @@ static void DrawTextCentered(const char *text, float centerX, float y,
              color);
 }
 
-static void DrawWrappedText(const char *text, Rectangle box, float size,
-                            Color color) {
+static float DrawWrappedText(const char *text, Rectangle box, float size,
+                             Color color, float scroll) {
   char line[512] = "";
-  float spacing = size * 0.06f;
-  float lineHeight = size * 1.4f;
-  float y = box.y;
+  float spacing = size * 0.03f;
+  float lineHeight = size * 1.35f;
+  float y = box.y - scroll;
   const char *word = text;
 
-  while (*word && y + lineHeight <= box.y + box.height) {
+  BeginScissorMode((int)box.x, (int)box.y, (int)box.width, (int)box.height);
+  while (*word) {
     if (*word == '\n' || *word == '\r') {
       if (line[0]) {
-        DrawTextEx(font, line, (Vector2){box.x, y}, size, spacing, color);
+        if (y + lineHeight > box.y && y < box.y + box.height)
+          DrawTextEx(storyFont, line, (Vector2){box.x, y}, size, spacing, color);
         line[0] = '\0';
         y += lineHeight;
       } else {
@@ -69,8 +72,10 @@ static void DrawWrappedText(const char *text, Rectangle box, float size,
     char candidate[512];
     snprintf(candidate, sizeof(candidate), "%s%s%.*s", line, line[0] ? " " : "",
              (int)wordLength, word);
-    if (line[0] && MeasureTextEx(font, candidate, size, spacing).x > box.width) {
-      DrawTextEx(font, line, (Vector2){box.x, y}, size, spacing, color);
+    if (line[0] &&
+        MeasureTextEx(storyFont, candidate, size, spacing).x > box.width) {
+      if (y + lineHeight > box.y && y < box.y + box.height)
+        DrawTextEx(storyFont, line, (Vector2){box.x, y}, size, spacing, color);
       line[0] = '\0';
       y += lineHeight;
       continue;
@@ -78,8 +83,10 @@ static void DrawWrappedText(const char *text, Rectangle box, float size,
     snprintf(line, sizeof(line), "%s", candidate);
     word = end;
   }
-  if (line[0] && y + lineHeight <= box.y + box.height)
-    DrawTextEx(font, line, (Vector2){box.x, y}, size, spacing, color);
+  if (line[0] && y + lineHeight > box.y && y < box.y + box.height)
+    DrawTextEx(storyFont, line, (Vector2){box.x, y}, size, spacing, color);
+  EndScissorMode();
+  return fmaxf(0, y + lineHeight - (box.y - scroll));
 }
 
 static Rectangle PortraitBounds(int index, float centerX, float centerY,
@@ -240,6 +247,7 @@ void InitCharacterSelection(void) {
   } else {
     SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
   }
+  storyFont = GetFontDefault();
 }
 
 void StartCharacterSelection(void) {
@@ -247,6 +255,8 @@ void StartCharacterSelection(void) {
   scrollProgress = entryProgress = detailProgress = confirmProgress = 0;
   detailTarget = confirming = saveError = false;
   dragging = dragMoved = false;
+  memset(storyScroll, 0, sizeof(storyScroll));
+  memset(storyMaxScroll, 0, sizeof(storyMaxScroll));
 }
 
 int CharacterSelectionPlayer(void) { return selected; }
@@ -302,12 +312,12 @@ bool DrawCharacterSelection(void) {
        sh * (portraitLayout ? 0.84f : 0.81f),
        sw * (portraitLayout ? 0.5f : 0.24f), sh * 0.075f};
   Rectangle confirmButton =
-      {sw * (portraitLayout ? 0.06f : 0.53f),
+      {sw * (portraitLayout ? 0.54f : 0.75f),
        sh * (portraitLayout ? 0.87f : 0.78f),
        sw * (portraitLayout ? 0.4f : 0.19f),
        sh * (portraitLayout ? 0.07f : 0.075f)};
   Rectangle cancelButton =
-      {sw * (portraitLayout ? 0.54f : 0.75f),
+      {sw * (portraitLayout ? 0.06f : 0.53f),
        sh * (portraitLayout ? 0.87f : 0.78f),
        sw * (portraitLayout ? 0.4f : 0.19f),
        sh * (portraitLayout ? 0.07f : 0.075f)};
@@ -421,12 +431,41 @@ bool DrawCharacterSelection(void) {
         portraitLayout
             ? (Rectangle){sw * 0.08f, sh * 0.49f, sw * 0.84f, sh * 0.35f}
             : (Rectangle){panelX, sh * 0.35f, sw * 0.4f, sh * 0.34f};
+    float storySize =
+        portraitLayout ? fminf(sh * 0.027f, shortSide * 0.04f) : sh * 0.027f;
+    Rectangle storyTextBox = storyBox;
+    storyTextBox.width -= 14 * GameUiScale();
     Color storyColor = (Color){235, 230, 215, (unsigned char)(255 * panelAlpha)};
-    if (stories[selected])
-      DrawWrappedText(stories[selected], storyBox,
-                      portraitLayout ? fminf(sh * 0.027f, shortSide * 0.04f)
-                                     : sh * 0.027f,
-                      storyColor);
+    if (stories[selected]) {
+      if (detailProgress == 1 && !confirming &&
+          CheckCollisionPointRec(GetMousePosition(), storyBox))
+        storyScroll[selected] -= GetMouseWheelMove() * storySize * 3;
+      storyScroll[selected] =
+          Clamp(storyScroll[selected], 0, storyMaxScroll[selected]);
+      storyMaxScroll[selected] =
+          DrawWrappedText(stories[selected], storyTextBox, storySize, storyColor,
+                         storyScroll[selected]) -
+          storyTextBox.height;
+      storyMaxScroll[selected] = fmaxf(0, storyMaxScroll[selected]);
+      storyScroll[selected] =
+          Clamp(storyScroll[selected], 0, storyMaxScroll[selected]);
+      if (storyMaxScroll[selected] > 0) {
+        float trackWidth = 3 * GameUiScale();
+        float thumbHeight =
+            fmaxf(trackWidth * 3,
+                  storyBox.height * storyBox.height /
+                      (storyBox.height + storyMaxScroll[selected]));
+        float thumbY = storyBox.y +
+                       (storyBox.height - thumbHeight) * storyScroll[selected] /
+                           storyMaxScroll[selected];
+        DrawRectangleRec((Rectangle){storyBox.x + storyBox.width - trackWidth,
+                                     storyBox.y, trackWidth, storyBox.height},
+                         (Color){100, 85, 60, 170});
+        DrawRectangleRec((Rectangle){storyBox.x + storyBox.width - trackWidth,
+                                     thumbY, trackWidth, thumbHeight},
+                         (Color){245, 215, 145, 230});
+      }
+    }
 
     if (detailProgress == 1 && !confirming) {
       if (DrawButton("CONFIRMER", confirmButton, BUTTON_SOUND_CONFIRM_CONTINUE)) {
