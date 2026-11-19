@@ -46,5 +46,6 @@ void ItemsDrawInventory(Rectangle equipped[5], Rectangle stored[25],
                         Rectangle quest[QUEST_ITEM_COUNT], bool showQuestItems,
                         Rectangle contextBox);
 void ItemsDrawReward(void);
+void ItemsClearRewards(void);
 
 #endif

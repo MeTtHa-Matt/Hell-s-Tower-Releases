@@ -485,6 +485,7 @@ static void StartGame(void) {
 }
 
 static void StartFloor(void) {
+  ItemsClearRewards();
   PrepareFloor();
   int game = Game();
   const char *itemGame = game == 0 ? "BULLET_HELL"
@@ -645,6 +646,7 @@ static int DrawResultMenu(TowerGameState state) {
 }
 
 static void ExitTower(void) {
+  ItemsClearRewards();
   exitRequested = true;
   StopMusic();
 }
@@ -777,6 +779,7 @@ void UpdateTowerMusic(void) {
 
 void ResetTower(void) {
   StopMusic();
+  ItemsClearRewards();
   FunctionalReset();
   towerStarted = false;
   resultState = GAME_OFF;

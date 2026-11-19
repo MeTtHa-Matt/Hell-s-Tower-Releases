@@ -552,7 +552,7 @@ static void QueueItemReward(int slot) {
     rewardQueueIndex = 0;
     rewardSlot = rewardQueue[0];
     questRewardSlot = -1;
-    rewardTimer = 7;
+    rewardTimer = 3;
   }
 }
 
@@ -726,7 +726,7 @@ void ItemsGrantQuestLetter(void) {
   letterAwarded = true;
   questRewardSlot = 0;
   rewardSlot = -1;
-  rewardTimer = 7;
+  rewardTimer = 3;
 }
 
 void ItemsGrantBossSeal(int floor) {
@@ -750,7 +750,7 @@ void ItemsGrantBossSeal(int floor) {
   bossSealMask |= bit;
   questRewardSlot = slot;
   rewardSlot = -1;
-  rewardTimer = 7;
+  rewardTimer = 3;
 }
 
 void ItemsMigrateQuestRewards(int nextFloor) {
@@ -1454,6 +1454,13 @@ void ItemsDrawInventory(Rectangle equipped[EQUIPPED_COUNT],
   }
 }
 
+void ItemsClearRewards(void) {
+  rewardSlot = -1;
+  questRewardSlot = -1;
+  rewardTimer = 0;
+  rewardQueueCount = rewardQueueIndex = 0;
+}
+
 void ItemsDrawReward(void) {
   if (rewardTimer <= 0)
     return;
@@ -1471,7 +1478,7 @@ void ItemsDrawReward(void) {
     if (rewardQueueIndex < rewardQueueCount) {
       rewardSlot = rewardQueue[rewardQueueIndex];
       questRewardSlot = -1;
-      rewardTimer = 7;
+      rewardTimer = 3;
     } else {
       rewardQueueCount = rewardQueueIndex = 0;
       rewardSlot = -1;
