@@ -9,15 +9,15 @@ float BalanceDifficultyProgress(int difficulty) {
 }
 
 float BalanceBulletHellSpeed(int difficulty) {
-  return 145 + 135 * BalanceDifficultyProgress(difficulty);
+  return 165 + 155 * BalanceDifficultyProgress(difficulty);
 }
 
 float BalanceBulletHellSpread(int difficulty) {
-  return 75 - 45 * BalanceDifficultyProgress(difficulty);
+  return 65 - 40 * BalanceDifficultyProgress(difficulty);
 }
 
 float BalanceBulletHellSpawnInterval(int difficulty) {
-  return 0.95f - 0.3f * BalanceDifficultyProgress(difficulty);
+  return 0.8f - 0.25f * BalanceDifficultyProgress(difficulty);
 }
 
 float BalanceRingGapDegrees(int difficulty) {
@@ -43,6 +43,18 @@ int BalanceTowerAttemptEtrisReward(float elapsedSeconds, int difficulty) {
   int reward =
       (int)(elapsedSeconds * (0.1f + 0.04f * Clamp(difficulty, 1, 10)) + 0.5f);
   return reward > 0 ? reward : 1;
+}
+
+int BalanceMiniGameModifierCount(int difficulty, int chanceRoll,
+                                 int extraRoll) {
+  difficulty = (int)Clamp(difficulty, 1, 10);
+  if (difficulty < 4)
+    return 0;
+  if (difficulty < 9)
+    return chanceRoll < (difficulty - 3) * 15 ? 1 : 0;
+  if (difficulty == 9)
+    return 2;
+  return 2 + (extraRoll < 35);
 }
 
 float BalanceMiniGameDuration(int floor, int difficulty, float baseDuration) {

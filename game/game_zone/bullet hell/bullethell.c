@@ -1,5 +1,6 @@
 #include "bullethell.h"
 #include "../balance.h"
+#include "../modifiers.h"
 #include "../../items/functionnal/functionnal.h"
 #include "../../ui_scale.h"
 #include "raylib.h"
@@ -34,6 +35,10 @@ static HellState state;
 static int floorNumber, difficulty, lives, maxLives, damageCount;
 static float timeLeft, spawnTimer, lineTimer, invincible, idleTimer;
 static bool bulletsCleared;
+static bool modifiers[MINIGAME_MODIFIER_OPTIONS];
+static const char *modifierNames[MINIGAME_MODIFIER_OPTIONS] = {
+    "MOUVEMENT LENT", "PROJECTILES RAPIDES", "TIRS PLUS FREQUENTS",
+    "LIGNES PLUS FREQUENTES"};
 
 static float Limit(float value, float min, float max) {
   if (value < min)
@@ -104,6 +109,8 @@ static void Spawn(Rectangle a, float k) {
                                            BalanceBulletHellSpeed(difficulty));
     float speed = (float)GetRandomValue((int)(speedMin * 100),
                                         (int)(speedMax * 100)) / 100.0f * k;
+    if (modifiers[1])
+      speed *= 1.18f;
 
     float dirX = player.x + Jitter(spread) - pos.x;
     float dirY = player.y + Jitter(spread) - pos.y;
@@ -132,6 +139,8 @@ void BulletHellStart(int floorNumberArg, int d) {
     difficulty = 1;
   if (difficulty > 10)
     difficulty = 10;
+  GameZonePickModifiers(difficulty, MINIGAME_MODIFIER_OPTIONS, modifiers,
+                        modifierNames);
 
   const FunctionalSettings *items = FunctionalGet();
   lives = maxLives = 3 + items->extraLives;
@@ -147,7 +156,7 @@ void BulletHellStart(int floorNumberArg, int d) {
                             (int)(durationMax * 100)) / 100.0f +
              items->duration;
   spawnTimer = 0;
-  lineTimer = 3.5f;
+  lineTimer = 3.5f * (modifiers[3] ? 0.85f : 1.0f);
   invincible = 0;
   idleTimer = 0;
   bulletsCleared = false;
@@ -157,7 +166,7 @@ void BulletHellStart(int floorNumberArg, int d) {
 }
 
 static void MovePlayer(Rectangle a, float k, float dt) {
-  float margin = 10 * k;
+  float margin = 15 * k;
 
   float dirX = 0;
   float dirY = 0;
@@ -172,8 +181,11 @@ static void MovePlayer(Rectangle a, float k, float dt) {
 
   Vector2 mouse = GetMouseDelta();
   const FunctionalSettings *items = FunctionalGet();
-  player.x += (dirX * 220 * k * dt + mouse.x) * items->playerSpeed;
-  player.y += (dirY * 220 * k * dt + mouse.y) * items->playerSpeed;
+  float moveScale = modifiers[0] ? 0.8f : 1.0f;
+  player.x +=
+      (dirX * 220 * k * dt + mouse.x) * items->playerSpeed * moveScale;
+  player.y +=
+      (dirY * 220 * k * dt + mouse.y) * items->playerSpeed * moveScale;
 
   player.x = Limit(player.x, a.x + margin, a.x + a.width - margin);
   player.y = Limit(player.y, a.y + margin, a.y + a.height - margin);
@@ -287,13 +299,15 @@ static void Update(Rectangle a, float k) {
   }
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
-    spawnTimer = BalanceBulletHellSpawnInterval(difficulty) * items->bulletSpawn;
+    spawnTimer = BalanceBulletHellSpawnInterval(difficulty) * items->bulletSpawn *
+                 (modifiers[2] ? 0.85f : 1.0f);
     Spawn(a, k);
   }
   lineTimer -= dt;
   if (lineTimer <= 0) {
     SpawnThinLine(a, k);
-    lineTimer = GetRandomValue(35, 70) / 10.0f;
+    lineTimer =
+        GetRandomValue(35, 70) / 10.0f * (modifiers[3] ? 0.85f : 1.0f);
   }
   UpdateThinLines(k, dt);
 
@@ -333,7 +347,6 @@ static void Draw(Rectangle a, float k) {
     DrawSprite(heartTex,
                (Vector2){a.x + (16 + i * 28) * ui, a.y + 16 * ui},
                20 * ui);
-
   float shownTime = timeLeft;
   if (shownTime < 0)
     shownTime = 0;

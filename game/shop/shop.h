@@ -4,7 +4,6 @@
 #include <stdbool.h>
 
 void ShopOpen(void);
-void ShopOpenForge(void);
 bool ShopActive(void);
 void ShopDraw(void);
 

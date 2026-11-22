@@ -10,6 +10,9 @@ float BalanceRingSpeed(int difficulty);
 float BalanceRingSpacing(int difficulty);
 int BalanceRingCountMinimum(int difficulty);
 int BalanceTowerAttemptEtrisReward(float elapsedSeconds, int difficulty);
+/* Rolls are in [0, 99] so modifier-count thresholds can be tested exactly. */
+int BalanceMiniGameModifierCount(int difficulty, int chanceRoll,
+                                 int extraRoll);
 float BalanceMiniGameDuration(int floor, int difficulty, float baseDuration);
 float BalanceMiniGameDurationMin(int floor, int difficulty,
                                  float baseDuration);

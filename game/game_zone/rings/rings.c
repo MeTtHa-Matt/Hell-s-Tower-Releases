@@ -1,5 +1,6 @@
 #include "rings.h"
 #include "../balance.h"
+#include "../modifiers.h"
 #include "../../items/functionnal/functionnal.h"
 #include "../../ui_scale.h"
 #include "raylib.h"
@@ -25,9 +26,14 @@ static Vector2 player;
 static bool playerReady;
 static RingsStatus state;
 static int floorNumber, difficulty, lives, maxLives, damageCount, ringSpawnCount;
-static float timeLeft, spawnTimer, lastGap, invincible, idleTimer;
+static int ringCount;
+static float timeLeft, spawnTimer, lastGap, invincible, idleTimer, ringSpeed;
 static float dashTime, dashCooldown;
 static bool hazardsCleared;
+static bool modifiers[MINIGAME_MODIFIER_OPTIONS];
+static const char *modifierNames[MINIGAME_MODIFIER_OPTIONS] = {
+    "MOUVEMENT LENT", "OUVERTURES ETROITES", "ANNEAUX RAPIDES",
+    "VAGUES PLUS DENSES"};
 
 static float Limit(float value, float min, float max) {
   if (value < min)
@@ -50,7 +56,8 @@ static float Speed(float k) {
   float speedMax = BalanceRandomSpeedMax(floorNumber, difficulty, base);
   float speed = GetRandomValue((int)(speedMin * 100),
                                (int)(speedMax * 100)) / 100.0f;
-  return speed * k * items->ringSpeed * items->bulletSpeed;
+  return speed * k * items->ringSpeed * items->bulletSpeed *
+         (modifiers[2] ? 1.15f : 1.0f);
 }
 
 static float RingSpacing(float k) {
@@ -83,7 +90,39 @@ static void DrawCentered(Rectangle a, const char *text, int size, float y, Color
 
 static int SpawnWave(float startRadius, float k, int count) {
   int spawned = 0;
-  float waveGap = remainderf(lastGap + 137.507764f * DEG2RAD, 2 * PI);
+  int widthOrder[MAX_RINGS];
+  float gapWidths[MAX_RINGS];
+  float gapAngles[MAX_RINGS];
+  float gapMin = BalanceRingGapRandomMin(floorNumber, difficulty);
+  float gapMax = BalanceRingGapRandomMax(floorNumber, difficulty);
+
+  for (int i = 0; i < count; i++) {
+    widthOrder[i] = i;
+  }
+  for (int i = count - 1; i > 0; i--) {
+    int other = GetRandomValue(0, i);
+    int swap = widthOrder[i];
+    widthOrder[i] = widthOrder[other];
+    widthOrder[other] = swap;
+  }
+  // Stratify widths so a wave cannot accidentally get identical openings.
+  for (int i = 0; i < count; i++) {
+    float widthFraction =
+        (widthOrder[i] + GetRandomValue(250, 750) / 1000.0f) / count;
+    gapWidths[i] = (gapMin + (gapMax - gapMin) * widthFraction) * DEG2RAD;
+  }
+
+  int direction = GetRandomValue(0, 1) == 0 ? -1 : 1;
+  gapAngles[count - 1] =
+      remainderf(lastGap + GetRandomValue(45, 180) * DEG2RAD, 2 * PI);
+  for (int i = count - 2; i >= 0; i--) {
+    int shift = direction * GetRandomValue(25, 55);
+    gapAngles[i] = remainderf(gapAngles[i + 1] + shift * DEG2RAD, 2 * PI);
+  }
+
+  if (ringSpeed <= 0)
+    ringSpeed = Speed(k);
+
   for (int i = 0; i < MAX_RINGS && spawned < count; i++) {
     if (!rings[i].on) {
       int sequence = spawned++;
@@ -93,19 +132,16 @@ static int SpawnWave(float startRadius, float k, int count) {
         continue;
       }
       rings[i].radius = startRadius + (count - 1 - sequence) * RingSpacing(k);
-      rings[i].gapAngle = waveGap;
-      float gapMin = BalanceRingGapRandomMin(floorNumber, difficulty);
-      float gapMax = BalanceRingGapRandomMax(floorNumber, difficulty);
-      rings[i].gapWidth =
-          GetRandomValue((int)(gapMin * 100), (int)(gapMax * 100)) /
-          100.0f * DEG2RAD;
-      rings[i].speed = Speed(k);
+      rings[i].gapAngle = gapAngles[sequence];
+      rings[i].gapWidth = gapWidths[sequence] * (modifiers[1] ? 0.8f : 1.0f);
+      rings[i].speed = ringSpeed;
       rings[i].on = true;
       rings[i].hit = false;
     }
   }
-  if (spawned > 0)
-    lastGap = waveGap;
+  if (spawned > 0) {
+    lastGap = gapAngles[0];
+  }
   return spawned;
 }
 
@@ -120,6 +156,9 @@ void RingsStart(int floorNumberArg, int d) {
   if (difficulty > 10)
     difficulty = 10;
 
+  GameZonePickModifiers(difficulty, MINIGAME_MODIFIER_OPTIONS, modifiers,
+                        modifierNames);
+  ringCount = RingCount() + (modifiers[3] ? 1 : 0);
   const FunctionalSettings *items = FunctionalGet();
   lives = maxLives = 3 + items->extraLives;
   if (lives < 1)
@@ -134,6 +173,7 @@ void RingsStart(int floorNumberArg, int d) {
                             (int)(durationMax * 100)) / 100.0f +
              items->duration;
   spawnTimer = 0;
+  ringSpeed = 0;
   lastGap = GetRandomValue(0, 359) * DEG2RAD;
   ringSpawnCount = 0;
   invincible = idleTimer = dashTime = dashCooldown = 0;
@@ -144,7 +184,7 @@ void RingsStart(int floorNumberArg, int d) {
 
 static void Update(Rectangle a, float k) {
   float dt = GetFrameTime();
-  float margin = 10 * k;
+  float margin = 15 * k;
   const FunctionalSettings *items = FunctionalGet();
   Vector2 c = Center(a);
   Vector2 mouse = GetMousePosition();
@@ -153,13 +193,16 @@ static void Update(Rectangle a, float k) {
                     Limit(mouse.y, a.y + margin, a.y + a.height - margin)};
   float dx = target.x - player.x, dy = target.y - player.y;
   float distance = hypotf(dx, dy);
-  float step = 900 * k * items->playerSpeed * dt;
+  float moveScale = modifiers[0] ? 0.8f : 1.0f;
+  float step = 900 * k * items->playerSpeed * moveScale * dt;
   if (distance > step && distance > 0) {
     dx *= step / distance;
     dy *= step / distance;
   }
   player.x += dx;
   player.y += dy;
+  player.x = Limit(player.x, a.x + margin, a.x + a.width - margin);
+  player.y = Limit(player.y, a.y + margin, a.y + a.height - margin);
 
   if (items->ringDash && IsKeyPressed(KEY_SPACE) && dashCooldown <= 0) {
     dashTime = 0.35f;
@@ -187,11 +230,13 @@ static void Update(Rectangle a, float k) {
     idleTimer = 0;
   }
   if (spawnTimer <= 0) {
-    int count = SpawnWave(OuterRadius(a, k), k, RingCount());
-    if (count > 0)
-      spawnTimer = count * RingSpacing(k) / Speed(k);
-    else
+    int count = ringCount;
+    int spawned = SpawnWave(OuterRadius(a, k), k, count);
+    if (spawned > 0) {
+      spawnTimer = count * RingSpacing(k) / ringSpeed;
+    } else {
       spawnTimer = 0.1f;
+    }
   }
 
   float dist = hypotf(player.x - c.x, player.y - c.y);
@@ -296,7 +341,6 @@ void RingsUpdate(Rectangle a) {
 
   if (!playerReady) {
     player = Center(a);
-    player.x += smallSide / 4;
     playerReady = true;
   }
 

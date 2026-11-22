@@ -672,12 +672,11 @@ void LoadMenu(void) {
     UpdateAndDrawMenuBackground();
     if (characterSelectionPending) {
       if (DrawCharacterSelection()) {
-        if (SetTowerPlayerCharacter(CharacterSelectionPlayer()) &&
-            SaveTowerProgress()) {
+        if (SetTowerPlayerCharacter(CharacterSelectionPlayer())) {
           characterSelectionPending = false;
           StartPlayingButton();
         } else {
-          CharacterSelectionSaveFailed();
+          CharacterSelectionSelectionFailed();
         }
       }
     } else {

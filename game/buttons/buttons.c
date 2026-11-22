@@ -3,6 +3,8 @@
 #include "../game_zone/mirror/mirror.h"
 #include "../game_zone/rings/rings.h"
 #include "../game_zone/seals/seals.h"
+#include "../game_zone/spikes/spikes.h"
+#include "../game_zone/modifiers.h"
 #include "../game_zone/zone.h"
 #include "../inventory/inventory.h"
 #include "../items/functionnal/functionnal.h"
@@ -11,6 +13,7 @@
 #include "../achievements/achievements.h"
 #include "../pause_menu/pause_menu.h"
 #include "../shop/shop.h"
+#include "../forge/forge.h"
 #include "../tower.h"
 #include "../ui_scale.h"
 #include "../../loading_screen/loading_screen.h"
@@ -37,24 +40,30 @@ static Music music;
 static char monsterPath[512];
 static int trainingGame, trainingDifficulty = 8;
 
-static const char *trainingNames[] = {"BULLET HELL", "RINGS", "MIRROR", "SEALS"};
+#define TRAINING_GAME_COUNT 5
+
+static const char *trainingNames[] = {
+    "BULLET HELL", "RINGS", "MIRROR", "SEALS", "SPIKES"};
 static const ButtonSoundId trainingSounds[] = {
     BUTTON_SOUND_TRAINING_BULLET_HELL,
     BUTTON_SOUND_TRAINING_RINGS,
     BUTTON_SOUND_TRAINING_MIRROR,
     BUTTON_SOUND_TRAINING_SEALS,
+    BUTTON_SOUND_TRAINING_SPIKES,
 };
 static const char *trainingDescriptions[] = {
     "Esquivez les projectiles.",
     "Traversez les anneaux.",
     "Affrontez votre reflet.",
     "Brisez les sceaux.",
+    "Evitez les boules a pointes.",
 };
 static const Color trainingAccents[] = {
     {230, 105, 95, 255},
     {90, 195, 220, 255},
     {175, 140, 235, 255},
     {235, 190, 85, 255},
+    {180, 190, 205, 255},
 };
 
 typedef struct {
@@ -96,7 +105,7 @@ static void Save(void) {
 
 static void OpenInventory(void) { inventoryActive = true; }
 static void OpenShop(void) { ShopOpen(); }
-static void OpenForge(void) { ShopOpenForge(); }
+static void OpenForge(void) { ForgeOpen(); }
 static void PrepareDestinyEnding(void);
 
 static void EnterTower(void) {
@@ -168,7 +177,8 @@ static void StartTraining(void) {
   const char *gameName = trainingGame == 0 ? "BULLET_HELL"
                          : trainingGame == 1 ? "RING"
                          : trainingGame == 2 ? "MIRROR"
-                                             : "SEALS";
+                         : trainingGame == 3 ? "SEALS"
+                                             : "SPIKES";
   ItemsApplyForGame(gameName);
   CharacterApplyForGame(TowerPlayerCharacter());
   int difficulty = FunctionalDifficulty(trainingDifficulty);
@@ -182,8 +192,11 @@ static void StartTraining(void) {
   case 2:
     MirrorStart(50, difficulty);
     break;
-  default:
+  case 3:
     SealsStart(50, difficulty);
+    break;
+  default:
+    SpikesStart(50, difficulty);
     break;
   }
   trainingSelectionActive = false;
@@ -264,13 +277,27 @@ static void DrawTrainingIcon(int index, Vector2 center, float radius,
     DrawTriangle(top, left, center, accent);
     DrawTriangle(center, right, bottom,
                  (Color){accent.r, accent.g, accent.b, 145});
-  } else {
+  } else if (index == 3) {
     DrawCircleLines((int)center.x, (int)center.y, radius * 0.8f, accent);
     DrawCircleLines((int)center.x, (int)center.y, radius * 0.4f, accent);
     DrawLineEx((Vector2){center.x - radius * 0.58f, center.y},
                (Vector2){center.x + radius * 0.58f, center.y}, 2, RAYWHITE);
     DrawLineEx((Vector2){center.x, center.y - radius * 0.58f},
                (Vector2){center.x, center.y + radius * 0.58f}, 2, RAYWHITE);
+  } else {
+    for (int i = 0; i < 8; i++) {
+      float angle = i * 2 * PI / 8;
+      Vector2 tip = {center.x + cosf(angle) * radius,
+                     center.y + sinf(angle) * radius};
+      Vector2 left = {center.x + cosf(angle - 0.22f) * radius * 0.56f,
+                      center.y + sinf(angle - 0.22f) * radius * 0.56f};
+      Vector2 right = {center.x + cosf(angle + 0.22f) * radius * 0.56f,
+                       center.y + sinf(angle + 0.22f) * radius * 0.56f};
+      DrawTriangle(tip, left, right, accent);
+      DrawTriangle(tip, right, left, accent);
+    }
+    DrawCircleV(center, radius * 0.42f, (Color){55, 55, 65, 255});
+    DrawCircleLines((int)center.x, (int)center.y, radius * 0.42f, RAYWHITE);
   }
 }
 
@@ -346,9 +373,9 @@ static void DrawTrainingSelection(void) {
   float contentW = panelW * 0.84f;
   float cardGap = panelW * 0.035f;
   float cardW = (contentW - cardGap) / 2;
-  float cardH = panelH * 0.17f;
-  float cardY = panel.y + panelH * 0.24f;
-  float cardRowGap = panelH * 0.025f;
+  float cardH = panelH * 0.135f;
+  float cardY = panel.y + panelH * 0.22f;
+  float cardRowGap = panelH * 0.014f;
   float difficultyY = panel.y + panelH * 0.67f;
   float difficultyH = panelH * 0.12f;
   float footerY = panel.y + panelH * 0.84f;
@@ -361,9 +388,10 @@ static void DrawTrainingSelection(void) {
     return;
   }
   if (IsKeyPressed(KEY_DOWN))
-    trainingGame = (trainingGame + 1) % 4;
+    trainingGame = (trainingGame + 1) % TRAINING_GAME_COUNT;
   if (IsKeyPressed(KEY_UP))
-    trainingGame = (trainingGame + 3) % 4;
+    trainingGame = (trainingGame + TRAINING_GAME_COUNT - 1) %
+                   TRAINING_GAME_COUNT;
   if (IsKeyPressed(KEY_LEFT) && trainingDifficulty > 1)
     trainingDifficulty--;
   if (IsKeyPressed(KEY_RIGHT) && trainingDifficulty < 10)
@@ -388,9 +416,13 @@ static void DrawTrainingSelection(void) {
                    fmaxf(10, panelH * 0.022f),
                    (Color){166, 169, 180, 255});
 
-  for (int i = 0; i < 4; i++) {
-    Rectangle card = {contentX + (i % 2) * (cardW + cardGap),
-                      cardY + (i / 2) * (cardH + cardRowGap), cardW, cardH};
+  for (int i = 0; i < TRAINING_GAME_COUNT; i++) {
+    int row = i / 2;
+    int column = i % 2;
+    float x = contentX + column * (cardW + cardGap);
+    if (i == TRAINING_GAME_COUNT - 1)
+      x = panel.x + (panelW - cardW) / 2;
+    Rectangle card = {x, cardY + row * (cardH + cardRowGap), cardW, cardH};
     if (DrawTrainingCard(card, i, trainingGame == i, scale))
       trainingGame = i;
   }
@@ -459,8 +491,11 @@ static void UpdateTrainingGame(Rectangle zone) {
   case 2:
     MirrorUpdate(zone);
     break;
-  default:
+  case 3:
     SealsUpdate(zone);
+    break;
+  default:
+    SpikesUpdate(zone);
     break;
   }
 }
@@ -473,8 +508,10 @@ static int TrainingDamageCount(void) {
     return RingsDamageCount();
   case 2:
     return MirrorDamageCount();
-  default:
+  case 3:
     return SealsDamageCount();
+  default:
+    return SpikesDamageCount();
   }
 }
 
@@ -486,8 +523,10 @@ static bool TrainingFinished(void) {
     return RingsState() == RINGS_OFF;
   case 2:
     return MirrorState() == MIRROR_OFF;
-  default:
+  case 3:
     return SealsState() == SEALS_OFF;
+  default:
+    return SpikesState() == SPIKES_OFF;
   }
 }
 
@@ -524,6 +563,7 @@ static void DrawButton(int i, bool acceptInput) {
   float cy = r.y + h / 2;
   bool hover = CheckCollisionPointRec(GetMousePosition(), r);
   bool enabled = acceptInput && !inventoryActive && !ShopActive() &&
+                 !ForgeActive() &&
                  !LoadingScreenActive();
   if (i == 4 && TowerCurrentFloor() > 50)
     enabled = enabled && sigridEndingUnlocked;
@@ -652,6 +692,11 @@ void DrawGameButtons(bool acceptInput) {
     if (monsterPath[0])
       monster = monsterPath;
     DrawGameZone(UpdateTrainingGame, TrainingDamageCount, monster);
+    GameZoneDrawActiveModifiers(
+        (Rectangle){GameUiPixels(24), 0,
+                    (float)GetScreenWidth() - 2 * GameUiPixels(24),
+                    (float)GetScreenHeight()},
+        GameUiPixels(24));
 
     if (TrainingFinished() && !LoadingScreenActive())
       LoadingScreenStart(ResetGameButtons);
@@ -677,11 +722,15 @@ void DrawGameButtons(bool acceptInput) {
   } else {
     if (ShopActive()) {
       ShopDraw();
+    } else if (ForgeActive()) {
+      ForgeDraw();
     } else {
       for (int i = 0; i < 8; i++)
         DrawButton(i, acceptInput);
       if (ShopActive())
         ShopDraw();
+      if (ForgeActive())
+        ForgeDraw();
       if (inventoryActive)
         inventoryActive = DrawInventory(inventoryWasActive);
     }
@@ -725,7 +774,7 @@ bool GameTrainingActive(void) {
 bool GameTrainingSelectionActive(void) { return trainingSelectionActive; }
 
 bool GameInventoryActive(void) { return inventoryActive; }
-bool GameShopActive(void) { return ShopActive(); }
+bool GameShopActive(void) { return ShopActive() || ForgeActive(); }
 bool GameResultActive(void) { return subscreenActive && TowerResultActive(); }
 void GameSetSigridEndingUnlocked(bool unlocked) {
   sigridEndingUnlocked = unlocked;
@@ -748,6 +797,7 @@ void ResetGameButtons(void) {
   saveTime = 0;
   sigridEndingUnlocked = false;
   StopMusic();
+  ForgeClose();
   ResetTower();
 }
 

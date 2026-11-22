@@ -25,7 +25,7 @@ static int selected, scrollFrom, scrollTo, scrollDirection;
 static Vector2 dragStart;
 static float entryProgress, scrollProgress = 1, detailProgress, confirmProgress;
 static float storyScroll[CHARACTER_COUNT], storyMaxScroll[CHARACTER_COUNT];
-static bool detailTarget, confirming, saveError, dragging, dragMoved;
+static bool detailTarget, confirming, selectionError, dragging, dragMoved;
 
 static float Clamp(float value, float min, float max) {
   return value < min ? min : value > max ? max : value;
@@ -263,7 +263,7 @@ void InitCharacterSelection(void) {
 void StartCharacterSelection(void) {
   selected = scrollFrom = scrollTo = 0;
   scrollProgress = entryProgress = detailProgress = confirmProgress = 0;
-  detailTarget = confirming = saveError = false;
+  detailTarget = confirming = selectionError = false;
   dragging = dragMoved = false;
   memset(storyScroll, 0, sizeof(storyScroll));
   memset(storyMaxScroll, 0, sizeof(storyMaxScroll));
@@ -271,10 +271,10 @@ void StartCharacterSelection(void) {
 
 int CharacterSelectionPlayer(void) { return selected; }
 
-void CharacterSelectionSaveFailed(void) {
+void CharacterSelectionSelectionFailed(void) {
   confirming = false;
   confirmProgress = 0;
-  saveError = true;
+  selectionError = true;
 }
 
 void UnloadCharacterSelection(void) {
@@ -418,7 +418,7 @@ bool DrawCharacterSelection(void) {
         BeginScroll(1);
       else if (DrawButton("CHOISIR", chooseButton, BUTTON_SOUND_MENU_PLAY)) {
         detailTarget = true;
-        saveError = false;
+        selectionError = false;
       } else if (leftClicked) {
         BeginScroll(-1);
       } else if (rightClicked) {
@@ -507,11 +507,11 @@ bool DrawCharacterSelection(void) {
       if (DrawButton("CONFIRMER", confirmButton, BUTTON_SOUND_CONFIRM_CONTINUE)) {
         confirming = true;
         confirmProgress = 0;
-        saveError = false;
+        selectionError = false;
       } else if (DrawButton("ANNULER", cancelButton,
                             BUTTON_SOUND_CONFIRM_CANCEL)) {
         detailTarget = false;
-        saveError = false;
+        selectionError = false;
       }
     } else {
       DrawButton("CONFIRMER", confirmButton, BUTTON_SOUND_CONFIRM_CONTINUE);
@@ -525,8 +525,8 @@ bool DrawCharacterSelection(void) {
                       rightPortrait,
                       fmaxf(shortSide * 0.08f, 24 * GameUiScale()));
 
-  if (saveError)
-    DrawTextCentered("Échec de l'enregistrement. Réessayez.", centerX,
+  if (selectionError)
+    DrawTextCentered("Échec de la sélection. Réessayez.", centerX,
                      sh * 0.91f, sh * 0.025f, RED);
 
   if (confirming)

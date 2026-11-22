@@ -1,5 +1,6 @@
 #include "mirror.h"
 #include "../balance.h"
+#include "../modifiers.h"
 #include "../../items/functionnal/functionnal.h"
 #include "../../ui_scale.h"
 #include "raylib.h"
@@ -35,6 +36,10 @@ static MirrorStatus state;
 static int floorNumber, difficulty, lives, maxLives, damageCount, protectedSide;
 static float timeLeft, spawnTimer, lineTimer, invincible, idleTimer, protectedTime;
 static bool bulletsCleared;
+static bool modifiers[MINIGAME_MODIFIER_OPTIONS];
+static const char *modifierNames[MINIGAME_MODIFIER_OPTIONS] = {
+    "MOUVEMENT LENT", "PROJECTILES RAPIDES", "VAGUES PLUS FREQUENTES",
+    "LIGNES PLUS FREQUENTES"};
 
 static float Limit(float value, float min, float max) {
   if (value < min)
@@ -164,6 +169,8 @@ void MirrorStart(int floorNumberArg, int d) {
     difficulty = 1;
   if (difficulty > 10)
     difficulty = 10;
+  GameZonePickModifiers(difficulty, MINIGAME_MODIFIER_OPTIONS, modifiers,
+                        modifierNames);
 
   const FunctionalSettings *items = FunctionalGet();
   lives = maxLives = 3 + items->extraLives;
@@ -179,7 +186,7 @@ void MirrorStart(int floorNumberArg, int d) {
                             (int)(durationMax * 100)) / 100.0f +
              items->duration;
   spawnTimer = 0;
-  lineTimer = 3.5f;
+  lineTimer = 3.5f * (modifiers[3] ? 0.85f : 1.0f);
   invincible = 0;
   idleTimer = 0;
   protectedTime = items->mirrorInvincible ? items->mirrorInvincibleDuration : 0;
@@ -192,7 +199,7 @@ void MirrorStart(int floorNumberArg, int d) {
 
 static void MovePlayer(Rectangle a, float k, float dt) {
   Rectangle left = Half(a, 0);
-  float margin = 10 * k;
+  float margin = 15 * k;
 
   float dirX = 0;
   float dirY = 0;
@@ -207,8 +214,11 @@ static void MovePlayer(Rectangle a, float k, float dt) {
 
   Vector2 mouse = GetMouseDelta();
   const FunctionalSettings *items = FunctionalGet();
-  player.x += (dirX * 220 * k * dt + mouse.x) * items->playerSpeed;
-  player.y += (dirY * 220 * k * dt + mouse.y) * items->playerSpeed;
+  float moveScale = modifiers[0] ? 0.8f : 1.0f;
+  player.x +=
+      (dirX * 220 * k * dt + mouse.x) * items->playerSpeed * moveScale;
+  player.y +=
+      (dirY * 220 * k * dt + mouse.y) * items->playerSpeed * moveScale;
 
   player.x = Limit(player.x, left.x + margin, left.x + left.width - margin);
   player.y = Limit(player.y, left.y + margin, left.y + left.height - margin);
@@ -242,6 +252,8 @@ static void UpdateBullet(Bullet *b, Rectangle a, float k, float dt) {
 
   Vector2 previous = b->pos;
   float speed = items->bulletSpeed;
+  if (modifiers[1])
+    speed *= 1.18f;
   if (b->side == 1)
     speed *= items->mirrorRightSpeed;
   if (difficulty >= 7 && items->mirrorHighAid)
@@ -336,13 +348,15 @@ static void Update(Rectangle a, float k) {
   }
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
-    spawnTimer = BalanceMirrorSpawnInterval(difficulty);
+    spawnTimer =
+        BalanceMirrorSpawnInterval(difficulty) * (modifiers[2] ? 0.85f : 1.0f);
     SpawnPair(a, k);
   }
   lineTimer -= dt;
   if (lineTimer <= 0) {
     SpawnThinLine(a, k);
-    lineTimer = GetRandomValue(35, 70) / 10.0f;
+    lineTimer =
+        GetRandomValue(35, 70) / 10.0f * (modifiers[3] ? 0.85f : 1.0f);
   }
   UpdateThinLines(k, dt);
 
@@ -395,7 +409,6 @@ static void Draw(Rectangle a, float k) {
     DrawSprite(heartTex,
                (Vector2){a.x + (16 + i * 28) * ui, a.y + 16 * ui},
                20 * ui, 0);
-
   float shownTime = timeLeft;
   if (shownTime < 0)
     shownTime = 0;

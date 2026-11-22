@@ -1,5 +1,6 @@
 #include "seals.h"
 #include "../balance.h"
+#include "../modifiers.h"
 #include "../../items/functionnal/functionnal.h"
 #include "../../ui_scale.h"
 #include "raylib.h"
@@ -36,6 +37,10 @@ static bool ready;
 static SealsStatus state;
 static int floorNumber, difficulty, lives, maxLives, damageCount, sealed, sealWards, facing;
 static float timeLeft, spawnTimer, invincible, charge, step, dashTime, dashCooldown;
+static bool modifiers[MINIGAME_MODIFIER_OPTIONS];
+static const char *modifierNames[MINIGAME_MODIFIER_OPTIONS] = {
+    "MOUVEMENT LENT", "ALERTES PLUS COURTES", "DANGERS PLUS FREQUENTS",
+    "CHARGE PLUS LENTE"};
 
 static float Limit(float value, float min, float max) {
   if (value < min)
@@ -65,6 +70,8 @@ static float Warn(void) {
   float bonus = items->sealWarning;
   if (difficulty >= 7 && items->sealHighAid)
     bonus += 0.12f;
+  if (modifiers[1])
+    bonus -= 0.15f;
   return BalanceSealWarning(difficulty, bonus);
 }
 
@@ -129,6 +136,8 @@ void SealsStart(int floorNumberArg, int d) {
     difficulty = 1;
   if (difficulty > 10)
     difficulty = 10;
+  GameZonePickModifiers(difficulty, MINIGAME_MODIFIER_OPTIONS, modifiers,
+                        modifierNames);
 
   const FunctionalSettings *items = FunctionalGet();
   lives = maxLives = 3 + items->extraLives;
@@ -145,7 +154,7 @@ void SealsStart(int floorNumberArg, int d) {
   timeLeft = GetRandomValue((int)(durationMin * 100),
                             (int)(durationMax * 100)) / 100.0f +
              items->duration;
-  spawnTimer = 1.5f * items->sealSpawn;
+  spawnTimer = 1.5f * items->sealSpawn * (modifiers[2] ? 0.85f : 1.0f);
   invincible = charge = step = dashTime = dashCooldown = 0;
   dir = (Vector2){0, 1};
   facing = FRONT;
@@ -155,7 +164,7 @@ void SealsStart(int floorNumberArg, int d) {
 
 static void MovePlayer(Rectangle a, float k, float dt) {
   const FunctionalSettings *items = FunctionalGet();
-  float margin = 12 * k;
+  float margin = 28 * k;
   float dirX = 0;
   float dirY = 0;
 
@@ -192,6 +201,8 @@ static void MovePlayer(Rectangle a, float k, float dt) {
   float speed = 200 * k * items->playerSpeed;
   if (dashTime > 0)
     speed = 650 * k;
+  else if (modifiers[0])
+    speed *= 0.8f;
   if (dashTime > 0 || length > 0) {
     player.x += dir.x * speed * dt;
     player.y += dir.y * speed * dt;
@@ -242,7 +253,7 @@ static void UpdateHazard(Hazard *h, float k, float dt) {
 static void UpdateRune(Rectangle a, float k, float dt) {
   const FunctionalSettings *items = FunctionalGet();
   if (hypotf(player.x - rune.x, player.y - rune.y) < 45 * k)
-    charge += dt * items->sealCharge;
+    charge += dt * items->sealCharge * (modifiers[3] ? 0.85f : 1.0f);
   else
     charge -= dt * 0.35f * items->sealChargeDecay;
   charge = Limit(charge, 0, SEAL_TIME);
@@ -255,6 +266,8 @@ static void UpdateRune(Rectangle a, float k, float dt) {
     sealWards++;
   charge = 0;
   spawnTimer = items->sealSpawn;
+  if (modifiers[2])
+    spawnTimer *= 0.85f;
   memset(hazards, 0, sizeof(hazards));
   if (sealed >= GOAL)
     state = SEALS_WON;
@@ -276,7 +289,8 @@ static void Update(Rectangle a, float k) {
 
   spawnTimer -= dt;
   if (spawnTimer <= 0 && state == SEALS_PLAYING) {
-    spawnTimer = BalanceSealSpawnInterval(difficulty, sealed) * items->sealSpawn;
+    spawnTimer = BalanceSealSpawnInterval(difficulty, sealed) * items->sealSpawn *
+                 (modifiers[2] ? 0.85f : 1.0f);
     for (int i = 0; i <= sealed / 2; i++)
       SpawnHazards(k);
   }

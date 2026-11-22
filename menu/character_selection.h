@@ -7,7 +7,7 @@ void InitCharacterSelection(void);
 void StartCharacterSelection(void);
 bool DrawCharacterSelection(void);
 int CharacterSelectionPlayer(void);
-void CharacterSelectionSaveFailed(void);
+void CharacterSelectionSelectionFailed(void);
 void UnloadCharacterSelection(void);
 
 #endif

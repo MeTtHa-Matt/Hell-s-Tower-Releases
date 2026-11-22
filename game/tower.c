@@ -5,7 +5,9 @@
 #include "game_zone/mirror/mirror.h"
 #include "game_zone/rings/rings.h"
 #include "game_zone/seals/seals.h"
+#include "game_zone/spikes/spikes.h"
 #include "game_zone/balance.h"
+#include "game_zone/modifiers.h"
 #include "game_zone/zone.h"
 #include "achievements/achievements.h"
 #include "characters/characters.h"
@@ -43,9 +45,9 @@ static bool floorMusicPausedForLoading;
 static float gameTime;
 static bool gameRewarded;
 static TowerGameState resultState;
-static int resultSelection;
+static int resultSelection, resultFloor;
 
-static const char *gameNames[3] = {"bullethell", "rings", "mirror"};
+static const char *gameNames[4] = {"bullethell", "rings", "mirror", "spikes"};
 
 bool TowerBuildDataFilePath(const char *filename, char *directory,
                             size_t directorySize, char *filePath,
@@ -118,14 +120,14 @@ static int BossIndex(int floor) {
 
 static int Game(void) {
   if (BossIndex(currentFloor) >= 0)
-    return 3;
+    return 4;
   if (currentGame < 0)
     return 0;
   return currentGame;
 }
 
 static int GameIndex(const char *name) {
-  for (int i = 0; i < 3; i++)
+  for (int i = 0; i < 4; i++)
     if (strcmp(name, gameNames[i]) == 0)
       return i;
   return -1;
@@ -172,7 +174,7 @@ static uint32_t TowerRandom(void) {
 }
 
 static int PickMinigame(void) {
-  return (int)(TowerRandom() % 3);
+  return (int)(TowerRandom() % 4);
 }
 
 static void PickFile(const char *dir, const char *ext, char *out) {
@@ -187,6 +189,8 @@ static void PickFile(const char *dir, const char *ext, char *out) {
 static void PrepareFloor(void) {
   int boss = BossIndex(currentFloor);
 
+  if (preparedFloor != currentFloor)
+    currentDifficulty = 0;
   if (currentDifficulty == 0) {
     int lo, hi;
     DifficultyRange(currentFloor, &lo, &hi);
@@ -486,6 +490,7 @@ static void StartGame(void) {
   gameTime = 0;
   gameRewarded = false;
   resultState = GAME_OFF;
+  resultFloor = currentFloor;
   resultSelection = 0;
   switch (Game()) {
   case 0:
@@ -495,6 +500,9 @@ static void StartGame(void) {
     RingsStart(currentFloor, FunctionalDifficulty(currentDifficulty));
     break;
   case 3:
+    SpikesStart(currentFloor, FunctionalDifficulty(currentDifficulty));
+    break;
+  case 4:
     SealsStart(currentFloor, FunctionalDifficulty(currentDifficulty));
     break;
   default:
@@ -509,7 +517,8 @@ static void StartFloor(void) {
   const char *itemGame = game == 0 ? "BULLET_HELL"
                          : game == 1 ? "RING"
                          : game == 2 ? "MIRROR"
-                         : game == 3 ? "SEALS"
+                         : game == 3 ? "SPIKES"
+                         : game == 4 ? "SEALS"
                                      : NULL;
   ItemsApplyForGame(itemGame);
   CharacterApplyForGame(playerCharacter);
@@ -531,6 +540,9 @@ static void UpdateFloorGame(Rectangle zone) {
     RingsUpdate(zone);
     break;
   case 3:
+    SpikesUpdate(zone);
+    break;
+  case 4:
     SealsUpdate(zone);
     break;
   default:
@@ -563,6 +575,17 @@ static TowerGameState FloorGameState(void) {
       return GAME_OFF;
     }
   case 3:
+    switch (SpikesState()) {
+    case SPIKES_PLAYING:
+      return GAME_PLAYING;
+    case SPIKES_WON:
+      return GAME_WON;
+    case SPIKES_LOST:
+      return GAME_LOST;
+    default:
+      return GAME_OFF;
+    }
+  case 4:
     switch (SealsState()) {
     case SEALS_PLAYING:
       return GAME_PLAYING;
@@ -594,6 +617,8 @@ static int FloorGameDamageCount(void) {
   case 1:
     return RingsDamageCount();
   case 3:
+    return SpikesDamageCount();
+  case 4:
     return SealsDamageCount();
   default:
     return MirrorDamageCount();
@@ -637,7 +662,7 @@ static int DrawResultMenu(TowerGameState state) {
   float x = (sw - zoneW) / 2 + (zoneW - w) / 2;
   float y = sh * 0.94f - zoneH + (zoneH - h) / 2;
   Rectangle panel = {x, y, w, h};
-  bool finalFloor = won && currentFloor >= 50;
+  bool finalFloor = won && resultFloor >= 50;
   Rectangle first = finalFloor
                         ? (Rectangle){x + w * 0.09f, y + h * 0.52f,
                                       w * 0.82f, h * 0.24f}
@@ -649,7 +674,7 @@ static int DrawResultMenu(TowerGameState state) {
                                        w * 0.82f, h * 0.24f};
   const char *title = won ? "VICTOIRE" : "ÉCHEC";
   const char *firstLabel =
-      won && currentFloor < 50 ? "Étage suivant" : won ? "Terminer" : "Recommencer";
+      won && resultFloor < 50 ? "Étage suivant" : won ? "Terminer" : "Recommencer";
   int titleSize = GameUiPixels(32), titleY = (int)(y + h * 0.09f);
 
   if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_RIGHT))
@@ -663,7 +688,7 @@ static int DrawResultMenu(TowerGameState state) {
            (Color){245, 220, 130, 255});
 
   int choice = -1;
-  if (won && currentFloor >= 50) {
+  if (won && resultFloor >= 50) {
     if (DrawResultButton(firstLabel, first, 0))
       choice = 1;
   } else {
@@ -699,11 +724,17 @@ void Tower(void) {
     StartMusic();
   }
 
-  const char *bossText = BossIndex(currentFloor) >= 0 ? "  |  BOSS" : "";
+  int displayedFloor = resultState != GAME_OFF ? resultFloor : currentFloor;
+  const char *bossText = BossIndex(displayedFloor) >= 0 ? "  |  BOSS" : "";
   int hudSize = GameUiPixels(24);
-  DrawText(TextFormat("ETAGE %d  |  DIFFICULTE %d%s", currentFloor,
+  DrawText(TextFormat("ETAGE %d  |  DIFFICULTE %d%s", displayedFloor,
                       currentDifficulty, bossText),
            GameUiPixels(24), GameUiPixels(24), hudSize, RAYWHITE);
+  GameZoneDrawActiveModifiers(
+      (Rectangle){GameUiPixels(24), 0,
+                  (float)GetScreenWidth() - 2 * GameUiPixels(24),
+                  (float)GetScreenHeight()},
+      GameUiPixels(54));
 
   TowerGameState before = resultState != GAME_OFF ? resultState : FloorGameState();
   DrawGameZone(resultState == GAME_OFF ? UpdateFloorGame : NULL,
@@ -714,6 +745,7 @@ void Tower(void) {
     gameTime += GetFrameTime();
     if (!gameRewarded && (after == GAME_WON || after == GAME_LOST)) {
       resultState = after;
+      resultFloor = currentFloor;
       int oldLevel = LevelsLevel(), oldXP = LevelsXP();
       int multiplier = 1;
       if (after == GAME_WON)
@@ -765,6 +797,8 @@ void Tower(void) {
       }
       LevelsShowReward(oldLevel, oldXP, gainedXP);
       gameRewarded = true;
+      if (after == GAME_WON && currentFloor < INT_MAX)
+        currentFloor++;
     }
   }
   LevelsDrawNotification();
@@ -779,7 +813,7 @@ void Tower(void) {
     resultState = GAME_OFF;
     ExitTower();
   } else if (choice == 0 && resultState == GAME_WON) {
-    if (currentFloor >= 50)
+    if (resultFloor >= 50)
       ExitTower();
     else
       StartFloor();
@@ -817,6 +851,7 @@ void ResetTower(void) {
   MirrorUnload();
   RingsUnload();
   SealsUnload();
+  SpikesUnload();
   UnloadGameZone();
 }
 

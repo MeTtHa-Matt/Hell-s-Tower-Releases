@@ -422,6 +422,8 @@ static const char *EffectGameLabel(const char *game) {
     return "MIRROR";
   if (strcmp(game, "SEALS") == 0)
     return "SEALS";
+  if (strcmp(game, "SPIKES") == 0)
+    return "SPIKES";
   return game;
 }
 

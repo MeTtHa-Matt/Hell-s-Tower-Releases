@@ -67,6 +67,11 @@ int main(void) {
     REQUIRE(BalanceSealSpawnInterval(difficulty + 1, 4) <=
             BalanceSealSpawnInterval(difficulty, 4));
   }
+  REQUIRE(BalanceBulletHellSpeed(1) > 145);
+  REQUIRE(BalanceBulletHellSpeed(10) > 280);
+  REQUIRE(BalanceBulletHellSpread(1) < 75);
+  REQUIRE(BalanceBulletHellSpawnInterval(1) < 0.95f);
+  REQUIRE(BalanceBulletHellSpawnInterval(10) < 0.65f);
 
   REQUIRE(BalanceTowerAttemptEtrisReward(0, 10) == 0);
   REQUIRE(BalanceTowerAttemptEtrisReward(1, 1) == 1);
@@ -77,6 +82,14 @@ int main(void) {
           BalanceTowerAttemptEtrisReward(30, 1));
   REQUIRE(BalanceTowerAttemptEtrisReward(50, 10) >
           BalanceTowerAttemptEtrisReward(30, 10));
+  REQUIRE(BalanceMiniGameModifierCount(3, 0, 0) == 0);
+  REQUIRE(BalanceMiniGameModifierCount(4, 14, 99) == 1);
+  REQUIRE(BalanceMiniGameModifierCount(4, 15, 99) == 0);
+  REQUIRE(BalanceMiniGameModifierCount(8, 74, 99) == 1);
+  REQUIRE(BalanceMiniGameModifierCount(8, 75, 99) == 0);
+  REQUIRE(BalanceMiniGameModifierCount(9, 99, 99) == 2);
+  REQUIRE(BalanceMiniGameModifierCount(10, 99, 34) == 3);
+  REQUIRE(BalanceMiniGameModifierCount(10, 99, 35) == 2);
   REQUIRE(BalanceMiniGameDuration(50, 10, 30) >
           BalanceMiniGameDuration(1, 1, 30));
   REQUIRE(BalanceMiniGameDurationMax(50, 10, 30) >
