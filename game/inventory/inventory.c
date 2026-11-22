@@ -226,8 +226,13 @@ static void DrawPlayer(void) {
                      (int)content.height);
 
     // Halo derrière le personnage et socle sous ses pieds.
+#if RAYLIB_VERSION_MAJOR >= 6
     DrawCircleGradient(center, 170 * scale, (Color){225, 185, 40, 60},
                        (Color){225, 185, 40, 0});
+#else
+    DrawCircleGradient((int)center.x, (int)center.y, 170 * scale,
+                       (Color){225, 185, 40, 60}, (Color){225, 185, 40, 0});
+#endif
     if (pedestalTex.id != 0) {
       float sourceTop = pedestalTex.height * 0.3711f;
       float sourceBottom = pedestalTex.height * 0.8301f;
