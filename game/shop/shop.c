@@ -169,22 +169,36 @@ static float Rand01(int n) {
   return (x & 0xFFFF) / 65535.0f;
 }
 
-static void DrawGachaCharge(Vector2 c, float t, float base, float s) {
+static Color PackRarityColor(void) {
+  int highestRank = 0;
+  Color color = ItemsRarityColor("COMMUN");
+  for (int i = 0; i < packCount; i++) {
+    const char *rarity = ItemsItemRarestEffectRarity(packSlots[i]);
+    int rank = ItemsRarityRank(rarity);
+    if (rank > highestRank) {
+      highestRank = rank;
+      color = ItemsRarityColor(rarity);
+    }
+  }
+  return color;
+}
+
+static void DrawGachaCharge(Vector2 c, float t, float base, float s,
+                            Color rarityColor) {
   float k = Clamp01(t / GACHA_CHARGE);
   float k2 = k * k;
-  Color gold = {255, 200, 90, 255};
   c.x += sinf(t * 57) * k2 * 7 * s;   /* tremblement */
   c.y += cosf(t * 71) * k2 * 7 * s;
 
   BeginBlendMode(BLEND_ADDITIVE);
   for (int l = 0; l < 6; l++)
     DrawCircleV(c, base * (1 + l * 0.45f) * (0.6f + 0.4f * k),
-                Fade(gold, 0.05f + 0.04f * k));
+                Fade(rarityColor, 0.05f + 0.04f * k));
   for (int i = 0; i < 14; i++) {   /* rayons rotatifs */
     float a = t * 0.8f + i * 2 * PI / 14;
     float len = base * (1.2f + 2.2f * k2) * (0.7f + 0.3f * sinf(t * 10 + i));
     DrawLineEx(c, (Vector2){c.x + cosf(a) * len, c.y + sinf(a) * len},
-               2 * s, Fade(gold, 0.35f * k));
+               2 * s, Fade(rarityColor, 0.35f * k));
   }
   for (int i = 0; i < 48; i++) {   /* particules aspirées vers l'orbe */
     float ph = fmodf(t * 0.9f + Rand01(i * 3), 1.0f);
@@ -194,43 +208,45 @@ static void DrawGachaCharge(Vector2 c, float t, float base, float s) {
                 (1 + 2 * ph) * s, Fade(RAYWHITE, ph * k));
   }
   EndBlendMode();
-  DrawCircleV(c, base * (0.55f + 0.35f * k), (Color){255, 226, 150, 255});
+  DrawCircleV(c, base * (0.55f + 0.35f * k), rarityColor);
   DrawCircleV(c, base * (0.3f + 0.2f * k), WHITE);
 }
 
-static void DrawGachaBurst(Vector2 c, float u, float base, float s) {
+static void DrawGachaBurst(Vector2 c, float u, float base, float s,
+                           Color rarityColor) {
   if (u < 0 || u > 1.2f)
     return;
   float fade = 1 - u / 1.2f;
   BeginBlendMode(BLEND_ADDITIVE);
   float ring = base * (1 + u * 9);   /* onde de choc */
   DrawRing(c, ring - 6 * s, ring + 6 * s, 0, 360, 48,
-           Fade((Color){255, 220, 130, 255}, fade));
+           Fade(rarityColor, fade));
   for (int i = 0; i < 70; i++) {     /* gerbe de particules */
     float a = Rand01(i * 2) * 2 * PI;
     float speed = (150 + 400 * Rand01(i * 2 + 1)) * s;
     float d = speed * u * (1.2f - 0.5f * u);
     DrawCircleV((Vector2){c.x + cosf(a) * d, c.y + sinf(a) * d},
                 (2 + 3 * Rand01(i)) * s * fade,
-                Fade((Color){255, 215, 120, 255}, fade));
+                Fade(rarityColor, fade));
   }
   EndBlendMode();
 }
 
-static void DrawCardBack(Rectangle card, float s) {
+static void DrawCardBack(Rectangle card, float s, Color rarityColor) {
   DrawRectangleRounded(card, 0.09f, 8, (Color){40, 28, 58, 255});
-  DrawRectangleRoundedLinesEx(card, 0.09f, 8, s * 3, (Color){234, 194, 111, 255});
+  DrawRectangleRoundedLinesEx(card, 0.09f, 8, s * 3, rarityColor);
   Rectangle inner = {card.x + card.width * 0.1f, card.y + card.height * 0.06f,
                      card.width * 0.8f, card.height * 0.88f};
   if (inner.width > 4)
-    DrawRectangleRoundedLinesEx(inner, 0.09f, 8, s, (Color){150, 120, 70, 255});
+    DrawRectangleRoundedLinesEx(inner, 0.09f, 8, s, Fade(rarityColor, 0.7f));
   if (card.width > GameUiPixels(40))
-    TextFit("?", card, 64, (Color){234, 194, 111, 255});
+    TextFit("?", card, 64, rarityColor);
 }
 
 static void DrawReveal(Rectangle panel) {
   DrawPanel(panel, "OUVERTURE DU PACK");
   float t = animationTime, s = Scale();
+  Color packColor = PackRarityColor();
   float revealStart = GACHA_CHARGE + GACHA_FLASH + 0.4f;
   float done = revealStart + packCount * GACHA_STAGGER + 0.3f;
   Vector2 center = {panel.x + panel.width / 2, panel.y + panel.height * 0.5f};
@@ -238,7 +254,7 @@ static void DrawReveal(Rectangle panel) {
 
   /* --- Phase 1 : charge --- */
   if (t < GACHA_CHARGE)
-    DrawGachaCharge(center, t, base, s);
+    DrawGachaCharge(center, t, base, s, packColor);
 
   /* --- Phase 3 : cartes --- */
   int hoverSlot = -1;
@@ -255,17 +271,18 @@ static void DrawReveal(Rectangle panel) {
     float yOffset = (1 - drop) * -panel.height * 0.15f;
 
     for (int i = 0; i < packCount; i++) {
+      Color rarityColor =
+          ItemsRarityColor(ItemsItemRarestEffectRarity(packSlots[i]));
       float f = Clamp01((t - (revealStart + i * GACHA_STAGGER)) / GACHA_FLIP);
       float sx = fabsf(cosf(f * PI));                   /* flip horizontal */
       float cx = x0 + i * (cardW + gap) + cardW / 2;
       Rectangle card = {cx - cardW * sx / 2, y + yOffset, cardW * sx, cardH};
 
       if (f < 0.5f) {
-        DrawCardBack(card, s);
+        DrawCardBack(card, s, rarityColor);
       } else {
-        DrawRectangleRounded(card, 0.09f, 8, (Color){65, 53, 40, 255});
-        DrawRectangleRoundedLinesEx(card, 0.09f, 8, s * 3,
-                                    (Color){234, 194, 111, 255});
+        DrawRectangleRounded(card, 0.09f, 8, Fade(rarityColor, 0.28f));
+        DrawRectangleRoundedLinesEx(card, 0.09f, 8, s * 3, rarityColor);
         Rectangle preview = {card.x + card.width * 0.12f,
                              card.y + card.height * 0.13f,
                              card.width * 0.76f, card.height * 0.58f};
@@ -274,7 +291,7 @@ static void DrawReveal(Rectangle panel) {
           TextFit(ItemsItemName(packSlots[i]),
                   (Rectangle){card.x + 3, card.y + card.height * 0.75f,
                               card.width - 6, GameUiPixels(30)},
-                  17, (Color){241, 213, 147, 255});
+                  17, rarityColor);
         if (f >= 1 && CheckCollisionPointRec(GetMousePosition(), card))
           hoverSlot = packSlots[i];
       }
@@ -288,7 +305,7 @@ static void DrawReveal(Rectangle panel) {
                                          y - since * 40 * s,
                                          cardW + since * 80 * s,
                                          cardH + since * 80 * s},
-                             0.09f, 8, Fade((Color){255, 210, 110, 255}, a * 0.35f));
+                             0.09f, 8, Fade(rarityColor, a * 0.35f));
         EndBlendMode();
       }
     }
@@ -296,7 +313,7 @@ static void DrawReveal(Rectangle panel) {
 
   /* --- Phase 2 : explosion + flash (dessinés par-dessus) --- */
   float u = t - GACHA_CHARGE;
-  DrawGachaBurst(center, u, base, s);
+  DrawGachaBurst(center, u, base, s, packColor);
   if (u >= 0 && u < GACHA_FLASH)
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
                   Fade(WHITE, 1 - u / GACHA_FLASH));
@@ -318,7 +335,7 @@ static void DrawReveal(Rectangle panel) {
 
   /* le skip est traité en dernier pour ne pas déclencher CONTINUER au même clic */
   if (t < done && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-    animationTime = (t < GACHA_CHARGE + GACHA_FLASH) ? GACHA_CHARGE + 0.01f : done;
+    animationTime = done;
 }
 /* =================== FIN ANIMATION GACHA =================== */
 

@@ -1,7 +1,11 @@
 #ifndef GAME_GAME_ZONE_BALANCE_H
 #define GAME_GAME_ZONE_BALANCE_H
 
+#include <stdint.h>
+
+int BalancePickMinigame(uint32_t randomValue, int previous);
 float BalanceDifficultyProgress(int difficulty);
+float BalanceBossIntensity(int floor, int difficulty);
 float BalanceBulletHellSpeed(int difficulty);
 float BalanceBulletHellSpread(int difficulty);
 float BalanceBulletHellSpawnInterval(int difficulty);

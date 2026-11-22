@@ -79,14 +79,15 @@ static float BallSpeed(float k) {
   float speedMax = BalanceRandomSpeedMax(floorNumber, difficulty, base);
   float speed = GetRandomValue((int)(speedMin * 100),
                                (int)(speedMax * 100)) / 100.0f;
-  return speed * k * items->bulletSpeed * (modifiers[1] ? 1.15f : 1.0f);
+  return speed * k * items->bulletSpeed * items->spikesBallSpeed *
+         (modifiers[1] ? 1.15f : 1.0f);
 }
 
 static bool SpawnBall(Rectangle a, Vector2 pos, float k) {
   const FunctionalSettings *items = FunctionalGet();
   float smallSide = fminf(a.width, a.height);
   int activeBalls = 0;
-  int maxBalls = 4 + difficulty + (modifiers[2] ? 2 : 0);
+  int maxBalls = 4 + 2 * difficulty + (modifiers[2] ? 2 : 0);
 
   for (int i = 0; i < MAX_BALLS; i++)
     activeBalls += balls[i].on;

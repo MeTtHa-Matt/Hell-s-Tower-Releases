@@ -1,2 +1,2 @@
-game_balance_test 1 0.000926551
+game_balance_test 17 0.000102575
 ---

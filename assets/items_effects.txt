@@ -61,9 +61,25 @@ Attaques des sceaux espacees de 12%;RARE;SEALS
 Recharge de l'esquive des sceaux reduite de 20%;RARE;SEALS
 Chaque sceau actif offre une protection supplementaire;LEGENDAIRE;SEALS
 Recompenses d'Etris augmentees de 50%;LEGENDAIRE;ALL
-UNIQUE : deux vies supplementaires, un bouclier et un rempart fatal;UNIQUE;ALL
-UNIQUE : experience doublee et un artefact supplementaire par niveau;UNIQUE;ALL
+UNIQUE : deux vies supplementaires, un bouclier, un rempart fatal et difficulte reduite de 2 niveaux;UNIQUE;ALL
+UNIQUE : experience doublee, un artefact supplementaire par niveau, +1 vie, bouclier, hitbox reduite de 20% et difficulte reduite de 1 niveau;UNIQUE;ALL
 UNIQUE : projectiles ralentis et balayage de menaces avance;UNIQUE;BULLET_HELL
 UNIQUE : ouvertures elargies et esquive rechargee;UNIQUE;RING
 UNIQUE : protection renforcee des deux reflets;UNIQUE;MIRROR
-UNIQUE : avertissements et charge des sceaux fortement ameliores;UNIQUE;SEALS
+UNIQUE : difficulte reduite de 2 niveaux, avertissements et charge des sceaux fortement ameliores;UNIQUE;SEALS
+Boules a pointes 15% plus lentes;RARE;SPIKES
+Invulnerabilite apres un degat prolongee de 0,75 seconde;EPIQUE;SPIKES
+UNIQUE : +3 vies, bouclier, boules ralenties de 50%, taille reduite de 30% et invulnerabilite prolongee;UNIQUE;SPIKES
+UNIQUE : difficulte du boss final reduite de 2 niveaux, +1 vie, bouclier, hitbox reduite de 25%, charge des sceaux +30% et esquive rechargee 40% plus vite;UNIQUE;FINALBOSS
+UNIQUE : +1 vie, vitesse de deplacement +12% et hitbox reduite de 10% pour tous les mini-jeux;UNIQUE;ALL
+UNIQUE : difficulte de Marika reduite de 2 niveaux, +2 vies, bouclier, hitbox reduite de 30% et 1 vie restauree tous les 3 eclats;UNIQUE;BOSS4
+UNIQUE : pour les sceaux, +2 vies, bouclier, hitbox reduite de 25% et invulnerabilite prolongee de 1,5 s;UNIQUE;SEALS
+UNIQUE : pour Marika, +2 vies, bouclier, vitesse +15%, hitbox reduite de 25% et invulnerabilite prolongee de 1 s;UNIQUE;BOSS4
+UNIQUE : pour le boss final, +2 vies, bouclier, derniere chance, hitbox reduite de 35% et invulnerabilite prolongee de 1,5 s;UNIQUE;FINALBOSS
+UNIQUE : pour tous les mini-jeux, +2 vies, bouclier, derniere chance, vitesse +10% et hitbox reduite de 20%;UNIQUE;ALL
+UNIQUE : pour tous les mini-jeux, +1 vie, bouclier, vitesse +15%, hitbox reduite de 25% et invulnerabilite prolongee de 1 s;UNIQUE;ALL
+UNIQUE : pour Agares, difficulte reduite de 2 niveaux, +2 vies, bouclier, protections de riposte et avertissements prolonges;UNIQUE;BOSS3
+UNIQUE : pour Selena, difficulte reduite de 2 niveaux, +2 vies, bouclier, hitbox reduite de 30%, avertissements prolonges, attaques espacees et protection apres deux reflets;UNIQUE;BOSS2
+UNIQUE : pour Selena, difficulte reduite de 2 niveaux, +2 vies, bouclier, derniere chance, hitbox reduite de 35%, esquive rechargee 30% plus vite et attaques espacees;UNIQUE;BOSS2
+UNIQUE : pour Behemot, difficulte reduite de 2 niveaux, +2 vies, bouclier, hitbox reduite de 30%, avertissements prolonges, attaques espacees et protection apres deux chocs;UNIQUE;BOSS1
+UNIQUE : pour Behemot, difficulte reduite de 2 niveaux, +2 vies, bouclier, derniere chance, hitbox reduite de 35%, esquive rechargee 30% plus vite et attaques espacees;UNIQUE;BOSS1

@@ -128,7 +128,7 @@ assets/                     images, musiques, textes et médias
   `menu_background.htv` (fond animé), `video.mp4` (source du fond),
   `monster_dialogues.txt`.
 - `bosses/` : `Agarès, Démon de la Vengeance.png`,
-  `Béhémot, Démon de l'Arrogance.png`, `Dame Marika, Celle qui Régna.png`,
+  `Béhémot, Démon de l'Arrogance.png`, `Dame Marika, Reine de la Cité des Cendres.png`,
   `Malénia, Lame Consort.png`, `Séléna, Déesse Déchue.png`.
 - `easter_eggs/` : `easter_egg1.png`, `easter_egg2.png`.
 - `items/` : `Anneau d'Ébène.png`, `Anneau du Pouvoir.png`, `Anneau Sombre.png`,
@@ -343,7 +343,7 @@ dans l'ordre, à Melina, Elyssia, Kaelen, Gorran, Ysolde et Thaddeus.
 
 ### Les mini-jeux
 
-Les mini-jeux de la tour ont **exactement la même interface** (remplace `Xxx` par `BulletHell`, `Rings`, `Mirror` ou `Seals`) :
+Les mini-jeux ont **exactement la même interface** (remplace `Xxx` par `BulletHell`, `Rings`, `Mirror`, `Spikes` ou `Seals`) :
 
 | Fonction | Rôle |
 |---|---|
@@ -360,16 +360,17 @@ Les mini-jeux de la tour ont **exactement la même interface** (remplace `Xxx` p
 | Bullet hell | `HELL_PLAYING` | `HELL_WON` | `HELL_LOST` | `HELL_OFF` |
 | Rings | `RINGS_PLAYING` | `RINGS_WON` | `RINGS_LOST` | `RINGS_OFF` |
 | Mirror | `MIRROR_PLAYING` | `MIRROR_WON` | `MIRROR_LOST` | `MIRROR_OFF` |
+| Spikes | `SPIKES_PLAYING` | `SPIKES_WON` | `SPIKES_LOST` | `SPIKES_OFF` |
 | Seals | `SEALS_PLAYING` | `SEALS_WON` | `SEALS_LOST` | `SEALS_OFF` |
 
-Le joueur a 3 vies. Bullet hell, Rings et Mirror durent 30 secondes ; Seals dure 50 secondes et demande d'activer quatre sceaux. Dans la tour, un menu s'affiche après une victoire ou une défaite pour continuer, recommencer ou sortir. Les effets SEALS équipés peuvent préserver la charge, accélérer l'esquive et offrir une protection après l'activation d'un sceau. Quatre effets d'artefact, un par mini-jeu, apportent un soutien supplémentaire uniquement à partir du niveau 7.
+Le joueur a 3 vies. Bullet hell, Rings et Mirror durent 30 secondes ; Seals dure 50 secondes et demande d'activer quatre sceaux. Dans la tour, un menu s'affiche après une victoire ou une défaite pour continuer, recommencer ou sortir. Les effets SEALS équipés peuvent préserver la charge, accélérer l'esquive et offrir une protection après l'activation d'un sceau. Les effets d'artefact propres à un mini-jeu apportent un soutien supplémentaire à partir du niveau 7.
 
 | Mini-jeu | Principe |
 |---|---|
 | **Bullet hell** | Des projectiles viennent de partout et suivent le cœur. Déplacement à la souris ou aux touches WASD / flèches. |
 | **Rings** | Des anneaux se rétrécissent vers le centre, avec une ouverture à trouver. Déplacement à la souris. |
 | **Mirror** | L'écran est coupé en deux : le cœur est dupliqué des deux côtés (en miroir) et les projectiles visent chaque copie. |
-| **Seals** | Réservé aux boss : esquive les attaques annoncées, puis reste sur chaque sceau pour en activer quatre. Déplacement avec WASD / flèches, esquive avec **Espace**. |
+| **Seals** | Mini-jeu classique : esquive les attaques annoncées, puis reste sur chaque sceau pour en activer quatre. Déplacement avec WASD / flèches, esquive avec **Espace**. |
 
 Les attaques et les vagues montent progressivement avec la difficulté; le
 combat d'entraînement permet de sélectionner un jeu et lance une difficulté
@@ -392,10 +393,14 @@ monstres ordinaires à afficher.
 
 Règles de la tour :
 
-- un boss tous les 10 étages (10, 20, 30, 40, 50) : mini-jeu Seals, difficulté 7 à 9 (le dernier boss : difficulté 10)
+- un boss tous les 10 étages : Boss1 (Béhémot) au 10, Boss2 (Séléna) au 20, Boss3 (Agares) au 30, Boss4 (Dame Marika) au 40 et le boss final au 50; tous sont en difficulté 10 et leur intensité augmente avec l'étage
 - après la victoire à l'étage 50, l'étage suivant est le 51
-- les étages finissant par 5 (5, 15, 25, 35, 45) : difficulté 7
-- les autres étages : difficulté 1 à 6, mini-jeu choisi au hasard (les répétitions sont possibles)
+- les étages finissant par 5 (5, 15, 25, 35, 45) : difficulté aléatoire de 9 à 10
+- les autres étages : difficulté aléatoire de 8 à 10; mini-jeu tiré au hasard parmi les cinq mini-jeux
+- l'historique `minigame_history.txt` empêche de retrouver le même mini-jeu au même étage lors de deux sélections successives; une sauvegarde reprend toutefois le mini-jeu déjà tiré pour la run en cours
+- les objets équipés sont la seule source de bonus directs de survie ou de réduction de difficulté; compétences et titres ne modifient que l'expérience, les gains d'Etris ou les objets obtenus
+- l'Etris reste l'unique monnaie de la boutique et de la forge
+
 - l'adversaire et la musique viennent de `assets/monsters`, `assets/musics/fights` (ou de la liste `bosses` pour les boss)
 - chaque seconde jouée rapporte étage × difficulté XP, même en cas de défaite
 - une victoire normale multiplie le gain par 3; une victoire contre un boss le multiplie par le numéro de l'étage (par exemple : 30 × 10 × 8 × 10 XP au boss de l'étage 10)
@@ -410,7 +415,7 @@ Format du fichier `save.txt` dans le dossier de données utilisateur :
 <étage> <tuto_vu> <difficulté> <niveau> <xp> <masque_dialogues_sigrid> 6 <personnage> <Etris>
 <chemin de l'image du monstre>
 <chemin de la musique>
-<mini-jeu : bullethell, rings, mirror, ou vide pour un boss>
+<mini-jeu : bullethell, rings, mirror, spikes, seals, ou vide pour un boss>
 <items équipés et stockés (ligne facultative pour les anciennes sauvegardes)>
 ```
 
@@ -456,7 +461,7 @@ par l'écran de chargement, remet la progression à zéro et revient au menu.
 
 | Fonction | Rôle |
 |---|---|
-| `DrawGameButtons(acceptInput)` | Affiche les 6 boutons (Sauvegarder, Menu principal, Quitter, Combat d'entrainement, Monter la tour, Inventaire). Le combat d'entraînement propose les quatre mini-jeux et une difficulté réglable de 1 à 10. |
+| `DrawGameButtons(acceptInput)` | Affiche les 6 boutons (Sauvegarder, Menu principal, Quitter, Combat d'entrainement, Monter la tour, Inventaire). Le combat d'entraînement propose les cinq mini-jeux et une difficulté réglable de 1 à 10. |
 | `UpdateGameButtonsMusic()` | Met à jour la musique en cours. |
 | `GameSubscreenActive()` | `true` si le joueur est dans la tour. |
 | `GameTrainingActive()` | `true` si le joueur est en combat d'entraînement. |
@@ -476,17 +481,22 @@ par l'écran de chargement, remet la progression à zéro et revient au menu.
 | `UpdateAndDrawMenuBackground()` | Avance et affiche l'image suivante du GIF, en boucle. |
 | `UnloadMenuBackground()` | Libère les images et la texture du fond. |
 
-Le menu **Succès** liste les huit succès disponibles et leur état. Leur
-déblocage affiche une notification dorée non cliquable pendant cinq secondes.
-Le fichier `succes.txt` conserve les identifiants déverrouillés en ajout
-uniquement.
+Le menu **Succès** liste les succès publics et masque les objectifs secrets
+jusqu'à leur découverte. Vaincre les boss des étages 10, 20, 30, 40 et 50 est
+visible dès le départ. Les titres obtenus ont chacun un effet; après avoir
+choisi un personnage, le joueur qui en possède plusieurs en équipe un seul
+depuis l'écran dédié. Survoler un titre y révèle son effet. Les déblocages et
+le titre équipé sont ajoutés à `succes.txt`, sans écraser les succès déjà
+enregistrés. Certains défis cachés demandent de vaincre les cinq boss sans
+dégâts, de les affronter avec chacun des six personnages, ou de terminer la
+tour avec toute l'équipe.
 
 ---
 
 ## Ajouter un mini-jeu
 
 1. Copie un mini-jeu existant (par exemple `rings/`) et renomme les fonctions : `MonJeuStart`, `MonJeuUpdate`, `MonJeuState`, `MonJeuDamageCount`, `MonJeuUnload`.
-2. Dans `tower.c`, ajoute son nom dans `gameNames` (utilisé pour la sauvegarde), et passe le nombre de jeux de 3 à 4 dans `GameIndex` et `PickMinigame`.
+2. Dans `tower.c`, ajoute son nom dans `gameNames` (utilisé pour la sauvegarde), et mets à jour le nombre de jeux dans `GameIndex` et `PickMinigame`.
 3. Ajoute un `case` dans les `switch` de `StartGame`, `UpdateFloorGame`, `FloorGameState` et `FloorGameDamageCount`.
 4. Appelle `MonJeuUnload()` dans `ResetTower`.
 

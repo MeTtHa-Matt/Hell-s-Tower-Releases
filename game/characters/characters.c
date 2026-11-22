@@ -6,26 +6,28 @@
 
 static const char *skills[6][2] = {
     {"Flamme du dernier souvenir",
-     "Gagne 0,5 s d'invulnérabilité après chaque dégât."},
+     "Obtient un artefact supplémentaire à chaque niveau gagné."},
     {"Chance du débutant",
-     "Double les chances d'obtenir un effet Épique ou supérieur."},
-    {"Pas du veilleur", "Se déplace 20 % plus vite dans les mini-jeux."},
+     "Double les chances d'obtenir un effet Épique ou supérieur, quel que soit le mini-jeu."},
+    {"Pas du veilleur",
+     "Gagne 15 % d'expérience supplémentaire après chaque combat."},
     {"Rempart ultime",
-     "Annule une fois un dégât fatal quand il reste une vie."},
-    {"Reflet maîtrisé",
-     "Ralentit de 20 % les projectiles du côté droit dans Mirror."},
-    {"Sceau du médecin", "Charge les sceaux 20 % plus vite."},
+     "Gagne 10 % d'Etris supplémentaire après chaque combat."},
+    {"Œil du veilleur",
+     "Obtient un artefact supplémentaire à chaque niveau gagné."},
+    {"Sceau du médecin",
+     "Gagne 15 % d'Etris supplémentaire après chaque combat."},
 };
 
 static const char *titles[6][2] = {
     {"L'enfant préférée de la tour",
      "Double l'expérience et les artefacts obtenus à chaque niveau."},
     {"Oracle de la lune", "Gagne 20 % d'Etris supplémentaires par victoire."},
-    {"Épée de l'écuyer", "Commence chaque mini-jeu avec un bouclier."},
-    {"Héritier du bouclier brisé", "Commence chaque mini-jeu avec une vie."},
-    {"Archiviste des runes", "Ajoute 2 secondes au chronomètre."},
-    {"Médecin de la cour",
-     "Prolonge de 0,3 s les avertissements des sceaux."},
+    {"Épée de l'écuyer", "Gagne 10 % d'expérience supplémentaire."},
+    {"Héritier du bouclier brisé", "Gagne 10 % d'Etris supplémentaire."},
+    {"Archiviste des runes",
+     "Obtient un artefact supplémentaire à chaque niveau gagné."},
+    {"Médecin de la cour", "Gagne 15 % d'expérience supplémentaire."},
 };
 
 const char *CharacterSkillName(int character) {
@@ -62,9 +64,7 @@ void CharacterPlayerTitlesText(char *buffer, size_t capacity) {
 
 void CharacterApplyForGame(int character) {
   FunctionalApplyCharacter(character);
-  for (int i = 0; i < TITLE_COUNT; i++)
-    if (AchievementsTitleUnlocked((TitleId)i))
-      FunctionalApplyPlayerTitle(i);
+  FunctionalApplyPlayerTitle(AchievementsEquippedTitle());
   if (character >= 0 && character < 6)
     FunctionalApplyCharacterTitle(character);
 }

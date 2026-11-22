@@ -20,6 +20,7 @@ int TowerPlayerCharacter(void);
 bool TowerTutorialSeen(void);
 void MarkTowerTutorialSeen(void);
 int TowerCurrentFloor(void);
+bool TowerBossFloorCompleted(int floor);
 int TowerEtris(void);
 void TowerAddEtris(long long amount);
 bool TowerSpendEtris(int amount);

@@ -6,6 +6,11 @@
 #include "game_zone/rings/rings.h"
 #include "game_zone/seals/seals.h"
 #include "game_zone/spikes/spikes.h"
+#include "game_zone/finalboss/finalboss.h"
+#include "game_zone/boss4/boss4.h"
+#include "game_zone/boss3/boss3.h"
+#include "game_zone/boss2/boss2.h"
+#include "game_zone/boss1/boss1.h"
 #include "game_zone/balance.h"
 #include "game_zone/modifiers.h"
 #include "game_zone/zone.h"
@@ -16,6 +21,7 @@
 #include "levels/levels.h"
 #include "raylib.h"
 #include "ui_scale.h"
+#include <errno.h>
 #include <limits.h>
 #include <stdint.h>
 #include <math.h>
@@ -23,7 +29,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SAVE_LEN 8192
 #define SAVE_PATH_LEN 2048
 
 typedef enum { GAME_OFF, GAME_PLAYING, GAME_WON, GAME_LOST } TowerGameState;
@@ -39,7 +44,8 @@ static bool towerStarted, tutorialSeen;
 static bool exitRequested, musicAttempted;
 static int preparedFloor;
 static unsigned long long sigridSeen;
-static char opponentPath[512], floorMusicPath[512], savedText[SAVE_LEN];
+static char opponentPath[512], floorMusicPath[512];
+static char *savedText;
 static Music floorMusic;
 static bool floorMusicPausedForLoading;
 static float gameTime;
@@ -47,7 +53,10 @@ static bool gameRewarded;
 static TowerGameState resultState;
 static int resultSelection, resultFloor;
 
-static const char *gameNames[4] = {"bullethell", "rings", "mirror", "spikes"};
+static const char *gameNames[5] = {"bullethell", "rings", "mirror", "spikes",
+                                   "seals"};
+static int previousMinigameByFloor[50];
+static bool minigameHistoryLoaded;
 
 bool TowerBuildDataFilePath(const char *filename, char *directory,
                             size_t directorySize, char *filePath,
@@ -108,7 +117,7 @@ static const struct {
     {"assets/bosses/Béhémot, Démon de l'Arrogance.png", "assets/musics/bosses/boss1.mp3"},
     {"assets/bosses/Séléna, Déesse Déchue.png", "assets/musics/bosses/boss2.mp3"},
     {"assets/bosses/Agarès, Démon de la Vengeance.png", "assets/musics/bosses/boss3.mp3"},
-    {"assets/bosses/Dame Marika, Celle qui Régna.png", "assets/musics/bosses/boss4.mp3"},
+    {"assets/bosses/Dame Marika, Reine de la Cité des Cendres.png", "assets/musics/bosses/boss4.mp3"},
     {"assets/bosses/Malénia, Lame Consort.png", "assets/musics/bosses/the final battle.mp3"},
 };
 
@@ -119,15 +128,51 @@ static int BossIndex(int floor) {
 }
 
 static int Game(void) {
-  if (BossIndex(currentFloor) >= 0)
-    return 4;
+  int boss = BossIndex(currentFloor);
+  if (boss == 0)
+    return 9;
+  if (boss == 1)
+    return 8;
+  if (boss == 2)
+    return 7;
+  if (boss == 3)
+    return 6;
+  if (boss == 4)
+    return 5;
   if (currentGame < 0)
     return 0;
   return currentGame;
 }
 
+static const char *ItemGameName(int game) {
+  switch (game) {
+  case 0:
+    return "BULLET_HELL";
+  case 1:
+    return "RING";
+  case 2:
+    return "MIRROR";
+  case 3:
+    return "SPIKES";
+  case 4:
+    return "SEALS";
+  case 5:
+    return "FINALBOSS";
+  case 6:
+    return "BOSS4";
+  case 7:
+    return "BOSS3";
+  case 8:
+    return "BOSS2";
+  case 9:
+    return "BOSS1";
+  default:
+    return NULL;
+  }
+}
+
 static int GameIndex(const char *name) {
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < 5; i++)
     if (strcmp(name, gameNames[i]) == 0)
       return i;
   return -1;
@@ -135,33 +180,160 @@ static int GameIndex(const char *name) {
 
 static void DifficultyRange(int floor, int *lo, int *hi) {
   int boss = BossIndex(floor);
-  *lo = 1;
-  *hi = 6;
-  if (boss == 4) {
-    *lo = 10;
-    *hi = 10;
-  } else if (boss >= 0) {
-    *lo = 7;
-    *hi = 9;
-  } else if (floor <= 45 && floor % 10 == 5) {
-    *lo = 7;
-    *hi = 7;
+  *lo = boss >= 0 ? 10 : 8;
+  *hi = 10;
+  if (boss < 0 && floor <= 45 && floor % 10 == 5) {
+    *lo = 9;
   }
 }
 
-static void FormatSave(char *out) {
+static void LoadMinigameHistory(void) {
+  if (minigameHistoryLoaded)
+    return;
+  for (int i = 0; i < 50; i++)
+    previousMinigameByFloor[i] = -1;
+
+  char directory[SAVE_PATH_LEN], path[SAVE_PATH_LEN];
+  if (!TowerBuildDataFilePath("minigame_history.txt", directory,
+                              sizeof(directory), path, sizeof(path))) {
+    TraceLog(LOG_WARNING, "Impossible de trouver l'historique des mini-jeux");
+    minigameHistoryLoaded = true;
+    return;
+  }
+
+  FILE *file = fopen(path, "r");
+  if (!file) {
+    if (errno != ENOENT)
+      TraceLog(LOG_WARNING, "Impossible de lire l'historique des mini-jeux: %s",
+               path);
+    minigameHistoryLoaded = true;
+    return;
+  }
+
+  int floor, game, scanned;
+  while ((scanned = fscanf(file, "%d %d", &floor, &game)) == 2) {
+    if (floor >= 1 && floor <= 50 && game >= 0 && game < 5)
+      previousMinigameByFloor[floor - 1] = game;
+  }
+  if (scanned != EOF || ferror(file))
+    TraceLog(LOG_WARNING, "Historique des mini-jeux invalide: %s", path);
+  fclose(file);
+  minigameHistoryLoaded = true;
+}
+
+static void SaveMinigameHistory(void) {
+  char directory[SAVE_PATH_LEN], path[SAVE_PATH_LEN];
+  char temporaryPath[SAVE_PATH_LEN];
+  if (!TowerBuildDataFilePath("minigame_history.txt", directory,
+                              sizeof(directory), path, sizeof(path)) ||
+      (!DirectoryExists(directory) && MakeDirectory(directory) != 0 &&
+       !DirectoryExists(directory))) {
+    TraceLog(LOG_ERROR, "Impossible de creer l'historique des mini-jeux");
+    return;
+  }
+
+  int pathLength =
+      snprintf(temporaryPath, sizeof(temporaryPath), "%s.tmp", path);
+  if (pathLength < 0 || (size_t)pathLength >= sizeof(temporaryPath)) {
+    TraceLog(LOG_ERROR, "Chemin de l'historique des mini-jeux trop long");
+    return;
+  }
+
+  FILE *file = fopen(temporaryPath, "w");
+  if (!file) {
+    TraceLog(LOG_ERROR, "Impossible d'ecrire l'historique des mini-jeux: %s",
+             path);
+    return;
+  }
+
+  bool success = true;
+  for (int i = 0; i < 50; i++) {
+    if (previousMinigameByFloor[i] >= 0 &&
+        fprintf(file, "%d %d\n", i + 1, previousMinigameByFloor[i]) < 0) {
+      success = false;
+      break;
+    }
+  }
+  if (fclose(file) != 0)
+    success = false;
+#ifdef _WIN32
+  if (success && remove(path) != 0 && errno != ENOENT)
+    success = false;
+#endif
+  if (success && rename(temporaryPath, path) == 0)
+    return;
+  remove(temporaryPath);
+  TraceLog(LOG_ERROR, "Impossible de finaliser l'historique des mini-jeux: %s",
+           path);
+}
+
+static bool ReadSaveLine(char **cursor, char *line, size_t lineSize) {
+  if (!cursor || !*cursor || !line || lineSize == 0 || !(*cursor)[0])
+    return false;
+  char *start = *cursor;
+  char *end = strchr(start, '\n');
+  if (!end)
+    end = start + strlen(start);
+  size_t length = (size_t)(end - start);
+  if (length && start[length - 1] == '\r')
+    length--;
+  if (length >= lineSize)
+    return false;
+  memcpy(line, start, length);
+  line[length] = '\0';
+  *cursor = *end == '\n' ? end + 1 : end;
+  return true;
+}
+
+static char *FormatSave(void) {
   const char *game = "";
   if (currentGame >= 0)
     game = gameNames[currentGame];
-  snprintf(out, SAVE_LEN, "%d %d %d %d %d %llu 6 %d %d\n", currentFloor,
-           tutorialSeen, currentDifficulty, LevelsLevel(), LevelsXP(),
-           sigridSeen, playerCharacter, etris);
-  size_t used = strlen(out);
-  snprintf(out + used, SAVE_LEN - used, "%s\n%s\n%s\n",
-           opponentPath, floorMusicPath, game);
-  used = strlen(out);
-  ItemsSave(out + used, SAVE_LEN - used);
-  strncat(out, "\n", SAVE_LEN - strlen(out) - 1);
+  char *itemData = ItemsSave();
+  if (!itemData)
+    return NULL;
+  size_t itemDataSize = strlen(itemData);
+  size_t size = 256;
+  const char *parts[] = {opponentPath, floorMusicPath, game, itemData};
+  for (size_t i = 0; i < sizeof(parts) / sizeof(parts[0]); i++) {
+    size_t partSize = strlen(parts[i]);
+    if (partSize > SIZE_MAX - size) {
+      free(itemData);
+      TraceLog(LOG_ERROR, "Sauvegarde de la tour trop volumineuse");
+      return NULL;
+    }
+    size += partSize;
+  }
+  char *out = malloc(size);
+  if (!out) {
+    free(itemData);
+    TraceLog(LOG_ERROR, "Impossible d'allouer la sauvegarde de la tour");
+    return NULL;
+  }
+  int written = snprintf(out, size, "%d %d %d %d %d %llu 6 %d %d\n",
+                         currentFloor, tutorialSeen, currentDifficulty,
+                         LevelsLevel(), LevelsXP(), sigridSeen,
+                         playerCharacter, etris);
+  if (written < 0 || (size_t)written >= size)
+    goto save_failed;
+  size_t used = (size_t)written;
+  written = snprintf(out + used, size - used, "%s\n%s\n%s\n",
+                     opponentPath, floorMusicPath, game);
+  if (written < 0 || (size_t)written >= size - used)
+    goto save_failed;
+  used += (size_t)written;
+  memcpy(out + used, itemData, itemDataSize);
+  used += itemDataSize;
+  out[used++] = '\n';
+  out[used] = '\0';
+  free(itemData);
+  return out;
+
+save_failed:
+  free(itemData);
+  free(out);
+  TraceLog(LOG_ERROR, "Impossible de formater la sauvegarde de la tour");
+  return NULL;
 }
 
 static uint32_t TowerRandom(void) {
@@ -174,7 +346,16 @@ static uint32_t TowerRandom(void) {
 }
 
 static int PickMinigame(void) {
-  return (int)(TowerRandom() % 4);
+  LoadMinigameHistory();
+  int previous = currentFloor >= 1 && currentFloor <= 50
+                     ? previousMinigameByFloor[currentFloor - 1]
+                     : -1;
+  int game = BalancePickMinigame(TowerRandom(), previous);
+  if (currentFloor >= 1 && currentFloor <= 50) {
+    previousMinigameByFloor[currentFloor - 1] = game;
+    SaveMinigameHistory();
+  }
+  return game;
 }
 
 static void PickFile(const char *dir, const char *ext, char *out) {
@@ -223,45 +404,49 @@ bool LoadTowerProgress(void) {
   int floor = 0, seen = 0, diff = 0, level = 0, xp = 0, oldSigrid = 0, version = 0;
   int savedCharacter = 0, savedEtris = 0;
   unsigned long long savedSigrid = 0;
-  int fields = 0, lo, hi;
-  char opp[512] = "", mus[512] = "", game[32] = "";
-  char itemData[SAVE_LEN] = "";
+  int fields = 0;
+  char header[96] = "", opp[512] = "", mus[512] = "", game[32] = "";
+  const char *itemData = "";
   char saveDirectory[SAVE_PATH_LEN], savePath[SAVE_PATH_LEN];
   bool complete = false;
+  free(savedText);
+  savedText = NULL;
   etris = 0;
   preparedFloor = 0;
 
-  FILE *file = NULL;
+  char *saveData = NULL;
   bool savePathsFound = BuildSavePaths(saveDirectory, sizeof(saveDirectory),
                                        savePath, sizeof(savePath));
   if (savePathsFound) {
-    file = fopen(savePath, "r");
-    if (!file && FileExists(savePath))
+    saveData = LoadFileText(savePath);
+    if (!saveData && FileExists(savePath))
       TraceLog(LOG_WARNING, "Impossible de lire la sauvegarde: %s", savePath);
   } else {
     TraceLog(LOG_WARNING, "Impossible de trouver le dossier de sauvegarde");
   }
-  if (!file && FileExists("save.txt")) {
+  if (!saveData && FileExists("save.txt")) {
     TraceLog(LOG_INFO, "Chargement de l'ancienne sauvegarde locale save.txt");
-    file = fopen("save.txt", "r");
+    saveData = LoadFileText("save.txt");
+    if (!saveData)
+      TraceLog(LOG_WARNING, "Impossible de lire l'ancienne sauvegarde save.txt");
   }
-  if (file) {
-    char header[96];
-    if (fgets(header, sizeof(header), file))
+  if (saveData) {
+    char *cursor = saveData;
+    if (ReadSaveLine(&cursor, header, sizeof(header)))
       fields = sscanf(header, "%d %d %d %d %d %llu %d %d %d", &floor, &seen,
                       &diff, &level, &xp, &savedSigrid, &version,
                       &savedCharacter, &savedEtris);
-    if (fgets(opp, 512, file) && fgets(mus, 512, file) && fgets(game, 32, file))
-      complete = true;
-    if (fgets(itemData, sizeof(itemData), file))
-      itemData[strcspn(itemData, "\r\n")] = '\0';
-    fclose(file);
+    complete = ReadSaveLine(&cursor, opp, sizeof(opp)) &&
+               ReadSaveLine(&cursor, mus, sizeof(mus)) &&
+               ReadSaveLine(&cursor, game, sizeof(game));
+    if (complete) {
+      cursor[strcspn(cursor, "\r\n")] = '\0';
+      itemData = cursor;
+    }
   }
 
   ItemsLoad(itemData);
-  opp[strcspn(opp, "\r\n")] = '\0';
-  mus[strcspn(mus, "\r\n")] = '\0';
-  game[strcspn(game, "\r\n")] = '\0';
+  UnloadFileText(saveData);
 
   bool known = fields >= 2 && floor > 0 && (seen == 0 || seen == 1);
   bool characterValid =
@@ -291,28 +476,40 @@ bool LoadTowerProgress(void) {
                    : 0;
   currentDifficulty = 0;
   currentGame = -1;
-  opponentPath[0] = floorMusicPath[0] = savedText[0] = '\0';
+  opponentPath[0] = floorMusicPath[0] = '\0';
 
-  DifficultyRange(currentFloor, &lo, &hi);
-  int gameIndex = GameIndex(game);
-  bool gameOk = BossIndex(currentFloor) >= 0 ? game[0] == '\0' : gameIndex >= 0;
-
-  if (known && characterValid && fields >= 3 && complete && gameOk &&
-      diff >= lo && diff <= hi && FileExists(opp) && FileExists(mus)) {
-    etris = version == 6 && fields >= 9 && savedEtris > 0 ? savedEtris : 0;
-    currentDifficulty = diff;
-    currentGame = gameIndex;
-    preparedFloor = currentFloor;
-    strcpy(opponentPath, opp);
-    strcpy(floorMusicPath, mus);
-    FormatSave(savedText);
+  if (known && characterValid && fields >= 3 && complete) {
+    if (BossIndex(currentFloor) >= 0) {
+      currentDifficulty = 0;
+      currentGame = -1;
+      preparedFloor = 0;
+      PrepareFloor();
+      if (FileExists(opponentPath) && FileExists(floorMusicPath)) {
+        etris = version == 6 && fields >= 9 && savedEtris > 0 ? savedEtris : 0;
+        savedText = FormatSave();
+      }
+    } else {
+      int gameIndex = GameIndex(game);
+      if (gameIndex >= 0 && diff >= 1 && diff <= 10 &&
+          FileExists(opp) && FileExists(mus)) {
+        etris = version == 6 && fields >= 9 && savedEtris > 0 ? savedEtris : 0;
+        currentDifficulty = diff;
+        currentGame = gameIndex;
+        preparedFloor = currentFloor;
+        strcpy(opponentPath, opp);
+        strcpy(floorMusicPath, mus);
+        savedText = FormatSave();
+      }
+    }
   }
+  if (savedText)
+    ItemsPrepareForFloor(currentFloor, ItemGameName(Game()),
+                         BossIndex(currentFloor) >= 0);
   etrisDisplay = (float)etris;
-  return savedText[0] != '\0';
+  return savedText != NULL;
 }
 
 bool SaveTowerProgress(void) {
-  char text[SAVE_LEN];
   char saveDirectory[SAVE_PATH_LEN], savePath[SAVE_PATH_LEN];
 
   if (playerCharacter < 0 || playerCharacter > 5) {
@@ -334,12 +531,16 @@ bool SaveTowerProgress(void) {
     return false;
   }
 
-  FormatSave(text);
+  char *text = FormatSave();
+  if (!text)
+    return false;
   if (!SaveFileText(savePath, text)) {
     TraceLog(LOG_ERROR, "Impossible d'ecrire la sauvegarde: %s", savePath);
+    free(text);
     return false;
   }
-  strcpy(savedText, text);
+  free(savedText);
+  savedText = text;
   return true;
 }
 
@@ -373,16 +574,21 @@ void ResetTowerProgress(void) {
   resultState = GAME_OFF;
   exitRequested = false;
   sigridSeen = 0;
-  opponentPath[0] = floorMusicPath[0] = savedText[0] = '\0';
+  opponentPath[0] = floorMusicPath[0] = '\0';
+  free(savedText);
+  savedText = NULL;
   LevelsLoad(0, 0);
   ItemsReset();
   ResetTower();
 }
 
 bool TowerProgressNeedsSaving(void) {
-  char now[SAVE_LEN];
-  FormatSave(now);
-  return strcmp(now, savedText) != 0;
+  char *now = FormatSave();
+  if (!now)
+    return true;
+  bool needsSaving = !savedText || strcmp(now, savedText) != 0;
+  free(now);
+  return needsSaving;
 }
 
 bool SetTowerPlayerCharacter(int character) {
@@ -398,6 +604,11 @@ bool TowerTutorialSeen(void) { return tutorialSeen; }
 
 void MarkTowerTutorialSeen(void) { tutorialSeen = true; }
 int TowerCurrentFloor(void) { return currentFloor; }
+bool TowerBossFloorCompleted(int floor) {
+  return currentFloor > floor ||
+         (currentFloor == floor && resultState == GAME_WON &&
+          resultFloor == floor);
+}
 int TowerEtris(void) { return etris; }
 void TowerAddEtris(long long amount) {
   if (amount > 0)
@@ -505,6 +716,21 @@ static void StartGame(void) {
   case 4:
     SealsStart(currentFloor, FunctionalDifficulty(currentDifficulty));
     break;
+  case 5:
+    FinalBossStart(currentFloor, FunctionalDifficulty(currentDifficulty));
+    break;
+  case 6:
+    Boss4Start(currentFloor, FunctionalDifficulty(currentDifficulty));
+    break;
+  case 7:
+    Boss3Start(currentFloor, FunctionalDifficulty(currentDifficulty));
+    break;
+  case 8:
+    Boss2Start(currentFloor, FunctionalDifficulty(currentDifficulty));
+    break;
+  case 9:
+    Boss1Start(currentFloor, FunctionalDifficulty(currentDifficulty));
+    break;
   default:
     MirrorStart(currentFloor, FunctionalDifficulty(currentDifficulty));
   }
@@ -514,13 +740,10 @@ static void StartFloor(void) {
   ItemsClearRewards();
   PrepareFloor();
   int game = Game();
-  const char *itemGame = game == 0 ? "BULLET_HELL"
-                         : game == 1 ? "RING"
-                         : game == 2 ? "MIRROR"
-                         : game == 3 ? "SPIKES"
-                         : game == 4 ? "SEALS"
-                                     : NULL;
-  ItemsApplyForGame(itemGame);
+  const char *itemGame = ItemGameName(game);
+  ItemsPrepareForFloor(currentFloor, itemGame,
+                       BossIndex(currentFloor) >= 0);
+  ItemsApplyForGame(itemGame, BossIndex(currentFloor) >= 0);
   CharacterApplyForGame(playerCharacter);
   StopMusic();
   StartMusic();
@@ -544,6 +767,21 @@ static void UpdateFloorGame(Rectangle zone) {
     break;
   case 4:
     SealsUpdate(zone);
+    break;
+  case 5:
+    FinalBossUpdate(zone);
+    break;
+  case 6:
+    Boss4Update(zone);
+    break;
+  case 7:
+    Boss3Update(zone);
+    break;
+  case 8:
+    Boss2Update(zone);
+    break;
+  case 9:
+    Boss1Update(zone);
     break;
   default:
     MirrorUpdate(zone);
@@ -596,6 +834,61 @@ static TowerGameState FloorGameState(void) {
     default:
       return GAME_OFF;
     }
+  case 5:
+    switch (FinalBossState()) {
+    case FINALBOSS_PLAYING:
+      return GAME_PLAYING;
+    case FINALBOSS_WON:
+      return GAME_WON;
+    case FINALBOSS_LOST:
+      return GAME_LOST;
+    default:
+      return GAME_OFF;
+    }
+  case 6:
+    switch (Boss4State()) {
+    case BOSS4_PLAYING:
+      return GAME_PLAYING;
+    case BOSS4_WON:
+      return GAME_WON;
+    case BOSS4_LOST:
+      return GAME_LOST;
+    default:
+      return GAME_OFF;
+    }
+  case 7:
+    switch (Boss3State()) {
+    case BOSS3_PLAYING:
+      return GAME_PLAYING;
+    case BOSS3_WON:
+      return GAME_WON;
+    case BOSS3_LOST:
+      return GAME_LOST;
+    default:
+      return GAME_OFF;
+    }
+  case 8:
+    switch (Boss2State()) {
+    case BOSS2_PLAYING:
+      return GAME_PLAYING;
+    case BOSS2_WON:
+      return GAME_WON;
+    case BOSS2_LOST:
+      return GAME_LOST;
+    default:
+      return GAME_OFF;
+    }
+  case 9:
+    switch (Boss1State()) {
+    case BOSS1_PLAYING:
+      return GAME_PLAYING;
+    case BOSS1_WON:
+      return GAME_WON;
+    case BOSS1_LOST:
+      return GAME_LOST;
+    default:
+      return GAME_OFF;
+    }
   default:
     switch (MirrorState()) {
     case MIRROR_PLAYING:
@@ -620,6 +913,16 @@ static int FloorGameDamageCount(void) {
     return SpikesDamageCount();
   case 4:
     return SealsDamageCount();
+  case 5:
+    return FinalBossDamageCount();
+  case 6:
+    return Boss4DamageCount();
+  case 7:
+    return Boss3DamageCount();
+  case 8:
+    return Boss2DamageCount();
+  case 9:
+    return Boss1DamageCount();
   default:
     return MirrorDamageCount();
   }
@@ -703,6 +1006,11 @@ static int DrawResultMenu(TowerGameState state) {
 }
 
 static void ExitTower(void) {
+  if (resultState == GAME_WON && currentFloor <= 50) {
+    PrepareFloor();
+    ItemsPrepareForFloor(currentFloor, ItemGameName(Game()),
+                         BossIndex(currentFloor) >= 0);
+  }
   ItemsClearRewards();
   exitRequested = true;
   towerStarted = false;
@@ -779,26 +1087,71 @@ void Tower(void) {
                        FunctionalGet()->etrisMultiplier;
         TowerAddEtris((long long)etrisReward);
       }
-      if (after == GAME_WON && BossIndex(currentFloor) >= 0)
+      if (after == GAME_WON && BossIndex(currentFloor) >= 0) {
         AchievementsUnlock((AchievementId)(ACHIEVEMENT_FLOOR_10 +
                                            BossIndex(currentFloor)));
+        AchievementsRecordBossVictory(playerCharacter, currentFloor,
+                                      FloorGameDamageCount() == 0);
+      }
+      if (after == GAME_WON) {
+        switch (currentFloor) {
+        case 1:
+          AchievementsUnlock(ACHIEVEMENT_FIRST_VICTORY);
+          break;
+        case 5:
+          AchievementsUnlock(ACHIEVEMENT_FLOOR_5);
+          break;
+        case 15:
+          AchievementsUnlock(ACHIEVEMENT_FLOOR_15);
+          break;
+        case 20:
+          AchievementsUnlockTitle(TITLE_BOSS_HUNTER);
+          break;
+        case 25:
+          AchievementsUnlock(ACHIEVEMENT_FLOOR_25);
+          break;
+        case 30:
+          AchievementsUnlockTitle(TITLE_VENGEANCE);
+          break;
+        case 35:
+          AchievementsUnlock(ACHIEVEMENT_FLOOR_35);
+          break;
+        case 40:
+          AchievementsUnlockTitle(TITLE_ASHEN_CROWN);
+          break;
+        case 45:
+          AchievementsUnlock(ACHIEVEMENT_FLOOR_45);
+          break;
+        }
+      }
+      if (LevelsLevel() >= 10)
+        AchievementsUnlock(ACHIEVEMENT_LEVEL_10);
       if (after == GAME_WON && currentFloor == 10)
         AchievementsUnlockTitle(TITLE_FIRST_ASCENT);
       if (after == GAME_WON && currentFloor == 50)
         AchievementsUnlockTitle(TITLE_TOWER_CONQUEROR);
       if (after == GAME_WON && BossIndex(currentFloor) >= 0 &&
-          FloorGameDamageCount() == 0)
+          FloorGameDamageCount() == 0) {
+        AchievementsUnlock(ACHIEVEMENT_UNTOUCHED_BOSS);
         AchievementsUnlockTitle(TITLE_UNTOUCHED);
+      }
       if (after == GAME_WON && playerCharacter == 0) {
-        if (currentFloor == 5)
+        if (currentFloor == 5) {
           ItemsGrantQuestLetter();
+          AchievementsUnlock(ACHIEVEMENT_FOUND_LETTER);
+        }
         if (BossIndex(currentFloor) >= 0)
           ItemsGrantBossSeal(currentFloor);
       }
       LevelsShowReward(oldLevel, oldXP, gainedXP);
       gameRewarded = true;
-      if (after == GAME_WON && currentFloor < INT_MAX)
+      if (after == GAME_WON && currentFloor < INT_MAX) {
         currentFloor++;
+        bool nextIsBoss = BossIndex(currentFloor) >= 0;
+        ItemsPrepareForFloor(
+            currentFloor, nextIsBoss ? ItemGameName(Game()) : NULL,
+            nextIsBoss);
+      }
     }
   }
   LevelsDrawNotification();
@@ -851,7 +1204,12 @@ void ResetTower(void) {
   MirrorUnload();
   RingsUnload();
   SealsUnload();
+  Boss1Unload();
+  Boss2Unload();
+  Boss3Unload();
   SpikesUnload();
+  FinalBossUnload();
+  Boss4Unload();
   UnloadGameZone();
 }
 

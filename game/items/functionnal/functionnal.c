@@ -7,6 +7,7 @@ void FunctionalReset(void) {
   settings = (FunctionalSettings){
       .playerSpeed = 1, .hitbox = 1, .bulletSpeed = 1,
       .bulletSize = 1, .bulletSpawn = 1, .nearbyBulletSpeed = 1,
+      .spikesBallSpeed = 1,
       .ringSpeed = 1, .ringGap = 1, .mirrorRightSpeed = 1,
       .sealCharge = 1, .sealSpawn = 1, .sealChargeDecay = 1,
       .sealDashCooldown = 1, .experienceMultiplier = 1,
@@ -98,10 +99,15 @@ void FunctionalAddEffect(int effect) {
     settings.shield = shieldReady = true;
     settings.lastStand = lastStandReady = true;
     settings.invincibility += 2;
+    settings.difficulty -= 2;
     break;
   case 64:
     settings.experienceMultiplier *= 2;
     settings.bonusLevelItems++;
+    settings.extraLives++;
+    settings.shield = shieldReady = true;
+    settings.hitbox *= 0.8f;
+    settings.difficulty--;
     break;
   case 65:
     settings.bulletSpeed *= 0.65f;
@@ -126,6 +132,123 @@ void FunctionalAddEffect(int effect) {
     settings.sealCharge *= 1.5f;
     settings.sealSpawn *= 1.3f;
     settings.sealWard = true;
+    settings.difficulty -= 2;
+    break;
+  case 69: settings.spikesBallSpeed *= 0.85f; break;
+  case 70: settings.invincibility += 0.75f; break;
+  case 71:
+    settings.extraLives += 3;
+    settings.shield = shieldReady = true;
+    settings.lastStand = lastStandReady = true;
+    settings.invincibility += 2;
+    settings.spikesBallSpeed *= 0.5f;
+    settings.bulletSize *= 0.7f;
+    break;
+  case 72:
+    settings.extraLives++;
+    settings.shield = shieldReady = true;
+    settings.hitbox *= 0.75f;
+    settings.sealCharge *= 1.3f;
+    settings.sealDashCooldown *= 0.6f;
+    settings.difficulty -= 2;
+    break;
+  case 73:
+    settings.extraLives++;
+    settings.playerSpeed *= 1.12f;
+    settings.hitbox *= 0.9f;
+    break;
+  case 74:
+    settings.extraLives += 2;
+    settings.shield = shieldReady = true;
+    settings.hitbox *= 0.7f;
+    settings.boss4ShardHeal = 1;
+    settings.difficulty -= 2;
+    break;
+  case 75:
+    settings.extraLives += 2;
+    settings.shield = shieldReady = true;
+    settings.hitbox *= 0.75f;
+    settings.invincibility += 1.5f;
+    break;
+  case 76:
+    settings.extraLives += 2;
+    settings.shield = shieldReady = true;
+    settings.playerSpeed *= 1.15f;
+    settings.hitbox *= 0.75f;
+    settings.invincibility += 1;
+    break;
+  case 77:
+    settings.extraLives += 2;
+    settings.shield = shieldReady = true;
+    settings.lastStand = lastStandReady = true;
+    settings.hitbox *= 0.65f;
+    settings.invincibility += 1.5f;
+    break;
+  case 78:
+    settings.extraLives += 2;
+    settings.shield = shieldReady = true;
+    settings.lastStand = lastStandReady = true;
+    settings.playerSpeed *= 1.1f;
+    settings.hitbox *= 0.8f;
+    break;
+  case 79:
+    settings.extraLives++;
+    settings.shield = shieldReady = true;
+    settings.playerSpeed *= 1.15f;
+    settings.hitbox *= 0.75f;
+    settings.invincibility += 1;
+    break;
+  case 80:
+    settings.extraLives += 2;
+    settings.shield = shieldReady = true;
+    settings.sealWard = true;
+    settings.sealWarning += 0.6f;
+    settings.sealSpawn *= 1.3f;
+    settings.difficulty -= 2;
+    break;
+  case 81:
+    settings.extraLives += 2;
+    settings.shield = shieldReady = true;
+    settings.hitbox *= 0.7f;
+    settings.invincibility += 1.5f;
+    settings.sealWarning += 0.8f;
+    settings.sealSpawn *= 1.3f;
+    settings.sealDashCooldown *= 0.8f;
+    settings.sealWard = true;
+    settings.difficulty -= 2;
+    break;
+  case 82:
+    settings.extraLives += 2;
+    settings.shield = shieldReady = true;
+    settings.lastStand = lastStandReady = true;
+    settings.hitbox *= 0.65f;
+    settings.invincibility += 1.25f;
+    settings.sealDashCooldown *= 0.7f;
+    settings.sealSpawn *= 1.2f;
+    settings.sealWard = true;
+    settings.difficulty -= 2;
+    break;
+  case 83:
+    settings.extraLives += 2;
+    settings.shield = shieldReady = true;
+    settings.hitbox *= 0.7f;
+    settings.invincibility += 1.5f;
+    settings.sealWarning += 0.8f;
+    settings.sealSpawn *= 1.3f;
+    settings.sealDashCooldown *= 0.8f;
+    settings.sealWard = true;
+    settings.difficulty -= 2;
+    break;
+  case 84:
+    settings.extraLives += 2;
+    settings.shield = shieldReady = true;
+    settings.lastStand = lastStandReady = true;
+    settings.hitbox *= 0.65f;
+    settings.invincibility += 1.25f;
+    settings.sealDashCooldown *= 0.7f;
+    settings.sealSpawn *= 1.2f;
+    settings.sealWard = true;
+    settings.difficulty -= 2;
     break;
   }
 }
@@ -162,20 +285,19 @@ bool FunctionalBlockDamageAtLives(int lives) {
 
 void FunctionalApplyCharacter(int character) {
   switch (character) {
-  case 0: settings.invincibility += 0.5f; break;
-  case 2: settings.playerSpeed *= 1.2f; break;
-  case 3: settings.lastStand = lastStandReady = true; break;
-  case 4: settings.mirrorRightSpeed *= 0.8f; break;
-  case 5: settings.sealCharge *= 1.2f; break;
+  case 2: settings.experienceMultiplier *= 1.15f; break;
+  case 3: settings.etrisMultiplier *= 1.1f; break;
+  case 4: settings.bonusLevelItems++; break;
+  case 5: settings.etrisMultiplier *= 1.15f; break;
   }
 }
 
 void FunctionalApplyCharacterTitle(int character) {
   switch (character) {
-  case 2: settings.shield = shieldReady = true; break;
-  case 3: settings.extraLives++; break;
-  case 4: settings.duration += 2; break;
-  case 5: settings.sealWarning += 0.3f; break;
+  case 2: settings.experienceMultiplier *= 1.1f; break;
+  case 3: settings.etrisMultiplier *= 1.1f; break;
+  case 4: settings.bonusLevelItems++; break;
+  case 5: settings.experienceMultiplier *= 1.15f; break;
   }
 }
 
@@ -183,8 +305,16 @@ void FunctionalApplyPlayerTitle(int title) {
   switch (title) {
   case 0: settings.etrisMultiplier *= 1.25f; break;
   case 1: settings.experienceMultiplier *= 1.2f; break;
-  case 2: settings.sealWarning += 0.2f; break;
-  case 3: settings.extraLives++; break;
-  case 4: settings.shield = shieldReady = true; break;
+  case 2: settings.experienceMultiplier *= 1.1f; break;
+  case 3: settings.bonusLevelItems++; break;
+  case 4: settings.etrisMultiplier *= 1.1f; break;
+  case 5: settings.etrisMultiplier *= 1.15f; break;
+  case 6: settings.experienceMultiplier *= 1.1f; break;
+  case 7: settings.experienceMultiplier *= 1.05f; break;
+  case 8: settings.bonusLevelItems++; break;
+  case 9: settings.etrisMultiplier *= 1.1f; break;
+  case 10: settings.etrisMultiplier *= 1.2f; break;
+  case 11: settings.experienceMultiplier *= 1.15f; break;
+  case 12: settings.bonusLevelItems++; break;
   }
 }

@@ -43,6 +43,7 @@ static bool startupMenuFadePending;
 static float startupMenuFadeOpacity;
 static bool returnToMainMenu;
 static bool characterSelectionPending;
+static bool titleSelectionPending;
 static char tutorialDialogues[TUTORIAL_DIALOGUE_COUNT][SIGRID_TEXT_LEN];
 static int tutorialCount, tutorialCharacter = -1;
 static char sigridDialogues[MAX_SIGRID_DIALOGUES][SIGRID_TEXT_LEN];
@@ -670,11 +671,27 @@ void LoadMenu(void) {
     BeginDrawing();
     ClearBackground(BLACK);
     UpdateAndDrawMenuBackground();
-    if (characterSelectionPending) {
+    if (titleSelectionPending) {
+      if (AchievementsDrawTitleSelection()) {
+        titleSelectionPending = false;
+        StartPlayingButton();
+      }
+    } else if (characterSelectionPending) {
       if (DrawCharacterSelection()) {
         if (SetTowerPlayerCharacter(CharacterSelectionPlayer())) {
-          characterSelectionPending = false;
-          StartPlayingButton();
+          int titleCount = AchievementsTitleCount();
+          if (titleCount > 1) {
+            characterSelectionPending = false;
+            titleSelectionPending = true;
+            AchievementsStartTitleSelection();
+          } else if (titleCount == 1 &&
+                     !AchievementsSetEquippedTitle(
+                         AchievementsUnlockedTitleAt(0))) {
+            CharacterSelectionSelectionFailed();
+          } else {
+            characterSelectionPending = false;
+            StartPlayingButton();
+          }
         } else {
           CharacterSelectionSelectionFailed();
         }
@@ -702,7 +719,8 @@ void LoadMenu(void) {
 
     bool updatePopupActive = LoadingScreenUpdatePopupActive();
     AchievementsDrawNotifications();
-    if (!characterSelectionPending && !achievementsOpen &&
+    if (!characterSelectionPending && !titleSelectionPending &&
+        !achievementsOpen &&
         !LoadingScreenActive() && !startupMenuFadePending)
       AchievementsDrawTitleNotification();
     if (LoadingScreenDraw())

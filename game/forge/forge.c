@@ -4,6 +4,7 @@
 #include "../ui_scale.h"
 #include "../buttons/button_sounds.h"
 #include "raylib.h"
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -26,6 +27,8 @@ static int knownOffset, effectOffset, selectedEffects[MAX_FORGE_EFFECTS];
 static int selectedEffectCount, selectedItems[MAX_FORGE_ITEMS], selectedItemCount;
 static int targetEffectCount, targetEffectPrice, requiredItems;
 static int itemSortMode, effectSortMode;
+static int forgeInventoryOffset;
+static float forgeInventoryWheelRemainder;
 static int forgeRewardSlot = -1;
 static char targetName[128], notice[160];
 static float animationTime;
@@ -94,15 +97,6 @@ static void DrawTextWrappedFit(const char *text, Rectangle box, float size,
   }
 }
 
-static int RarityRank(const char *rarity) {
-  if (strcmp(rarity, "UNIQUE") == 0) return 6;
-  if (strcmp(rarity, "MAUDIT") == 0) return 5;
-  if (strcmp(rarity, "LEGENDAIRE") == 0) return 4;
-  if (strcmp(rarity, "EPIQUE") == 0) return 3;
-  if (strcmp(rarity, "RARE") == 0) return 2;
-  return 1;
-}
-
 static void RarityCardColors(const char *rarity, Color *fill, Color *border) {
   if (strcmp(rarity, "COMMUN") == 0) {
     *fill = (Color){32, 42, 35, 255}; *border = (Color){110, 210, 120, 255};
@@ -113,9 +107,9 @@ static void RarityCardColors(const char *rarity, Color *fill, Color *border) {
   } else if (strcmp(rarity, "LEGENDAIRE") == 0) {
     *fill = (Color){66, 52, 28, 255}; *border = (Color){255, 205, 70, 255};
   } else if (strcmp(rarity, "MAUDIT") == 0) {
-    *fill = (Color){62, 31, 34, 255}; *border = (Color){255, 100, 100, 255};
+    *fill = (Color){48, 32, 55, 255}; *border = (Color){185, 105, 175, 255};
   } else if (strcmp(rarity, "UNIQUE") == 0) {
-    *fill = (Color){28, 54, 58, 255}; *border = (Color){90, 245, 240, 255};
+    *fill = (Color){62, 28, 34, 255}; *border = (Color){255, 65, 75, 255};
   } else {
     *fill = (Color){36, 37, 42, 255}; *border = (Color){145, 124, 84, 255};
   }
@@ -185,6 +179,7 @@ static void SelectTarget(const char *name) {
   snprintf(targetName, sizeof(targetName), "%s", name);
   selectedEffectCount = 0;
   effectOffset = 0;
+  notice[0] = '\0';
   page = FORGE_EFFECTS;
 }
 
@@ -348,13 +343,28 @@ static bool EffectSelected(int effect) {
 }
 
 static void ToggleEffect(int effect) {
+  if (!ItemsEffectCanBeForged(effect))
+    return;
   for (int i = 0; i < selectedEffectCount; i++)
     if (selectedEffects[i] == effect) {
       for (int j = i + 1; j < selectedEffectCount; j++)
         selectedEffects[j - 1] = selectedEffects[j];
       selectedEffectCount--;
+      notice[0] = '\0';
       return;
     }
+  bool selectedUnique = false;
+  for (int i = 0; i < selectedEffectCount; i++)
+    if (strcmp(ItemsEffectRarity(selectedEffects[i]), "UNIQUE") == 0)
+      selectedUnique = true;
+  bool choosingUnique =
+      strcmp(ItemsEffectRarity(effect), "UNIQUE") == 0;
+  if ((choosingUnique && selectedEffectCount > 0) || selectedUnique) {
+    snprintf(notice, sizeof(notice),
+             "Un effet UNIQUE doit etre forge seul.");
+    return;
+  }
+  notice[0] = '\0';
   if (selectedEffectCount < MAX_FORGE_EFFECTS)
     selectedEffects[selectedEffectCount++] = effect;
 }
@@ -363,17 +373,20 @@ static void DrawEffectChoice(Rectangle panel) {
   DrawPanel(panel, TextFormat("EFFETS POUR %s  |  %d / %d",
                               targetName, selectedEffectCount,
                               MAX_FORGE_EFFECTS));
-  int count = ItemsKnownEffectCount(), columns = 3, rows = 3;
+  int knownCount = ItemsKnownEffectCount(), count = 0, columns = 3, rows = 3;
   int sorted[128];
-  for (int i = 0; i < count; i++)
-    sorted[i] = ItemsKnownEffect(i);
+  for (int i = 0; i < knownCount; i++) {
+    int effect = ItemsKnownEffect(i);
+    if (ItemsEffectCanBeForged(effect))
+      sorted[count++] = effect;
+  }
   for (int i = 1; i < count; i++) {
     int current = sorted[i], j = i - 1;
     while (j >= 0) {
       int cmp = 0;
       if (effectSortMode == 0)
-        cmp = RarityRank(ItemsEffectRarity(current)) -
-              RarityRank(ItemsEffectRarity(sorted[j]));
+        cmp = ItemsRarityRank(ItemsEffectRarity(current)) -
+              ItemsRarityRank(ItemsEffectRarity(sorted[j]));
       else if (effectSortMode == 1)
         cmp = strcmp(ItemsEffectGame(current), ItemsEffectGame(sorted[j]));
       else
@@ -424,10 +437,17 @@ static void DrawEffectChoice(Rectangle panel) {
                             : strcmp(game, "RING") == 0 ? "RINGS"
                             : strcmp(game, "MIRROR") == 0 ? "MIRROR"
                             : strcmp(game, "SEALS") == 0 ? "SEALS"
+                            : strcmp(game, "FINALBOSS") == 0 ? "BOSS FINAL"
+                            : strcmp(game, "BOSS4") == 0 ? "DAME MARIKA"
+                            : strcmp(game, "BOSS3") == 0 ? "AGARES"
+                            : strcmp(game, "BOSS2") == 0 ? "SELENA"
+                            : strcmp(game, "BOSS1") == 0 ? "BEHEMOT"
                             : game;
-    TextFit(ItemsEffectRarity(effect),
+    const char *rarity = ItemsEffectRarity(effect);
+    TextFit(TextFormat("(%c)", rarity[0] ? rarity[0] : ' '),
             (Rectangle){card.x + 4, card.y + 6, card.width - 8,
-                        GameUiPixels(28)}, 16, RAYWHITE);
+                        GameUiPixels(28)}, 16,
+            ItemsRarityColor(ItemsEffectRarity(effect)));
     TextFit(gameLabel,
             (Rectangle){card.x + 4, card.y + GameUiPixels(34),
                         card.width - 8, GameUiPixels(30)}, 14,
@@ -458,6 +478,7 @@ static void DrawEffectChoice(Rectangle panel) {
     if (IsKeyPressed(KEY_UP) && effectOffset > 0)
       effectOffset -= columns;
   }
+  DrawNotice(panel);
   if (Button((Rectangle){panel.x + panel.width * 0.12f,
                          panel.y + panel.height - GameUiPixels(64),
                          panel.width * 0.32f, GameUiPixels(42)},
@@ -472,6 +493,21 @@ static void DrawEffectChoice(Rectangle panel) {
 
 static int ForgePrice(void) { return targetEffectPrice; }
 
+static void DrawForgeScrollArrow(Rectangle grid, bool up) {
+  float scale = Scale();
+  Vector2 center = {grid.x + grid.width / 2,
+                    up ? grid.y + 8 * scale
+                       : grid.y + grid.height - 8 * scale};
+  Rectangle background = {center.x - 12 * scale, center.y - 8 * scale,
+                          24 * scale, 16 * scale};
+  DrawRectangleRounded(background, 0.3f, 4, (Color){12, 16, 20, 220});
+  Vector2 tip = {center.x, center.y + (up ? -5 : 5) * scale};
+  Vector2 left = {center.x - 6 * scale, center.y + (up ? 3 : -3) * scale};
+  Vector2 right = {center.x + 6 * scale, center.y + (up ? 3 : -3) * scale};
+  DrawTriangle(tip, left, right, (Color){245, 220, 130, 255});
+  DrawTriangleLines(tip, left, right, (Color){12, 16, 20, 255});
+}
+
 static int DrawForgeInventory(Rectangle panel) {
   float gap = GameUiPixels(8);
   float leftWidth = panel.width * 0.48f;
@@ -482,12 +518,36 @@ static int DrawForgeInventory(Rectangle panel) {
     size = GameUiPixels(58);
   float x = panel.x + GameUiPixels(24);
   float y = panel.y + GameUiPixels(106);
+  int highestSlot = ItemsHighestOccupiedSlot();
+  int extraSlots = highestSlot - 29;
+  int rowsPastView =
+      extraSlots > 0 ? extraSlots / 5 + (extraSlots % 5 != 0) : 0;
+  int maxOffset = rowsPastView > (INT_MAX - 29) / 5
+                      ? ((INT_MAX - 29) / 5) * 5
+                      : rowsPastView * 5;
+  if (forgeInventoryOffset > maxOffset)
+    forgeInventoryOffset = maxOffset;
+  Rectangle grid = {x, y, 5 * size + 4 * gap, 6 * size + 5 * gap};
+  if (CheckCollisionPointRec(GetMousePosition(), grid)) {
+    forgeInventoryWheelRemainder += GetMouseWheelMove();
+    int wheelSteps = (int)forgeInventoryWheelRemainder;
+    if (wheelSteps != 0) {
+      forgeInventoryWheelRemainder -= wheelSteps;
+      forgeInventoryOffset -= wheelSteps * 5;
+      if (forgeInventoryOffset < 0)
+        forgeInventoryOffset = 0;
+      if (forgeInventoryOffset > maxOffset)
+        forgeInventoryOffset = maxOffset;
+    }
+  }
   int hoverSlot = -1;
   for (int i = 0; i < 30; i++) {
+    int itemSlot = forgeInventoryOffset + i;
     Rectangle slot = {x + (i % 5) * (size + gap),
                       y + (i / 5) * (size + gap), size, size};
-    bool occupied = ItemsItemName(i)[0] != '\0';
-    bool selected = HasSelectedItem(i);
+    bool occupied = itemSlot <= highestSlot &&
+                    ItemsItemName(itemSlot)[0] != '\0';
+    bool selected = HasSelectedItem(itemSlot);
     DrawRectangleRounded(slot, 0.08f, 4,
                          selected ? (Color){79, 63, 37, 255}
                                   : (Color){31, 37, 41, 255});
@@ -495,19 +555,24 @@ static int DrawForgeInventory(Rectangle panel) {
                                 selected ? (Color){255, 218, 120, 255}
                                          : (Color){110, 117, 118, 255});
     if (occupied)
-      ItemsDrawPreview(i, slot);
+      ItemsDrawPreview(itemSlot, slot);
     if (occupied && selected) {
       DrawRectangleRounded(slot, 0.08f, 4,
                            (Color){255, 218, 120, 70});
     }
     if (occupied && CheckCollisionPointRec(GetMousePosition(), slot))
-      hoverSlot = i;
+      hoverSlot = itemSlot;
   }
+  if (forgeInventoryOffset > 0)
+    DrawForgeScrollArrow(grid, true);
+  if (highestSlot > forgeInventoryOffset + 29)
+    DrawForgeScrollArrow(grid, false);
   if (hoverSlot >= 0) {
     TextFit(ItemsItemName(hoverSlot),
             (Rectangle){x, y + 6 * (size + gap), panel.width * 0.46f,
                         GameUiPixels(28)},
-            14, (Color){239, 216, 159, 255});
+            14, ItemsRarityColor(
+                    ItemsItemRarestEffectRarity(hoverSlot)));
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
       ToggleSacrifice(hoverSlot);
   }
@@ -572,14 +637,16 @@ static void CommitForge(void) {
     return;
   if (!TowerSpendEtris(ForgePrice()))
     return;
-  if (!ItemsForgeComplete(targetName, selectedEffects, targetEffectCount,
-                          selectedItems, selectedItemCount)) {
+  int createdSlot = ItemsForgeComplete(targetName, selectedEffects,
+                                       targetEffectCount, selectedItems,
+                                       selectedItemCount);
+  if (createdSlot < 0) {
     TowerAddEtris(ForgePrice());
     TraceLog(LOG_ERROR, "La forge n'a pas pu creer l'artefact");
     snprintf(notice, sizeof(notice), "La forge a echoue, Etris restaures.");
     return;
   }
-  forgeRewardSlot = ItemsRewardSlot();
+  forgeRewardSlot = createdSlot;
   animationTime = 0;
   page = FORGE_ANIMATION;
 }
@@ -663,8 +730,10 @@ static void DrawForgeAnimation(Rectangle panel) {
   bool revealed = u >= 0;
   DrawPanel(panel, revealed ? "ARTEFACT FORGE" : "LA FORGE S'ANIME");
 
-  Color gold = {255, 196, 90, 255};
-  Color fire = {255, 120, 40, 255};
+  Color rarityColor =
+      ItemsRarityColor(ItemsItemRarestEffectRarity(forgeRewardSlot));
+  Color gold = rarityColor;
+  Color fire = rarityColor;
   float radius = fminf(panel.width, panel.height) * 0.21f;
   Vector2 center = {panel.x + panel.width / 2, panel.y + panel.height * 0.5f};
 
@@ -702,7 +771,7 @@ static void DrawForgeAnimation(Rectangle panel) {
     ForgeDrawRuneRing(center, radius * 1.55f * pulse, 36, spin * 0.5f,
                       ringAlpha, s, gold);
     ForgeDrawRuneRing(center, radius * 1.15f * pulse, 24, -spin * 0.8f,
-                      ringAlpha, s, (Color){255, 225, 150, 255});
+                      ringAlpha, s, rarityColor);
     ForgeDrawHexagram(center, radius * 1.05f * pulse, spin, ringAlpha * 0.9f, s,
                       gold);
     ForgeDrawHexagram(center, radius * 0.7f * pulse, -spin * 1.4f,
@@ -795,7 +864,7 @@ static void DrawForgeAnimation(Rectangle panel) {
     TextFit(targetName,
             (Rectangle){center.x - radius * 1.6f, center.y + radius * 1.1f,
                         radius * 3.2f, GameUiPixels(40)},
-            26, Fade((Color){245, 220, 130, 255}, ForgeClamp01((u - 0.5f) / 0.5f)));
+            26, Fade(rarityColor, ForgeClamp01((u - 0.5f) / 0.5f)));
 
   /* fin / passage */
   if (t < FANIM_DONE) {
@@ -823,6 +892,8 @@ static void DrawForgeAnimation(Rectangle panel) {
 void ForgeClose(void) {
   active = false;
   selectedEffectCount = selectedItemCount = 0;
+  forgeInventoryOffset = 0;
+  forgeInventoryWheelRemainder = 0;
   targetName[0] = notice[0] = '\0';
   forgeRewardSlot = -1;
 }
@@ -832,6 +903,8 @@ void ForgeOpen(void) {
   active = true;
   page = FORGE_FEE;
   knownOffset = effectOffset = 0;
+  forgeInventoryOffset = 0;
+  forgeInventoryWheelRemainder = 0;
   selectedEffectCount = selectedItemCount = 0;
   itemSortMode = effectSortMode = 0;
   targetName[0] = '\0';

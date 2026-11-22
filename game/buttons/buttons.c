@@ -140,7 +140,9 @@ static void PrepareDestinyEnding(void) {
   if (!DeleteTowerProgressFile())
     return;
   AchievementsUnlock(ACHIEVEMENT_COMPLETE_GAME);
+  AchievementsUnlock(ACHIEVEMENT_CHANGED_FATE);
   AchievementsUnlockTitle(TITLE_CHANGED_FATE);
+  AchievementsRecordEnding(TowerPlayerCharacter());
   ResetTowerProgress();
   destinyReflectionRequested = true;
 }
@@ -179,7 +181,7 @@ static void StartTraining(void) {
                          : trainingGame == 2 ? "MIRROR"
                          : trainingGame == 3 ? "SEALS"
                                              : "SPIKES";
-  ItemsApplyForGame(gameName);
+  ItemsApplyForGame(gameName, false);
   CharacterApplyForGame(TowerPlayerCharacter());
   int difficulty = FunctionalDifficulty(trainingDifficulty);
   switch (trainingGame) {
@@ -638,6 +640,7 @@ bool GameFinishMelinaEnding(void) {
   AchievementsUnlock(ACHIEVEMENT_COMPLETE_GAME);
   AchievementsUnlock(ACHIEVEMENT_MELINA_ENDING);
   AchievementsUnlockTitle(TITLE_FOUND_TRUTH);
+  AchievementsRecordEnding(TowerPlayerCharacter());
   ResetTowerProgress();
   ReturnToMenu();
   return true;

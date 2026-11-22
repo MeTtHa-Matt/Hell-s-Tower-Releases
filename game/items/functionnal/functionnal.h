@@ -7,8 +7,10 @@ typedef struct {
   int difficulty, extraLives;
   float duration, playerSpeed, hitbox, bulletSpeed, bulletSize;
   float bulletSpawn, nearbyBulletSpeed, invincibility, regeneration;
+  float spikesBallSpeed;
   float ringSpeed, ringGap, mirrorRightSpeed;
   float sealWarning, sealCharge, sealSpawn, sealChargeDecay, sealDashCooldown;
+  int boss4ShardHeal;
   float experienceMultiplier, etrisMultiplier, clearBulletsAt;
   float ringDashCooldown, mirrorInvincibleDuration, mirrorRepelRange;
   int bonusLevelItems, ringSkipInterval;
