@@ -64,6 +64,13 @@ if(BUILD_TESTING)
     game/items/functionnal/functionnal.c
   )
   add_test(NAME game_balance_test COMMAND game_balance_test)
+  add_executable(game_zone_modifiers_test
+    tests/game_zone_modifiers_test.c
+    game/game_zone/modifiers.c
+    game/game_zone/balance.c
+  )
+  target_link_libraries(game_zone_modifiers_test PRIVATE ${RAYLIB_TARGET})
+  add_test(NAME game_zone_modifiers_test COMMAND game_zone_modifiers_test)
 endif()
 if(NOT CMAKE_C_FLAGS MATCHES "(^| )-DAPP_VERSION")
   target_compile_definitions(hells_tower PRIVATE APP_VERSION="${APP_VERSION}")

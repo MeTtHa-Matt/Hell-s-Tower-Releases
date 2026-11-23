@@ -6,6 +6,9 @@
 #include <string.h>
 
 static char activeModifierText[192];
+static unsigned int activeModifierMask;
+static unsigned int pendingModifierMask;
+static bool activeModifiersInitialized, hasPendingModifiers;
 
 int GameZonePickModifiers(int difficulty, int optionCount, bool *selected,
                           const char *const *names) {
@@ -17,22 +20,37 @@ int GameZonePickModifiers(int difficulty, int optionCount, bool *selected,
   }
 
   int order[MINIGAME_MODIFIER_OPTIONS];
+  unsigned int validMask = (1u << optionCount) - 1u;
+  activeModifierMask = 0;
+  activeModifiersInitialized = true;
   for (int i = 0; i < optionCount; i++) {
     selected[i] = false;
     order[i] = i;
   }
 
-  int count = BalanceMiniGameModifierCount(
-      difficulty, GetRandomValue(0, 99), GetRandomValue(0, 99));
-  if (count > optionCount)
-    count = optionCount;
+  int count = 0;
+  if (hasPendingModifiers) {
+    activeModifierMask = pendingModifierMask & validMask;
+    pendingModifierMask = 0;
+    hasPendingModifiers = false;
+    for (int i = 0; i < optionCount; i++) {
+      selected[i] = (activeModifierMask & (1u << i)) != 0;
+      count += selected[i];
+    }
+  } else {
+    count = BalanceMiniGameModifierCount(
+        difficulty, GetRandomValue(0, 99), GetRandomValue(0, 99));
+    if (count > optionCount)
+      count = optionCount;
 
-  for (int i = 0; i < count; i++) {
-    int choice = GetRandomValue(i, optionCount - 1);
-    int swap = order[i];
-    order[i] = order[choice];
-    order[choice] = swap;
-    selected[order[i]] = true;
+    for (int i = 0; i < count; i++) {
+      int choice = GetRandomValue(i, optionCount - 1);
+      int swap = order[i];
+      order[i] = order[choice];
+      order[choice] = swap;
+      selected[order[i]] = true;
+      activeModifierMask |= 1u << order[i];
+    }
   }
 
   if (count > 0) {
@@ -55,6 +73,30 @@ int GameZonePickModifiers(int difficulty, int optionCount, bool *selected,
     }
   }
   return count;
+}
+
+void GameZoneClearActiveModifiers(void) {
+  activeModifierText[0] = '\0';
+  activeModifierMask = 0;
+  activeModifiersInitialized = false;
+}
+
+void GameZoneDiscardPendingModifiers(void) {
+  pendingModifierMask = 0;
+  hasPendingModifiers = false;
+}
+
+bool GameZoneActiveModifiersInitialized(void) {
+  return activeModifiersInitialized;
+}
+
+unsigned int GameZoneActiveModifierMask(void) {
+  return activeModifierMask;
+}
+
+void GameZoneRestoreModifiers(unsigned int mask) {
+  pendingModifierMask = mask & ((1u << MINIGAME_MODIFIER_OPTIONS) - 1u);
+  hasPendingModifiers = true;
 }
 
 void GameZoneDrawActiveModifiers(Rectangle area, int yOffset) {

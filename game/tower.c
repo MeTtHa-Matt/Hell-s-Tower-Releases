@@ -46,6 +46,8 @@ static int preparedFloor;
 static unsigned long long sigridSeen;
 static char opponentPath[512], floorMusicPath[512];
 static char *savedText;
+static unsigned int savedModifierMask;
+static bool hasSavedModifiers;
 static Music floorMusic;
 static bool floorMusicPausedForLoading;
 static float gameTime;
@@ -310,10 +312,11 @@ static char *FormatSave(void) {
     TraceLog(LOG_ERROR, "Impossible d'allouer la sauvegarde de la tour");
     return NULL;
   }
-  int written = snprintf(out, size, "%d %d %d %d %d %llu 6 %d %d\n",
+  int written = snprintf(out, size, "%d %d %d %d %d %llu 7 %d %d %u %d\n",
                          currentFloor, tutorialSeen, currentDifficulty,
                          LevelsLevel(), LevelsXP(), sigridSeen,
-                         playerCharacter, etris);
+                         playerCharacter, etris,
+                         savedModifierMask, hasSavedModifiers);
   if (written < 0 || (size_t)written >= size)
     goto save_failed;
   size_t used = (size_t)written;
@@ -403,6 +406,8 @@ static void PrepareFloor(void) {
 bool LoadTowerProgress(void) {
   int floor = 0, seen = 0, diff = 0, level = 0, xp = 0, oldSigrid = 0, version = 0;
   int savedCharacter = 0, savedEtris = 0;
+  int savedHasModifiers = 0;
+  unsigned int savedModifiers = 0;
   unsigned long long savedSigrid = 0;
   int fields = 0;
   char header[96] = "", opp[512] = "", mus[512] = "", game[32] = "";
@@ -411,6 +416,9 @@ bool LoadTowerProgress(void) {
   bool complete = false;
   free(savedText);
   savedText = NULL;
+  savedModifierMask = 0;
+  hasSavedModifiers = false;
+  GameZoneDiscardPendingModifiers();
   etris = 0;
   preparedFloor = 0;
 
@@ -433,9 +441,10 @@ bool LoadTowerProgress(void) {
   if (saveData) {
     char *cursor = saveData;
     if (ReadSaveLine(&cursor, header, sizeof(header)))
-      fields = sscanf(header, "%d %d %d %d %d %llu %d %d %d", &floor, &seen,
-                      &diff, &level, &xp, &savedSigrid, &version,
-                      &savedCharacter, &savedEtris);
+      fields = sscanf(header, "%d %d %d %d %d %llu %d %d %d %u %d", &floor,
+                      &seen, &diff, &level, &xp, &savedSigrid, &version,
+                      &savedCharacter, &savedEtris, &savedModifiers,
+                      &savedHasModifiers);
     complete = ReadSaveLine(&cursor, opp, sizeof(opp)) &&
                ReadSaveLine(&cursor, mus, sizeof(mus)) &&
                ReadSaveLine(&cursor, game, sizeof(game));
@@ -451,7 +460,7 @@ bool LoadTowerProgress(void) {
   bool known = fields >= 2 && floor > 0 && (seen == 0 || seen == 1);
   bool characterValid =
       version == 3 ? fields >= 8 && (savedCharacter == 1 || savedCharacter == 2)
-      : version == 4 || version == 5 || version == 6
+      : version == 4 || version == 5 || version == 6 || version == 7
           ? fields >= 8 && savedCharacter >= 0 && savedCharacter <= 5
                      : true;
   if (fields == 6)
@@ -459,7 +468,7 @@ bool LoadTowerProgress(void) {
   LevelsLoad(fields >= 5 ? level : 0, fields >= 5 ? xp : 0);
   playerCharacter = characterValid &&
                             (version == 3 || version == 4 || version == 5 ||
-                             version == 6)
+                             version == 6 || version == 7)
                         ? savedCharacter
                         : 1;
   currentFloor = known ? floor : 1;
@@ -469,7 +478,7 @@ bool LoadTowerProgress(void) {
   sigridSeen =
       fields >= 7 &&
               (version == 2 || version == 3 || version == 4 || version == 5 ||
-               version == 6)
+               version == 6 || version == 7)
                    ? savedSigrid
                : fields == 6 && oldSigrid > 0 && oldSigrid < 64
                    ? 1ULL << oldSigrid
@@ -485,14 +494,26 @@ bool LoadTowerProgress(void) {
       preparedFloor = 0;
       PrepareFloor();
       if (FileExists(opponentPath) && FileExists(floorMusicPath)) {
-        etris = version == 6 && fields >= 9 && savedEtris > 0 ? savedEtris : 0;
+        etris = (version == 6 || version == 7) && fields >= 9 && savedEtris > 0
+                    ? savedEtris
+                    : 0;
+        savedModifierMask =
+            version == 7 && fields >= 10 ? savedModifiers : 0;
+        hasSavedModifiers =
+            version == 7 && fields >= 11 && savedHasModifiers == 1;
         savedText = FormatSave();
       }
     } else {
       int gameIndex = GameIndex(game);
       if (gameIndex >= 0 && diff >= 1 && diff <= 10 &&
           FileExists(opp) && FileExists(mus)) {
-        etris = version == 6 && fields >= 9 && savedEtris > 0 ? savedEtris : 0;
+        etris = (version == 6 || version == 7) && fields >= 9 && savedEtris > 0
+                    ? savedEtris
+                    : 0;
+        savedModifierMask =
+            version == 7 && fields >= 10 ? savedModifiers : 0;
+        hasSavedModifiers =
+            version == 7 && fields >= 11 && savedHasModifiers == 1;
         currentDifficulty = diff;
         currentGame = gameIndex;
         preparedFloor = currentFloor;
@@ -505,6 +526,8 @@ bool LoadTowerProgress(void) {
   if (savedText)
     ItemsPrepareForFloor(currentFloor, ItemGameName(Game()),
                          BossIndex(currentFloor) >= 0);
+  if (savedText && hasSavedModifiers)
+    GameZoneRestoreModifiers(savedModifierMask);
   etrisDisplay = (float)etris;
   return savedText != NULL;
 }
@@ -574,6 +597,10 @@ void ResetTowerProgress(void) {
   resultState = GAME_OFF;
   exitRequested = false;
   sigridSeen = 0;
+  savedModifierMask = 0;
+  hasSavedModifiers = false;
+  GameZoneDiscardPendingModifiers();
+  GameZoneClearActiveModifiers();
   opponentPath[0] = floorMusicPath[0] = '\0';
   free(savedText);
   savedText = NULL;
@@ -745,9 +772,12 @@ static void StartFloor(void) {
                        BossIndex(currentFloor) >= 0);
   ItemsApplyForGame(itemGame, BossIndex(currentFloor) >= 0);
   CharacterApplyForGame(playerCharacter);
+  GameZoneClearActiveModifiers();
   StopMusic();
   StartMusic();
   StartGame();
+  savedModifierMask = GameZoneActiveModifierMask();
+  hasSavedModifiers = GameZoneActiveModifiersInitialized();
 }
 
 static TowerGameState FloorGameState(void);
@@ -1006,16 +1036,25 @@ static int DrawResultMenu(TowerGameState state) {
 }
 
 static void ExitTower(void) {
-  if (resultState == GAME_WON && currentFloor <= 50) {
-    PrepareFloor();
-    ItemsPrepareForFloor(currentFloor, ItemGameName(Game()),
-                         BossIndex(currentFloor) >= 0);
+  bool retryingFloor = resultState == GAME_LOST;
+  if (resultState == GAME_WON) {
+    if (currentFloor <= 50) {
+      PrepareFloor();
+      ItemsPrepareForFloor(currentFloor, ItemGameName(Game()),
+                           BossIndex(currentFloor) >= 0);
+    }
+    GameZoneClearActiveModifiers();
+    savedModifierMask = 0;
+    hasSavedModifiers = false;
   }
+  if (retryingFloor)
+    GameZoneRestoreModifiers(GameZoneActiveModifierMask());
+  if (!SaveTowerProgress())
+    TraceLog(LOG_ERROR, "Impossible de sauvegarder la progression en quittant la tour");
   ItemsClearRewards();
   exitRequested = true;
   towerStarted = false;
   resultState = GAME_OFF;
-  opponentPath[0] = floorMusicPath[0] = '\0';
   StopMusic();
 }
 

@@ -8,6 +8,11 @@
 
 int GameZonePickModifiers(int difficulty, int optionCount, bool *selected,
                           const char *const *names);
+void GameZoneClearActiveModifiers(void);
+void GameZoneDiscardPendingModifiers(void);
+bool GameZoneActiveModifiersInitialized(void);
+unsigned int GameZoneActiveModifierMask(void);
+void GameZoneRestoreModifiers(unsigned int mask);
 void GameZoneDrawActiveModifiers(Rectangle area, int yOffset);
 
 #endif
