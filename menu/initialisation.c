@@ -921,6 +921,9 @@ void LoadBlackScreen(void) {
 }
 
 void Shutdown(void) {
+  int character = TowerPlayerCharacter();
+  if (character >= 0 && character <= 5 && TowerProgressNeedsSaving())
+    SaveTowerProgress();
   UnloadButtonSounds();
   UnloadHomeButtons();
   UnloadCharacterSelection();
